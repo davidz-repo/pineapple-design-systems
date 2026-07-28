@@ -29,8 +29,9 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "verify": "turbo run build lint test typecheck && node scripts/check-publish-contract.mjs",
+    "verify": "turbo run build lint test typecheck && node scripts/check-publish-contract.mjs && node scripts/check-token-drift.mjs",
     "check:publish": "node scripts/check-publish-contract.mjs",
+    "check:drift": "node scripts/check-token-drift.mjs",
     "changeset": "changeset",
     "release": "changeset publish"
   },
