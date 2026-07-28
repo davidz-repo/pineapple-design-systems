@@ -1,11 +1,21 @@
 {
   "name": "@pineappleui/eslint-config",
+  "type": "module",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "main": "./index.mjs",
   "exports": {
     ".": "./index.mjs"
+  },
+  "main": "./index.mjs",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "pineapple": {
+    "tasksNotApplicable": {
+      "build": "Ships index.mjs as-is: a private, workspace-only ESM config imported directly from source by each package's eslint.config.mjs. There is nothing to compile or bundle.",
+      "test": "No unit tests of its own. The factory is exercised end-to-end by every workspace that lints -- tokens, vitest-preset and this package all import it, and their lint task fails if it throws or returns an invalid config.",
+      "typecheck": "Plain ESM JavaScript, no TypeScript sources; the annotations are JSDoc only. `tsc --checkJs` does not pass today because the exported rule-config literals widen (fallbackSort.type widens to string), which needs the source annotated with @satisfies. Left declared rather than papered over with a script that checks nothing."
+    }
   },
   "peerDependencies": {
     "eslint": "^10.0.0"
@@ -14,5 +24,8 @@
     "@antfu/eslint-config": "^8.0.0",
     "@eslint-react/eslint-plugin": "^3.0.0",
     "eslint-plugin-react-refresh": "^0.5.2"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0"
   }
 }
