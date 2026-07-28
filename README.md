@@ -1,1 +1,66 @@
 # pineapple-design-systems
+
+Monorepo for **`@pineappleui`** — a presentational React design system, extracted from a
+private product monorepo and published to the public npm registry.
+
+Every package here is a shell: props in, callbacks out. No data fetching, no provider SDKs,
+no product vocabulary. See [`docs/plan.md`](docs/plan.md) for the rules that decide what
+belongs here and the port roadmap.
+
+## Layout
+
+```
+packages/
+  tsconfig/        @pineappleui/tsconfig       private   TS bases (base, react-library)
+  eslint-config/   @pineappleui/eslint-config  private   antfu wrapper + shared rule blocks
+  vitest-preset/   @pineappleui/vitest-preset  private   React + jsdom Vitest factory
+  tokens/          @pineappleui/tokens         PUBLIC    accent colors + theme types
+scripts/
+  check-publish-contract.mjs                             publish guard, run by `verify`
+```
+
+## Working on it
+
+```bash
+npm install
+npm run verify        # build + lint + test + typecheck, then the publish guard
+```
+
+**`turbo` is the only verification entry point.** Running a package's own `npm test` or
+`npm run typecheck` directly reads whatever is currently sitting in its dependencies'
+`dist/`, which may be stale — that is a false green. Every turbo task `dependsOn: ["^build"]`
+precisely so this cannot happen. Use `npm run verify` from the repo root, or
+`npx turbo run <task>`.
+
+Individual tasks: `npm run build`, `npm run lint`, `npm run test`, `npm run typecheck`.
+
+### Expected build output
+
+`tokens` builds with both `treeshake` and `sourcemap` on, which makes tsup emit a doubled
+`//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited from
+the upstream config, and it is **not** a bug to tune away.
+
+## Releasing
+
+Versioning and publishing run on [changesets](https://github.com/changesets/changesets).
+
+```bash
+npx changeset        # describe the change; commit the generated .changeset/*.md
+```
+
+Merging to `main` opens (or updates) a Version PR. Merging *that* publishes to the public
+npm registry. Publishable packages carry `publishConfig.access: "public"` and a `license` —
+npm defaults scoped packages to `restricted`, and a package with no license renders as
+"proprietary" to consumers' license scanners. `scripts/check-publish-contract.mjs` fails the
+build if either goes missing.
+
+## A note on `devEngines`
+
+The root manifest declares `devEngines.packageManager` rather than `packageManager`. Turbo
+refuses to resolve the workspace without one of the two, and accepts only a single-major
+range. `devEngines` is never read by corepack, and `onFail: "warn"` keeps a different npm
+major (CI's Node 22 ships npm 10) from hard-failing an install.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
