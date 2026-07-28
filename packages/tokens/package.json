@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/tokens",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Design tokens (accent colors, theme preference types) for @pineappleui.",
   "license": "MIT",
   "type": "module",
