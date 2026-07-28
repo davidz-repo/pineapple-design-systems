@@ -35,6 +35,13 @@ import path from 'node:path';
 const REQUIRED_SCRIPTS = ['build', 'lint', 'test', 'typecheck'];
 const DIST_PREFIX = 'dist/';
 
+// npm picks these up from the PACKAGE directory whatever `files` says — and only
+// from the package directory. A LICENSE at the repo root does not reach any
+// tarball, so an unlicensed package on npm renders as "proprietary" while the
+// repo looks correctly licensed from the outside.
+const LICENSE_FILE = 'LICENSE';
+const README_FILE = 'README.md';
+
 // Where a workspace declares a task it deliberately does not run, and why:
 //   "pineapple": { "tasksNotApplicable": { "test": "<reason>" } }
 const OPT_OUT_NAMESPACE = 'pineapple';
@@ -47,6 +54,9 @@ const MIN_REASON_LENGTH = 20;
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packagesDir = path.join(repoRoot, 'packages');
+
+// The canonical licence text every publishable package must ship verbatim.
+const rootLicense = readFileSync(path.join(repoRoot, LICENSE_FILE), 'utf8');
 
 /** @type {string[]} */
 const failures = [];
@@ -271,7 +281,7 @@ function checkPrivate(pkgName, manifest) {
   }
 }
 
-function checkTarball(pkgName) {
+function checkTarball(pkgName, relDir) {
   let entries;
   try {
     entries = listTarballEntries(pkgName);
@@ -284,25 +294,75 @@ function checkTarball(pkgName) {
     );
   }
 
-  if (entries.length === 0) {
+  // Assert the build output is PRESENT, not merely that the list is non-empty.
+  // `npm pack` always emits package.json, so "empty tarball" is unreachable: a
+  // package with no dist/ at all packs exactly one file and reads as fine. That
+  // is the one thing this check exists to catch, so it has to name dist/.
+  const distEntries = entries.filter(entry => entry.startsWith(DIST_PREFIX));
+  if (distEntries.length === 0) {
     fail(
       pkgName,
-      'the published tarball would be empty',
-      'run `npx turbo run build` before this check, and confirm `files` matches '
-      + 'the build output.',
+      `the published tarball would contain no ${DIST_PREFIX} files (would ship: `
+      + `${entries.join(', ')})`,
+      'run `npm run build` before this check. A published package with no build '
+      + 'output installs successfully and then fails at import — and because npm '
+      + 'always packs package.json, the tarball is never literally empty, so '
+      + 'nothing else notices.',
     );
-    return;
   }
 
   const strays = entries.filter(
-    entry => entry !== 'package.json' && !entry.startsWith(DIST_PREFIX),
+    entry => entry !== 'package.json'
+      && entry !== LICENSE_FILE
+      && entry !== README_FILE
+      && !entry.startsWith(DIST_PREFIX),
   );
   if (strays.length > 0) {
     fail(
       pkgName,
-      `the published tarball would contain non-dist file(s): ${strays.join(', ')}`,
-      'tighten `files` back to ["dist"]. Anything outside package.json and dist/ '
-      + 'ships source or local config to the public registry.',
+      `the published tarball would contain unexpected file(s): ${strays.join(', ')}`,
+      `tighten \`files\` back to ["dist"]. Anything outside package.json, ${LICENSE_FILE}, `
+      + `${README_FILE} and ${DIST_PREFIX} ships source or local config to the public registry.`,
+    );
+  }
+
+  for (const required of [LICENSE_FILE, README_FILE]) {
+    if (entries.includes(required)) continue;
+    fail(
+      pkgName,
+      `the published tarball would not contain ${required}`,
+      `add ${required} to ${relDir}/. npm only reads it from the package `
+      + 'directory, so the repo-root copy does not travel; without it the npm page '
+      + `renders ${required === LICENSE_FILE ? 'the package as "proprietary"' : 'as a bare file list'}.`,
+    );
+  }
+}
+
+/**
+ * The per-package LICENSE is a copy, and copies drift — relicense at the root
+ * and the published grant silently stays on the old terms. Cheap to assert, and
+ * the assertion is the only thing standing between "copied once" and "correct".
+ *
+ * @param {string} pkgName
+ * @param {string} relDir
+ */
+function checkLicenseMatchesRoot(pkgName, relDir) {
+  const packageLicensePath = path.join(repoRoot, relDir, LICENSE_FILE);
+  let packageLicense;
+  try {
+    packageLicense = readFileSync(packageLicensePath, 'utf8');
+  }
+  catch {
+    return; // Absence is reported against the tarball, above.
+  }
+
+  if (packageLicense !== rootLicense) {
+    fail(
+      pkgName,
+      `${relDir}/${LICENSE_FILE} differs from the repo-root ${LICENSE_FILE}`,
+      `copy the root ${LICENSE_FILE} over ${relDir}/${LICENSE_FILE}. Two licence texts `
+      + 'that disagree is worse than one: the published grant is whichever copy '
+      + 'happened to ship.',
     );
   }
 }
@@ -328,7 +388,8 @@ for (const relDir of packageDirs) {
   }
   else {
     checkPublishable(pkgName, relDir, manifest);
-    checkTarball(pkgName);
+    checkTarball(pkgName, relDir);
+    checkLicenseMatchesRoot(pkgName, relDir);
   }
 }
 
