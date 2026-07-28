@@ -1,0 +1,77 @@
+name: CI
+
+# One job, no `paths:` filters, on purpose.
+#
+# A `paths:` allowlist is a silent failure by construction: add a source tree
+# that no pattern matches and the job never runs, a job that never runs reports
+# no check, and the PR is green because nothing looked at it. One unfiltered
+# `turbo run` over the whole workspace means a new package is covered the day
+# it is added — no workflow edit, nothing to remember.
+#
+# The cost this buys back is small: turbo hashes its own inputs, so a docs-only
+# commit restores every task from cache in seconds.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new commit on a PR cancels that PR's in-flight run. Keyed on the PR number
+# so PRs never cancel each other; pushes to main fall back to the ref and are
+# never cancelled, so every commit that lands on main stays verified.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    env:
+      TURBO_CACHE_DIR: .turbo/cache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # `changeset status --since=origin/main` needs the full history to
+          # diff against the base branch.
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Persists turbo's local cache between runs. Turbo hashes its own inputs,
+      # so a stale restore is safe — any real change recomputes.
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('packages/**/src/**', 'packages/**/package.json', 'package-lock.json', 'turbo.json') }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No --filter: every workspace, every task. This is the line that makes a
+      # newly added package covered without touching this file. A new workspace
+      # must define all four scripts (check-publish-contract.mjs enforces that
+      # for publishable ones) — turbo silently skips a task a package omits.
+      - name: Build, lint, test, typecheck
+        run: npx turbo run build lint test typecheck
+
+      # After the build: the tarball assertion reads dist/.
+      - name: Check publish contract
+        run: node scripts/check-publish-contract.mjs
+
+      # A PR that changes a publishable package without a changeset ships no
+      # release. Only meaningful on a PR, where there is a base to diff against.
+      - name: Check for a changeset
+        if: github.event_name == 'pull_request'
+        run: npx changeset status --since=origin/main
