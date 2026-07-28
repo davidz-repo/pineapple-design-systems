@@ -1,0 +1,55 @@
+name: Release
+
+# No `paths:` filter. Every merge to main runs the changesets action; it is a
+# no-op when there is nothing to version or publish, and filtering here is how
+# a release silently stops happening.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          # Public npm, not GitHub Packages. setup-node writes an .npmrc whose
+          # auth line interpolates NODE_AUTH_TOKEN.
+          registry-url: https://registry.npmjs.org
+          scope: "@pineappleui"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # This --filter is fine: it scopes *what to build* before publishing, not
+      # what gets verified. Verification is ci.yml's unfiltered turbo run.
+      - name: Build publishable packages
+        run: npx turbo run build --filter=./packages/*
+
+      - name: Create Version PR or publish
+        uses: changesets/action@v1
+        with:
+          version: npx changeset version
+          publish: npx changeset publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # NODE_AUTH_TOKEN is the variable npm actually reads, via the .npmrc
+          # setup-node wrote. NPM_TOKEN is set as well because changesets/action
+          # writes its own .npmrc from that name.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
