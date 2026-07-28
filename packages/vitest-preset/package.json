@@ -12,6 +12,12 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
+  "pineapple": {
+    "tasksNotApplicable": {
+      "build": "Consumed as TypeScript source across the workspace (main points at src/index.ts); the consuming package's Vitest/Vite pipeline compiles it, so there is no build output of its own.",
+      "test": "Has no test files of its own, and a bare `vitest run` exits 1 with 'No test files found'. The preset is exercised end-to-end by @pineappleui/tokens, whose vitest.config.ts calls definePineappleVitest() and whose test task fails if this preset is broken."
+    }
+  },
   "peerDependencies": {
     "vitest": "^4.0.0"
   },
