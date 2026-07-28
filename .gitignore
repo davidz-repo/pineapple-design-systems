@@ -1,0 +1,14 @@
+# Node / build output.
+# No trailing slash on `node_modules` / `.turbo` so the symlinks git creates
+# inside worktrees are ignored too (a trailing-slash pattern matches
+# directories, not symlinks).
+node_modules
+dist/
+**/dist/
+
+# Turborepo local cache
+.turbo
+**/.turbo
+
+.DS_Store
+*.log
