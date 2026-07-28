@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@pineappleui/tsconfig/base.json",
+  "compilerOptions": {
+    // `base.json` ships `lib: ["ES2020"]` only. `setup.ts` touches
+    // `ResizeObserver`, `Storage` and `localStorage`, which are DOM globals —
+    // without the DOM libs here `tsc --noEmit` cannot resolve them.
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"]
+}
