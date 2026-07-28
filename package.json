@@ -2,7 +2,7 @@
   "name": "pineapple-design-systems",
   "private": true,
   "license": "MIT",
-  "description": "Monorepo for @pineappleui — a presentational React design system.",
+  "description": "Monorepo for @pineappleui \u2014 a presentational React design system.",
   "homepage": "https://github.com/davidz-repo/pineapple-design-systems#readme",
   "repository": {
     "type": "git",
@@ -13,6 +13,13 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.0.0",
+      "onFail": "warn"
+    }
   },
   "workspaces": [
     "packages/*"
