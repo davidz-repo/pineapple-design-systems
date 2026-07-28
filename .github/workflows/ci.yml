@@ -73,6 +73,15 @@ jobs:
       - name: Check publish contract
         run: node scripts/check-publish-contract.mjs
 
+      # Also after the build: the guard reads the vocabulary it enforces from the
+      # built tokens package, so it cannot disagree with the package it checks.
+      #
+      # Its own step rather than a line in the one above, so a failure names which
+      # invariant broke — a hard-coded list is a different problem with a different
+      # fix from a malformed manifest.
+      - name: Check for hard-coded token lists
+        run: node scripts/check-token-drift.mjs
+
       # A PR that changes a publishable package without a changeset ships no
       # release. Only meaningful on a PR, where there is a base to diff against.
       - name: Check for a changeset
