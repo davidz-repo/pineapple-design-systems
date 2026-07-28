@@ -16,7 +16,7 @@ packages/
   vitest-preset/   @pineappleui/vitest-preset  private   React + jsdom Vitest factory
   tokens/          @pineappleui/tokens         PUBLIC    accent colors + theme types
 scripts/
-  check-publish-contract.mjs                             publish guard, run by `verify`
+  check-publish-contract.mjs                             publish + task-coverage guard
 ```
 
 ## Working on it
@@ -33,6 +33,25 @@ precisely so this cannot happen. Use `npm run verify` from the repo root, or
 `npx turbo run <task>`.
 
 Individual tasks: `npm run build`, `npm run lint`, `npm run test`, `npm run typecheck`.
+
+### Every workspace accounts for all four tasks
+
+`turbo run <task>` skips a package that does not define the task **and still reports success**,
+so a missing script is not a failing check — it is no check at all, reported green. Each
+workspace therefore either defines `build`/`lint`/`test`/`typecheck`, or declares the omission
+and why in its own `package.json`:
+
+```jsonc
+"pineapple": {
+  "tasksNotApplicable": {
+    "build": "Ships index.mjs as-is; a workspace-only ESM config has nothing to compile."
+  }
+}
+```
+
+`check-publish-contract.mjs` fails on any workspace that does neither, private ones included,
+and prints the fix. Declare a real gap rather than adding a script that runs and checks
+nothing — see `docs/plan.md` §"Adding a workspace later".
 
 ### Expected build output
 

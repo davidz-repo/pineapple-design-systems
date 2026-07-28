@@ -9,6 +9,15 @@
 //   - A missing `build`/`lint`/`test`/`typecheck` script is not an error to
 //     `turbo run` — turbo skips packages that do not define the task and reports
 //     success. A package can therefore be entirely unverified and look green.
+//     This applies to PRIVATE packages just as much as publishable ones, so the
+//     task-coverage check below runs for every workspace: a tooling package that
+//     runs zero tasks is exactly as unverified as a published one. A workspace
+//     may omit a task only by DECLARING it, with a reason, in its own manifest:
+//
+//       "pineapple": { "tasksNotApplicable": { "build": "<why it cannot apply>" } }
+//
+//     An omission is then deliberate and visible in review. An undeclared one
+//     fails here, loudly, with the fix in the message.
 //   - A `files` field that drifts (or a stray top-level file) ships source into
 //     the tarball. Nothing in the build complains.
 //
@@ -26,11 +35,26 @@ import path from 'node:path';
 const REQUIRED_SCRIPTS = ['build', 'lint', 'test', 'typecheck'];
 const DIST_PREFIX = 'dist/';
 
+// Where a workspace declares a task it deliberately does not run, and why:
+//   "pineapple": { "tasksNotApplicable": { "test": "<reason>" } }
+const OPT_OUT_NAMESPACE = 'pineapple';
+const OPT_OUT_FIELD = 'tasksNotApplicable';
+const OPT_OUT_PATH = `${OPT_OUT_NAMESPACE}.${OPT_OUT_FIELD}`;
+
+// A reason has to actually say something. "n/a" is an undeclared omission
+// wearing a declaration's clothes.
+const MIN_REASON_LENGTH = 20;
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packagesDir = path.join(repoRoot, 'packages');
 
 /** @type {string[]} */
 const failures = [];
+
+// Tally of every workspace × task slot, so the pass line states coverage
+// instead of implying it. `defined` runs a script; `declared` is an
+// explicit, reasoned opt-out. There is no third category — that is the point.
+const taskSlots = { defined: 0, declared: 0 };
 
 /**
  * @param {string} pkgName
@@ -144,14 +168,86 @@ function checkPublishable(pkgName, relDir, manifest) {
     );
   }
 
-  const missingScripts = REQUIRED_SCRIPTS.filter(s => !manifest.scripts?.[s]);
-  if (missingScripts.length > 0) {
+}
+
+/**
+ * Every workspace must either define all four task scripts or declare, in its
+ * own manifest, which it omits and why. Runs for private packages too — see the
+ * header: an unexercised tooling package reports green exactly like an
+ * unexercised published one.
+ *
+ * @param {string} pkgName
+ * @param {string} relDir
+ * @param {object} manifest
+ */
+function checkTaskCoverage(pkgName, relDir, manifest) {
+  const declared = manifest[OPT_OUT_NAMESPACE]?.[OPT_OUT_FIELD];
+  const manifestPath = `${relDir}/package.json`;
+
+  if (declared !== undefined
+    && (typeof declared !== 'object' || declared === null || Array.isArray(declared))) {
     fail(
       pkgName,
-      `missing script(s): ${missingScripts.join(', ')}`,
-      '`turbo run <task>` silently skips a package that does not define the task, '
-      + 'so a missing script reports no check at all. Define all of: '
-      + `${REQUIRED_SCRIPTS.join(', ')}.`,
+      `${OPT_OUT_PATH} is ${JSON.stringify(declared)}, expected an object`,
+      `write it as \`"${OPT_OUT_NAMESPACE}": { "${OPT_OUT_FIELD}": `
+      + '{ "<task>": "<why it does not apply>" } }` in '
+      + `${manifestPath}.`,
+    );
+    return;
+  }
+
+  const optOuts = declared ?? {};
+
+  // A declaration that names a task nobody runs, or one the package *does*
+  // define, is stale config that reads as a deliberate decision.
+  for (const [task, reason] of Object.entries(optOuts)) {
+    if (!REQUIRED_SCRIPTS.includes(task)) {
+      fail(
+        pkgName,
+        `${OPT_OUT_PATH} declares "${task}", which is not one of the required tasks`,
+        `remove it, or fix the spelling. Required tasks are: ${REQUIRED_SCRIPTS.join(', ')}. `
+        + 'A declaration for a task that does not exist silences nothing and reads as if it does.',
+      );
+      continue;
+    }
+    if (manifest.scripts?.[task]) {
+      fail(
+        pkgName,
+        `${OPT_OUT_PATH} declares "${task}" not applicable, but a "${task}" script exists`,
+        `remove "${task}" from ${OPT_OUT_PATH} in ${manifestPath}. The script runs, so the `
+        + 'declaration is stale and misdescribes what is verified.',
+      );
+      continue;
+    }
+    if (typeof reason !== 'string' || reason.trim().length < MIN_REASON_LENGTH) {
+      fail(
+        pkgName,
+        `${OPT_OUT_PATH}.${task} is ${JSON.stringify(reason)}, which does not explain anything`,
+        `give a real reason (at least ${MIN_REASON_LENGTH} characters) in ${manifestPath} saying `
+        + `why "${task}" cannot apply here and where that surface is covered instead. The point of `
+        + 'the declaration is that the next reader can tell a deliberate gap from an oversight.',
+      );
+    }
+  }
+
+  for (const task of REQUIRED_SCRIPTS) {
+    if (manifest.scripts?.[task]) {
+      taskSlots.defined++;
+      continue;
+    }
+    if (Object.hasOwn(optOuts, task)) {
+      taskSlots.declared++;
+      continue;
+    }
+    fail(
+      pkgName,
+      `no "${task}" script, and no declared opt-out for it`,
+      `either add a "${task}" script to ${manifestPath}, or declare the omission: `
+      + `\`"${OPT_OUT_NAMESPACE}": { "${OPT_OUT_FIELD}": { "${task}": "<why it does not apply>" } }\`. `
+      + `\`turbo run ${task}\` silently skips a package that does not define the task and still `
+      + 'reports success — so an undeclared omission is not a failing check, it is no check at '
+      + 'all, reported green. Do not add a script that runs nothing just to satisfy this; a '
+      + 'declared opt-out is honest, a hollow script is not.',
     );
   }
 }
@@ -223,6 +319,10 @@ for (const relDir of packageDirs) {
   const manifest = readJson(manifestPath);
   const pkgName = manifest.name ?? relDir;
 
+  // Runs for every workspace, private or not: turbo skips an undefined task
+  // identically in both cases.
+  checkTaskCoverage(pkgName, relDir, manifest);
+
   if (manifest.private) {
     checkPrivate(pkgName, manifest);
   }
@@ -240,7 +340,10 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
+const totalSlots = packageDirs.length * REQUIRED_SCRIPTS.length;
 console.log(
   `check-publish-contract: ${packageDirs.length} workspace(s) OK `
-  + `(${packageDirs.join(', ')})`,
+  + `(${packageDirs.join(', ')})\n`
+  + `  task coverage: ${taskSlots.defined}/${totalSlots} slots run a script, `
+  + `${taskSlots.declared} declared not applicable, 0 undeclared.`,
 );

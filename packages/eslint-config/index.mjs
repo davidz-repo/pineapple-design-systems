@@ -131,7 +131,8 @@ export const NO_RESTRICTED_SYNTAX_BANS = [
  *   Overrides merged into the antfu factory options. Shallow-merged: pass
  *   `{ typescript: false }` to opt out of TS entirely, or a partial object
  *   to extend.
- * @returns {ReturnType<typeof antfu>}
+ * @returns {ReturnType<typeof antfu>} A composable flat-config array: the antfu
+ *   presets, then the Pineapple `sort-imports` and `no-restricted-syntax` block.
  */
 export default function pineappleConfig(options) {
   const merged = { ...DEFAULTS, ...(options ?? {}) };
