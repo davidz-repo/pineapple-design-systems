@@ -53,8 +53,8 @@ npm defaults **scoped** packages to `restricted`. A missing `access` does not fa
 CI, or `changeset version` — it fails at the first `npm publish`, hours later. A missing
 `license` renders as "proprietary" on the package page and trips consumers' license scanners.
 `scripts/check-publish-contract.mjs` enforces both, along with `files`, `exports`, the
-`dist/`-rooted entry points, `repository.directory`, all four scripts, and the actual tarball
-contents.
+`dist/`-rooted entry points, `repository.directory`, and the actual tarball contents. It also
+enforces task coverage for **every** workspace, publishable or private — see §8.
 
 Private packages carry no `publishConfig` and stay at version `0.0.0`.
 
@@ -152,9 +152,32 @@ CI runs **one unfiltered job**. Adding `apps/*` (a Ladle gallery, a docs site) t
 needs **no CI change** — but it does require two things:
 
 1. add the glob to `workspaces` in the root `package.json`
-2. **define all four scripts** (`build`, `lint`, `test`, `typecheck`) in the new workspace
+2. **account for all four tasks** (`build`, `lint`, `test`, `typecheck`) in the new workspace
 
 The second one matters more than it looks: `turbo run <task>` *silently skips* a package that
 does not define the task and still reports success. A workspace missing `test` is not a
-failing test — it is no test at all, reported green. `check-publish-contract.mjs` enforces
-the four scripts for publishable packages; for a private app, it is on the reviewer.
+failing test — it is no test at all, reported green.
+
+Accounting for a task means one of exactly two things:
+
+- **define the script**, or
+- **declare the omission with a reason**, in the workspace's own `package.json`:
+
+  ```jsonc
+  "pineapple": {
+    "tasksNotApplicable": {
+      "build": "Ships index.mjs as-is; a workspace-only ESM config has nothing to compile."
+    }
+  }
+  ```
+
+`check-publish-contract.mjs` fails, with the fix in the message, on any workspace that does
+neither — **private packages included**. That last word is the point: this guard used to check
+scripts only for publishable packages and leave private ones "to the reviewer", and the result
+was that `@pineappleui/eslint-config` and `@pineappleui/tsconfig` ran *zero* tasks each while
+the guard printed `4 workspace(s) OK`. A reviewer cannot catch an absence; only a check can.
+
+What a declaration must not be is a way to dodge work. Do not add a script that runs and
+verifies nothing just to fill a slot — a hollow task is worse than a declared gap, because it
+reports green. A declaration is auditable: the guard rejects one that is empty, that names a
+task the package actually defines, or that names a task that does not exist.

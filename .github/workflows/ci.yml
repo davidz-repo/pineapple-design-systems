@@ -60,9 +60,12 @@ jobs:
         run: npm ci
 
       # No --filter: every workspace, every task. This is the line that makes a
-      # newly added package covered without touching this file. A new workspace
-      # must define all four scripts (check-publish-contract.mjs enforces that
-      # for publishable ones) — turbo silently skips a task a package omits.
+      # newly added package covered without touching this file.
+      #
+      # Turbo silently skips a task a package omits, so this step alone cannot
+      # tell "all green" from "nothing ran". The publish-contract step below is
+      # what closes that: every workspace — private ones too — must define all
+      # four scripts or declare each omission with a reason in its manifest.
       - name: Build, lint, test, typecheck
         run: npx turbo run build lint test typecheck
 

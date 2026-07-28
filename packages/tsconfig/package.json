@@ -2,5 +2,19 @@
   "name": "@pineappleui/tsconfig",
   "version": "0.0.0",
   "private": true,
-  "files": ["base.json", "react-library.json"]
+  "files": ["base.json", "react-library.json"],
+  "scripts": {
+    "typecheck": "tsc -p __checks__/tsconfig.base.json && tsc -p __checks__/tsconfig.react-library.json --noEmit"
+  },
+  "pineapple": {
+    "tasksNotApplicable": {
+      "build": "Ships base.json and react-library.json verbatim. JSON has no compile step, and inventing one would only copy files.",
+      "lint": "Publishes no JavaScript or TypeScript. The only .ts/.tsx files are the compiler fixtures under __checks__/, which exist as input to typecheck and are never imported or shipped.",
+      "test": "No runtime behaviour to assert. The failure mode these files actually have -- a typo or an incoherent compiler option -- is caught by typecheck, which compiles a fixture against each config."
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.8",
+    "typescript": "~5.7.2"
+  }
 }
