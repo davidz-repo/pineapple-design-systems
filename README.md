@@ -11,12 +11,16 @@ belongs here and the port roadmap.
 
 ```
 packages/
-  tsconfig/        @pineappleui/tsconfig       private   TS bases (base, react-library)
-  eslint-config/   @pineappleui/eslint-config  private   antfu wrapper + shared rule blocks
-  vitest-preset/   @pineappleui/vitest-preset  private   React + jsdom Vitest factory
-  tokens/          @pineappleui/tokens         PUBLIC    accent colors + theme types
+  tsconfig/           @pineappleui/tsconfig           private   TS bases (base, react-library)
+  eslint-config/      @pineappleui/eslint-config      private   antfu wrapper + shared rule blocks
+  vitest-preset/      @pineappleui/vitest-preset      private   React + jsdom Vitest factory
+  tokens/             @pineappleui/tokens             PUBLIC    accent colors + theme types
+  use-local-storage/  @pineappleui/use-local-storage  PUBLIC    state synced to localStorage
+  live-region/        @pineappleui/live-region        PUBLIC    aria-live announcement wrapper
+  icons/              @pineappleui/icons              PUBLIC    Lucide wrapper, size tokens + a11y
 scripts/
-  check-publish-contract.mjs                             publish + task-coverage guard
+  check-publish-contract.mjs                                    publish + task-coverage guard
+  check-token-drift.mjs                                         no hand-typed copies of a token list
 ```
 
 ## Working on it
@@ -55,9 +59,12 @@ nothing — see `docs/plan.md` §"Adding a workspace later".
 
 ### Expected build output
 
-`tokens` builds with both `treeshake` and `sourcemap` on, which makes tsup emit a doubled
-`//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited from
-the upstream config, and it is **not** a bug to tune away.
+Every publishable package builds with both `treeshake` and `sourcemap` on, which makes tsup emit
+a doubled `//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited
+from the upstream config, and it is **not** a bug to tune away.
+
+`*.stories.tsx` files are ported and typechecked, but nothing here renders them yet — the Ladle
+gallery workspace lands in a later PR.
 
 ## Releasing
 

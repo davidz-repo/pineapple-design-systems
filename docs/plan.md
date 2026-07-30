@@ -80,7 +80,7 @@ away — a change to the tsup config to "fix" it is a change with no user-visibl
 
 Ordered by dependency, so each phase compiles against only what already exists.
 
-### Phase 0 — tooling + tokens (this PR)
+### Phase 0 — tooling + tokens (landed)
 
 | Package | Publishes | Notes |
 |---|---|---|
@@ -89,26 +89,28 @@ Ordered by dependency, so each phase compiles against only what already exists.
 | `@pineappleui/vitest-preset` | no | React + jsdom factory; `jsdom` is a real dep here |
 | `@pineappleui/tokens` | **yes** | pure data; no React, Radix or DOM |
 
-Two dependency deltas from the source monorepo are deliberate and should not be "corrected"
-back:
-
-- **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
-  `eslint-plugin-react-refresh` as `dependencies`, not peers. antfu v8's react preset calls
-  `ensurePackages()` and then dynamically imports the latter two; `ensurePackages` installs
-  nothing in a non-interactive environment, so the import throws in CI unless the packages
-  are already on disk. Only `eslint` stays a peer.
-- **`vitest-preset`** declares `jsdom`, `react`, `react-dom`, `@vitejs/plugin-react` and the
-  testing-library packages as `dependencies`. Upstream never names `jsdom` at all — it
-  resolves out of the app workspace's hoist. There is no app here, so without the
-  declaration every test fails on environment resolution. `vitest` stays the only peer.
-
 `vitest-preset` intentionally has **no `test` script**: a bare `vitest run` exits 1 on "no
 test files found".
 
-### Phase 1 — no workspace dependencies
+Two dependency deltas from this phase are deliberate — see *Deltas from the source monorepo*
+below.
 
-`use-local-storage`, `live-region`, `icons`. Each depends only on React, so they can land in
-any order.
+### Phase 1 — no workspace dependencies (landed)
+
+| Package | Publishes | Notes |
+|---|---|---|
+| `@pineappleui/use-local-storage` | **yes** | `react` peer; the one package that reads a browser global, by decision |
+| `@pineappleui/live-region` | **yes** | `react` + `react-dom` peers; pure aria wrapper, no Radix |
+| `@pineappleui/icons` | **yes** | `lucide-react` is a real dependency, and external to the bundle |
+
+Each depends only on React, so they landed in one PR and in any order. Ported verbatim from the
+source monorepo apart from the scope rename and de-branding of comments, test `describe` names
+and descriptions.
+
+`live-region` and `icons` ship a `*.stories.tsx`. The stories are typechecked (`include` covers
+all of `src`) and linted, but **nothing in this repo renders them** — the Ladle gallery
+workspace lands in a later PR. `icons` therefore carries `@ladle/react` as a devDependency
+purely for the `Story` type its playground story imports; no other package here provides it.
 
 ### Phase 2 — Radix wrappers
 
@@ -143,6 +145,30 @@ makes its build config differ from every other package:
 ### Excluded
 
 `traffic-tag` — product-specific status vocabulary. See principle 2.
+
+---
+
+## Deltas from the source monorepo
+
+Everything else is ported verbatim. These three differences are deliberate and should **not**
+be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
+
+- **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
+  `eslint-plugin-react-refresh` as `dependencies`, not peers. antfu v8's react preset calls
+  `ensurePackages()` and then dynamically imports the latter two; `ensurePackages` installs
+  nothing in a non-interactive environment, so the import throws in CI unless the packages
+  are already on disk. Only `eslint` stays a peer. *(Phase 0)*
+- **`vitest-preset`** declares `jsdom`, `react`, `react-dom`, `@vitejs/plugin-react` and the
+  testing-library packages as `dependencies`. Upstream never names `jsdom` at all — it
+  resolves out of the app workspace's hoist. There is no app here, so without the
+  declaration every test fails on environment resolution. `vitest` stays the only peer.
+  *(Phase 0)*
+- **`use-local-storage`** extends `@pineappleui/tsconfig/react-library.json`, where upstream
+  extends `base.json`. `base.json`'s `lib` is `["ES2020"]` — no DOM — so upstream's package
+  only compiles because `@types/node` happens to declare a global `localStorage`, and it has
+  no `jsx` either, which its `.tsx` test file needs. Both are accidents of hoisting rather
+  than intent. Every React package here, this one included, extends `react-library.json`.
+  *(Phase 1)*
 
 ---
 
