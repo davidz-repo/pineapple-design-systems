@@ -87,6 +87,18 @@ refuses to resolve the workspace without one of the two, and accepts only a sing
 range. `devEngines` is never read by corepack, and `onFail: "warn"` keeps a different npm
 major (CI's Node 22 ships npm 10) from hard-failing an install.
 
+## A note on the root `vite` devDependency
+
+Nothing in this repo builds with vite — packages bundle through tsup, and vitest only ever
+pulled vite in as its own peer. That undeclared, peer-hoisted copy is exactly the problem: a
+transitive that nobody names loses the top `node_modules` slot to the first package that *does*
+name one. `@ladle/react` (a devDependency of `icons`, for the `Story` type its story imports)
+declares `vite@^6`, and so it silently dragged the workspace-wide test runner from vite 8 down
+to vite 6. Declaring `vite` at the root pins the shared slot at 8 and pushes Ladle's 6 into its
+own nested copy, where it affects only Ladle. This is the same correction `docs/plan.md`
+§"Deltas from the source monorepo" already records for `jsdom` & co — a dependency the upstream
+monorepo never had to name, because an app workspace's hoist named it for them.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
