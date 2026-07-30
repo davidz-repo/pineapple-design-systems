@@ -12,7 +12,7 @@ npm install @pineappleui/use-local-storage
 ```ts
 import { useLocalStorage } from '@pineappleui/use-local-storage';
 
-const [accent, setAccent] = useLocalStorage<string>('accent', 'bronze');
+const [density, setDensity] = useLocalStorage<string>('density', 'compact');
 ```
 
 | Export | What it is |

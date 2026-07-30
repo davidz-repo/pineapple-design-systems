@@ -117,14 +117,19 @@ purely for the `Story` type its playground story imports; no other package here 
 `box`, `stack`, `inline`, `text`, `heading`, `badge`, `button`, `icon-button`, `card`,
 `text-field`, `text-area`.
 
-All eleven have the same shape. Copy `packages/tokens` as the template, then:
+All eleven have the same shape. Copy `packages/live-region` as the template — it is already a
+React package in the shape a Radix wrapper needs: `react` + `react-dom` peers (declared *and*
+`external`), a `tsconfig.json` extending `@pineappleui/tsconfig/react-library.json`, a
+`*.stories.tsx`, and a LICENSE and README in house form. The checklist collapses to one line:
 
-- swap `tsconfig.json` to extend `@pineappleui/tsconfig/react-library.json` (tokens extends
-  `base.json` because tokens are pure data — a React package needs the DOM libs and `jsx`)
-- add `react`, `react-dom`, `@radix-ui/themes` to `peerDependencies` and to `tsup`'s
-  `external`
-- keep everything else — the four scripts, `files`, `exports`, `publishConfig`, `license`,
-  `repository.directory` — identical.
+- add `@radix-ui/themes` to `peerDependencies` and to `tsup.config.ts`'s `external`
+
+Keep everything else — the four scripts, `files`, `exports`, `publishConfig`, `license`,
+`repository.directory` — identical. Any story that imports the `Story` type also needs
+`@ladle/react` as a devDependency; see *Deltas from the source monorepo* below.
+
+Do **not** copy `packages/tokens` for these: it extends `base.json` (tokens are pure data) and
+declares no React, so it starts a React package two corrections behind live-region.
 
 ### Phase 3 — theme
 
@@ -150,7 +155,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These three differences are deliberate and should **not**
+Everything else is ported verbatim. These four differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -169,6 +174,13 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   no `jsx` either, which its `.tsx` test file needs. Both are accidents of hoisting rather
   than intent. Every React package here, this one included, extends `react-library.json`.
   *(Phase 1)*
+- **`icons`** declares `@ladle/react` as a `devDependency`, where upstream declares it nowhere:
+  its `Icon.stories.tsx` imports the `Story` type, and upstream resolves that through
+  `apps/gallery`'s hoist. There is no gallery workspace here yet, so without the declaration the
+  story does not typecheck. Expect this delta to repeat: 10 of the 11 Phase 2 packages import
+  from `@ladle/react` in their stories and will each need it. Only a story written in the bare
+  CSF `export default { title }` form — like `live-region`'s — imports nothing from Ladle and
+  therefore needs no devDependency. *(Phase 1)*
 
 ---
 
