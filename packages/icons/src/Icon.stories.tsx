@@ -1,34 +1,22 @@
 import { Icon } from './Icon';
+import { ICON_NAMES, ICON_SIZES } from './vocabulary';
 
-import type { IconName, IconSize } from './Icon';
+import type { IconName, IconSize } from './vocabulary';
 
 import type { Story } from '@ladle/react';
 
 // The Ladle gallery workspace that renders these stories lands in a later PR.
 // Until it does, the stories are typechecked and linted like any other source
 // file here, but there is nothing in this repo that can run them.
-
-const NAMES: IconName[] = [
-  'arrow-left-right',
-  'captions',
-  'check',
-  'chevron-down',
-  'chevron-left',
-  'chevron-right',
-  'close',
-  'copy',
-  'home',
-  'mic',
-  'mic-off',
-  'phone-off',
-];
-
-const SIZES: IconSize[] = ['xs', 'sm', 'md', 'lg', 'xl'];
+//
+// The gallery maps over the exported ICON_NAMES / ICON_SIZES rather than lists
+// of its own: a glyph added to the map shows up here without anyone remembering
+// to add it, which is the whole point of exporting them.
 
 export function AllIcons() {
   return (
     <div style={{ padding: 24, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-      {NAMES.map(name => (
+      {ICON_NAMES.map(name => (
         <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 88 }}>
           <Icon name={name} size="lg" />
           <span style={{ fontSize: 12, color: 'var(--gray-11)' }}>{name}</span>
@@ -41,7 +29,7 @@ export function AllIcons() {
 export function Sizes() {
   return (
     <div style={{ padding: 24, display: 'flex', gap: 20, alignItems: 'flex-end' }}>
-      {SIZES.map(size => (
+      {ICON_SIZES.map(size => (
         <div key={size} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
           <Icon name="home" size={size} />
           <span style={{ fontSize: 12, color: 'var(--gray-11)' }}>{size}</span>
@@ -72,12 +60,12 @@ Playground.args = {
 
 Playground.argTypes = {
   name: {
-    options: NAMES,
+    options: ICON_NAMES,
     control: { type: 'select' },
     defaultValue: 'home',
   },
   size: {
-    options: SIZES,
+    options: ICON_SIZES,
     control: { type: 'select' },
     defaultValue: 'lg',
   },

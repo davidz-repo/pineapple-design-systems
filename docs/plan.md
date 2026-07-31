@@ -155,7 +155,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These four differences are deliberate and should **not**
+Everything else is ported verbatim. These five differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -181,6 +181,20 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   from `@ladle/react` in their stories and will each need it. Only a story written in the bare
   CSF `export default { title }` form — like `live-region`'s — imports nothing from Ladle and
   therefore needs no devDependency. *(Phase 1)*
+- **`icons`** exports `ICON_NAMES` and `ICON_SIZES` — the first four deltas are dependency and
+  tsconfig differences, this one is the first deliberate divergence in **published API**, so the
+  eventual cutover diff will show a real export the upstream package does not have. Upstream
+  hand-types both lists inside `Icon.stories.tsx`, a private copy of the keys of `ICONS` and
+  `SIZES` that nothing compares against them: a new glyph type-checks, tests green, and never
+  appears in the gallery. Here both lists are `Object.keys(...)`-derived from the maps and
+  exported, the story maps over them, and consumers get the vocabulary they need to build a
+  picker — a type cannot be iterated. The maps, the derived lists and the two types moved out
+  of `Icon.tsx` into `src/vocabulary.ts` to make that possible:
+  `react-refresh/only-export-components` fails a module that exports both a component and a
+  constant, and the rule's `allowConstantExport` escape hatch covers literals only, not a
+  `Object.keys()` call. `Icon.tsx` keeps the component and `IconProps`; `index.ts` is the only
+  place the two halves meet. Do not "restore" the local arrays when syncing with upstream;
+  carry the export back the other way instead. *(Phase 1)*
 
 ---
 

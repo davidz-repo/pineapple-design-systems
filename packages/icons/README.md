@@ -12,7 +12,7 @@ npm install @pineappleui/icons
 ## What it exports
 
 ```tsx
-import { Icon } from '@pineappleui/icons';
+import { Icon, ICON_NAMES, ICON_SIZES } from '@pineappleui/icons';
 import type { IconName, IconProps, IconSize } from '@pineappleui/icons';
 
 <Icon name="check" size="lg" />;
@@ -22,6 +22,8 @@ import type { IconName, IconProps, IconSize } from '@pineappleui/icons';
 | Export | What it is |
 | --- | --- |
 | `Icon` | The component. Takes `name`, optional `size` and `label`, plus any other Lucide SVG prop. |
+| `ICON_NAMES` | Every glyph name at runtime, in declaration order — `readonly IconName[]`. |
+| `ICON_SIZES` | Every size token at runtime, smallest first — `readonly IconSize[]`. |
 | `IconName` | The union of available glyph names — `keyof typeof ICONS`, not `string`. |
 | `IconSize` | The union of size tokens — `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'`. |
 | `IconProps` | The full prop type. |
@@ -29,6 +31,25 @@ import type { IconName, IconProps, IconSize } from '@pineappleui/icons';
 The glyph list is deliberately not reproduced here. `IconName` is the authoritative set, and a
 second copy in prose is a copy that can fall out of date — your editor completes it from the
 type, and `tsc` rejects a name that does not exist.
+
+## Enumerating the set
+
+A type cannot be iterated, so a UI that has to *show* the options — an icon picker, a gallery,
+a `<select>` — needs the list as a value. `ICON_NAMES` and `ICON_SIZES` are exactly that, both
+derived from the internal maps rather than written out a second time:
+
+```tsx
+{ICON_NAMES.map(name => (
+  <button key={name} type="button" onClick={() => onPick(name)}>
+    <Icon name={name} size="lg" />
+    {name}
+  </button>
+))}
+```
+
+Because they are derived, adding a glyph to the map adds it to every picker built on them —
+there is no second list to remember. Prefer them to a hand-typed array for the same reason this
+README does not list the names: a copy is a thing that goes stale without failing.
 
 ## Names are intent, not library
 

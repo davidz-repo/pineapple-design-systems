@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { Icon } from './index';
+import { Icon, ICON_NAMES, ICON_SIZES } from './index';
 
 describe('@pineappleui/icons', () => {
   it('renders the named glyph as an svg', () => {
@@ -34,5 +34,31 @@ describe('@pineappleui/icons', () => {
     const { getByRole } = render(<Icon name="phone-off" label="End call" />);
     const svg = getByRole('img', { name: 'End call' });
     expect(svg.getAttribute('aria-hidden')).toBeNull();
+  });
+
+  it('renders a glyph for every name in ICON_NAMES', () => {
+    for (const name of ICON_NAMES) {
+      const { container, unmount } = render(<Icon name={name} />);
+      expect(container.querySelector('svg'), `<Icon name="${name}" /> rendered no svg`).not.toBeNull();
+      unmount();
+    }
+  });
+
+  it('resolves every token in ICON_SIZES to a pixel width', () => {
+    for (const size of ICON_SIZES) {
+      const { container, unmount } = render(<Icon name="home" size={size} />);
+      const width = container.querySelector('svg')?.getAttribute('width');
+      expect(Number(width), `size="${size}" did not resolve to a number`).toBeGreaterThan(0);
+      unmount();
+    }
+  });
+
+  it('exposes both vocabularies non-empty, so a picker has something to enumerate', () => {
+    // Empty is the failure mode worth guarding: a derivation that silently
+    // yields nothing renders an empty picker rather than throwing.
+    expect(ICON_NAMES.length).toBeGreaterThan(0);
+    expect(ICON_NAMES).toContain('mic');
+    expect(ICON_SIZES.length).toBeGreaterThan(0);
+    expect(ICON_SIZES).toContain('md');
   });
 });
