@@ -46,6 +46,15 @@ jobs:
           node-version: "22"
           cache: npm
 
+      # Runners ship npm 10, but the root manifest declares
+      # devEngines.packageManager npm ^11.0.0. onFail is `warn`, so the mismatch
+      # failed nothing and simply logged EBADDEVENGINES under every npm step —
+      # noise that trains readers to skim npm's output, which is where a real
+      # warning would then hide. Fixed here rather than by relaxing the
+      # declaration: the repo means npm 11, so CI should run npm 11.
+      - name: Install npm 11 to match devEngines.packageManager
+        run: npm install -g npm@11
+
       # Persists turbo's local cache between runs. Turbo hashes its own inputs,
       # so a stale restore is safe — any real change recomputes.
       - name: Restore turbo cache

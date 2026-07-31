@@ -33,6 +33,13 @@ jobs:
           registry-url: https://registry.npmjs.org
           scope: "@pineappleui"
 
+      # Runners ship npm 10, but the root manifest declares
+      # devEngines.packageManager npm ^11.0.0. Publishing is the step least
+      # worth running on an undeclared package manager, and the version command
+      # below now writes the lockfile — which is npm's own format.
+      - name: Install npm 11 to match devEngines.packageManager
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm ci
 

@@ -85,7 +85,11 @@ build if either goes missing.
 The root manifest declares `devEngines.packageManager` rather than `packageManager`. Turbo
 refuses to resolve the workspace without one of the two, and accepts only a single-major
 range. `devEngines` is never read by corepack, and `onFail: "warn"` keeps a different npm
-major (CI's Node 22 ships npm 10) from hard-failing an install.
+major from hard-failing an install — a contributor on npm 10 gets a warning, not a wall.
+
+CI does not lean on that leniency. Node 22 ships npm 10, so both workflows install npm 11
+immediately after `setup-node`; otherwise every npm step logs `EBADDEVENGINES` and the repo
+is verified by a package manager it does not declare.
 
 ## A note on the root `vite` devDependency
 
