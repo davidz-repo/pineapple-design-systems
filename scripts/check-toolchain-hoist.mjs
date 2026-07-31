@@ -23,10 +23,22 @@
 // the root declares, the version recorded at `node_modules/<name>` must satisfy
 // the root's declared range.
 //
-// The list is not configured anywhere. It IS the root's `devDependencies` —
-// which is exactly the toolchain, because the root package builds nothing and
-// declares nothing else. A new root devDependency joins this guard by being
-// added, with nothing to remember.
+// The list is not configured anywhere. It IS the root's declared `dependencies`
+// and `devDependencies` — both fields are read, so a future runtime dependency
+// at the root is covered without an edit here, and today that set is exactly
+// the devDependencies because the root builds nothing and declares nothing
+// else. A new root declaration joins this guard by being written down, with
+// nothing to remember.
+//
+// What this does NOT prove: that the toolchain is complete. The assertion is
+// "every slot the root DECLARES is the one the root asked for" — a slot nobody
+// declares is a slot this guard never looks at. `typescript`, `vitest`, `tsup`
+// and `eslint` are pinned per-package rather than at the root, so nothing here
+// would notice two workspaces building on different majors of them. That is a
+// different failure (workspaces disagreeing) from the one this file exists for
+// (one shared slot silently changing hands), and asserting cross-workspace
+// agreement is a possible extension rather than something to read into the
+// green line this prints.
 //
 // Reads package-lock.json rather than node_modules/ on purpose: the lockfile is
 // what `npm ci` will install on every machine and in CI, so the assertion holds
@@ -39,6 +51,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { assertWorkspaceGlobsUnderstood } from './workspace-globs.mjs';
 
 const LOCKFILE = 'package-lock.json';
 const TOP_SLOT_PREFIX = 'node_modules/';
@@ -116,6 +129,12 @@ function satisfies(version, range) {
   if (floor[1] !== 0) return { ok: actual[0] === 0 && actual[1] === floor[1] };
   return { ok: compareVersions(actual, floor) === 0 };
 }
+
+// A new workspace root is exactly the event that widens what this guard does
+// not cover — a tree of newly declared dependencies, none of them root-declared
+// and so none of them checked, under a line that still reads "N slot(s) OK".
+// Both dependency guards share the assertion so the answer cannot differ.
+assertWorkspaceGlobsUnderstood('check-toolchain-hoist');
 
 const rootManifest = readJson('package.json');
 const lock = readJson(LOCKFILE);
