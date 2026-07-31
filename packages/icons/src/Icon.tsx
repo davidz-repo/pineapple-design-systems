@@ -1,51 +1,8 @@
-import {
-  ArrowLeftRight,
-  Captions,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  House,
-  Mic,
-  MicOff,
-  PhoneOff,
-  X,
-} from 'lucide-react';
+import { ICONS, SIZES } from './vocabulary';
 
-import type { LucideIcon, LucideProps } from 'lucide-react';
+import type { IconName, IconSize } from './vocabulary';
 
-// Semantic name → Lucide glyph. Names are intent-based (not tied to the icon
-// library), so the underlying set can be swapped without touching call sites.
-// Add an entry here the first time a glyph is needed.
-const ICONS = {
-  'arrow-left-right': ArrowLeftRight,
-  'captions': Captions,
-  'check': Check,
-  'chevron-down': ChevronDown,
-  'chevron-left': ChevronLeft,
-  'chevron-right': ChevronRight,
-  'close': X,
-  'copy': Copy,
-  'home': House,
-  'mic': Mic,
-  'mic-off': MicOff,
-  'phone-off': PhoneOff,
-} satisfies Record<string, LucideIcon>;
-
-export type IconName = keyof typeof ICONS;
-
-// Design-system size tokens (px). `size` also accepts a raw number as an escape
-// hatch for the rare off-scale case.
-const SIZES = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 20,
-  xl: 24,
-} satisfies Record<string, number>;
-
-export type IconSize = keyof typeof SIZES;
+import type { LucideProps } from 'lucide-react';
 
 export interface IconProps
   extends Omit<LucideProps, 'size' | 'aria-hidden' | 'aria-label' | 'role'> {
