@@ -22,25 +22,29 @@ scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list
   check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
+  check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
 ```
 
 ## Working on it
 
 ```bash
 npm install
-npm run verify        # build + lint + test + typecheck, then the guards
+npm run verify        # hoist guard, then build + lint + test + typecheck, then the rest
 ```
 
-`verify` runs three guards after the four turbo tasks. Each is also a script of its own, and
+`verify` runs four guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
 
 | Script | Guards against |
 |---|---|
+| `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
 | `npm run check:publish` | a manifest that cannot publish, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, and an undeclared one that did not |
 
-All three read build output, which is why they run after the build rather than before it.
+`check:hoist` runs *first* and needs no build: it reads `package-lock.json`, so it answers
+"is the toolchain the one we declared?" before anything runs on that toolchain. The other
+three read build output and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'
@@ -110,6 +114,13 @@ to vite 6. Declaring `vite` at the root pins the shared slot at 8 and pushes Lad
 own nested copy, where it affects only Ladle. This is the same correction `docs/plan.md`
 §"Deltas from the source monorepo" already records for `jsdom` & co — a dependency the upstream
 monorepo never had to name, because an app workspace's hoist named it for them.
+
+The declaration alone does not stay true — a lockfile pins a resolved *version*, not ownership
+of the *slot*, so a future dependency needing another major could take it back on a routine
+`npm install`. `scripts/check-toolchain-hoist.mjs` asserts the pairing: for every dependency the
+root declares, the version `package-lock.json` records at `node_modules/<name>` must satisfy the
+root's range. The list is the root's own `devDependencies`, so a new one joins the guard by being
+declared.
 
 ## License
 

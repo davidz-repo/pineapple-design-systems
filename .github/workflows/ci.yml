@@ -59,6 +59,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Before the build, not after: this asserts that the lockfile still gives
+      # each root-declared toolchain package the top `node_modules/` slot. A
+      # slot that changed hands downgrades the toolchain every step below runs
+      # on — silently, since a hoisted downgrade breaks no install and fails no
+      # test. Knowing that first is what makes the rest of this job meaningful.
+      - name: Check the toolchain owns its hoist slots
+        run: node scripts/check-toolchain-hoist.mjs
+
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.
       #

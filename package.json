@@ -29,10 +29,11 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "verify": "turbo run build lint test typecheck && node scripts/check-publish-contract.mjs && node scripts/check-token-drift.mjs && node scripts/check-peer-externals.mjs",
+    "verify": "node scripts/check-toolchain-hoist.mjs && turbo run build lint test typecheck && node scripts/check-publish-contract.mjs && node scripts/check-token-drift.mjs && node scripts/check-peer-externals.mjs",
     "check:publish": "node scripts/check-publish-contract.mjs",
     "check:drift": "node scripts/check-token-drift.mjs",
     "check:externals": "node scripts/check-peer-externals.mjs",
+    "check:hoist": "node scripts/check-toolchain-hoist.mjs",
     "changeset": "changeset",
     "release": "changeset publish"
   },
