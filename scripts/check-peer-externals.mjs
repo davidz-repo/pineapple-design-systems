@@ -18,7 +18,7 @@
 // empty. A reviewer diffing a Phase 2 package against the live-region template
 // has to notice that one string is missing from one array.
 //
-// Three assertions, per workspace that builds a `dist/`:
+// Four assertions, per workspace that builds a `dist/`:
 //
 //   A. STATIC — every module imported under `src/` that the manifest declares in
 //      `peerDependencies` or `dependencies` appears in `external`. Cheap, reads
@@ -31,6 +31,16 @@
 //   C. REVERSE — every bare specifier `dist/index.mjs` imports is declared in
 //      the manifest. An external nobody declares is a phantom dependency: npm
 //      installs nothing for it and the consumer crashes at first import.
+//   D. UNDECLARED — every module used at RUNTIME under `src/` is declared as a
+//      peer or a dependency. This is the one that catches the worst version of
+//      the bug, and it is not redundant with A: tsup externalises everything in
+//      `dependencies`/`peerDependencies` automatically, so as long as the
+//      DECLARATION is there the bundle stays honest even with `external`
+//      incomplete. It is when the declaration goes missing — copy a Phase 2
+//      template, lose the `peerDependencies` block, keep writing JSX — that
+//      React is really inlined, and then A has nothing declared to check, C
+//      has no import to look at, and `dist/index.mjs` silently grows from 1 KB
+//      to 80 KB of somebody else's React.
 //
 // JSX counts as a runtime use of the JSX import source, even when a file names
 // no React identifier at all. `packages/icons/src/Icon.tsx` imports only
@@ -407,6 +417,25 @@ function checkPackage(relDir) {
       + 'tsup from inlining one into dist/. With only the declaration, the bundle ships '
       + 'its own copy and the consumer gets two — which surfaces as an "invalid hook '
       + 'call" in THEIR app, not a failure here.',
+    );
+  }
+
+  // D. Used at runtime must be declared by somebody.
+  for (const name of [...runtime].sort()) {
+    if (declared.has(name)) continue;
+    const viaJsx = jsxIsSoleUse && name === jsxImportSource;
+    fail(
+      pkgName,
+      `${name} is used at runtime under ${SRC_DIR}/`
+      + `${viaJsx ? ` (via JSX, which compiles to an import of ${name}/${JSX_RUNTIME_SUBPATH})` : ''}`
+      + ', but is declared in neither peerDependencies nor dependencies',
+      `add "${name}" to peerDependencies in ${path.basename(pkgDir)}/package.json if the `
+      + 'consumer should supply it (React, React DOM, Radix), or to dependencies if this '
+      + 'package should. A devDependency does not travel in the tarball. This is the '
+      + 'version of the bug that actually inlines: tsup externalises whatever the manifest '
+      + 'declares, so an undeclared module gets BUNDLED — the build succeeds, the tests '
+      + 'pass, dist/index.mjs quietly grows by the size of React, and every consumer ends '
+      + 'up with a second copy.',
     );
   }
 
