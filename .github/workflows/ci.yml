@@ -46,15 +46,50 @@ jobs:
           node-version: "22"
           cache: npm
 
+      # Runners ship npm 10, but the root manifest declares
+      # devEngines.packageManager npm ^11.0.0. onFail is `warn`, so the mismatch
+      # failed nothing and simply logged EBADDEVENGINES under every npm step —
+      # noise that trains readers to skim npm's output, which is where a real
+      # warning would then hide. Fixed here rather than by relaxing the
+      # declaration: the repo means npm 11, so CI should run npm 11.
+      #
+      # `npm --version` is printed, not assumed: it is the one line that proves
+      # which package manager actually ran, and it keeps that evidence in every
+      # future run rather than only in the PR that introduced this step.
+      #
+      # One EBADDEVENGINES source survives this step and is structural:
+      # `Set up Node` runs npm before it can be upgraded. Turbo replaying the
+      # stored stdout of npm 10 cache entries was a second source; the salt on
+      # the cache key below discards those entries.
+      - name: Install npm 11 to match devEngines.packageManager
+        run: |
+          npm install -g npm@11
+          npm --version
+
       # Persists turbo's local cache between runs. Turbo hashes its own inputs,
       # so a stale restore is safe — any real change recomputes.
+      #
+      # The `npm11` segment is a cache salt. A cache hit replays the task's
+      # recorded stdout verbatim, so entries computed under npm 10 kept
+      # reprinting ~140 EBADDEVENGINES warnings even after the step above
+      # started running npm 11 — and they do not fade with time: this branch
+      # changed package-lock.json and the sibling packages replayed anyway.
+      # That is worse than noise, because a genuinely new warning (a
+      # devEngines bump to ^12, say) would be indistinguishable from replay.
+      # The salt drops the npm 10 entries; the cost is one cold run.
+      #
+      # It is in `key` AND in `restore-keys` deliberately. Salting only `key`
+      # is inert — the unsalted `restore-keys` prefix still matches every old
+      # entry, so the cache restores exactly as before and the salt changes
+      # nothing without failing anything. That is the silent no-op this PR
+      # exists to remove, so if either line is ever re-salted, re-salt both.
       - name: Restore turbo cache
         uses: actions/cache@v4
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ hashFiles('packages/**/src/**', 'packages/**/package.json', 'package-lock.json', 'turbo.json') }}
+          key: turbo-npm11-${{ runner.os }}-${{ hashFiles('packages/**/src/**', 'packages/**/package.json', 'package-lock.json', 'turbo.json') }}
           restore-keys: |
-            turbo-${{ runner.os }}-
+            turbo-npm11-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci

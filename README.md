@@ -75,7 +75,17 @@ npx changeset        # describe the change; commit the generated .changeset/*.md
 ```
 
 Merging to `main` opens (or updates) a Version PR. Merging *that* publishes to the public
-npm registry. Publishable packages carry `publishConfig.access: "public"` and a `license` —
+npm registry.
+
+The Version PR resyncs `package-lock.json` itself. `changeset version` rewrites the workspace
+manifests only, and the bot commits without installing, so the lockfile used to ship a version
+behind what was published — `npm ci` does not fail on a workspace version-field mismatch, so
+nothing caught it. The version step now runs `npm install --package-lock-only` after it, which
+means **a Version PR touching the lockfile is expected**: reviewing one, look for version-field
+changes plus, occasionally, a re-resolved range for an unrelated dependency that published since
+the last install.
+
+Publishable packages carry `publishConfig.access: "public"` and a `license` —
 npm defaults scoped packages to `restricted`, and a package with no license renders as
 "proprietary" to consumers' license scanners. `scripts/check-publish-contract.mjs` fails the
 build if either goes missing.
@@ -85,7 +95,11 @@ build if either goes missing.
 The root manifest declares `devEngines.packageManager` rather than `packageManager`. Turbo
 refuses to resolve the workspace without one of the two, and accepts only a single-major
 range. `devEngines` is never read by corepack, and `onFail: "warn"` keeps a different npm
-major (CI's Node 22 ships npm 10) from hard-failing an install.
+major from hard-failing an install — a contributor on npm 10 gets a warning, not a wall.
+
+CI does not lean on that leniency. Node 22 ships npm 10, so both workflows install npm 11
+immediately after `setup-node`; otherwise every npm step logs `EBADDEVENGINES` and the repo
+is verified by a package manager it does not declare.
 
 ## A note on the root `vite` devDependency
 

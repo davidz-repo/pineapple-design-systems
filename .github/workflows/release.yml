@@ -33,6 +33,17 @@ jobs:
           registry-url: https://registry.npmjs.org
           scope: "@pineappleui"
 
+      # Runners ship npm 10, but the root manifest declares
+      # devEngines.packageManager npm ^11.0.0. Publishing is the step least
+      # worth running on an undeclared package manager, and the version command
+      # below now writes the lockfile — which is npm's own format.
+      # `npm --version` is printed so a release log records which package
+      # manager published, rather than leaving it to be inferred.
+      - name: Install npm 11 to match devEngines.packageManager
+        run: |
+          npm install -g npm@11
+          npm --version
+
       - name: Install dependencies
         run: npm ci
 
@@ -44,7 +55,40 @@ jobs:
       - name: Create Version PR or publish
         uses: changesets/action@v1
         with:
-          version: npx changeset version
+          # `changeset version` rewrites the workspace manifests but never
+          # package-lock.json, and the bot commits the tree as-is with no
+          # install. `npm ci` does not fail on a workspace version-field
+          # mismatch, so the drift never surfaced: the lockfile sat at 0.0.0
+          # for tokens while it shipped 0.1.0 (#6) and then 0.1.1 (#9), and
+          # #11 desynced three more packages the same way.
+          #
+          # `version-packages` appends `npm install --package-lock-only`, which
+          # writes the new versions into the lockfile without touching
+          # node_modules, so the Version PR carries its own resync.
+          # `--no-audit --no-fund` because an audit/funding summary in a release
+          # log is the reviewer-numbing noise this whole change argues against.
+          #
+          # Consequence worth knowing before reviewing one: every Version PR now
+          # legitimately touches package-lock.json, and not only the version
+          # fields — `--package-lock-only` re-resolves the declared ranges, so
+          # an unrelated dependency that published a new patch can move too. A
+          # bot PR with lockfile changes is expected here, not tampering.
+          #
+          # It has to be a package.json script, not an inline
+          # `npx changeset version && npm install ...`. This input is run by
+          # @actions/exec with no shell, so `&&` is not an operator here — it
+          # would be passed to changeset as a literal argument and the install
+          # would silently never run, which is the same class of quiet failure
+          # this line exists to fix. npm runs scripts through a shell, so the
+          # `&&` works there.
+          #
+          # This input is named `version` on @v1 only. On @v2/@main it is
+          # `version-script`, so a major bump must rename it here (and pin
+          # @changesets/cli v3, which @v2 requires). The old name is rejected
+          # rather than ignored — v2 throws "The following inputs have been
+          # renamed" — so that bump fails loudly instead of quietly versioning
+          # without the lockfile install.
+          version: npm run version-packages
           publish: npx changeset publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
