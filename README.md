@@ -119,8 +119,15 @@ The declaration alone does not stay true — a lockfile pins a resolved *version
 of the *slot*, so a future dependency needing another major could take it back on a routine
 `npm install`. `scripts/check-toolchain-hoist.mjs` asserts the pairing: for every dependency the
 root declares, the version `package-lock.json` records at `node_modules/<name>` must satisfy the
-root's range. The list is the root's own `devDependencies`, so a new one joins the guard by being
-declared.
+root's range. The list is the root's own declared `dependencies` and `devDependencies` (today
+that is only the latter), so a new one joins the guard by being declared.
+
+What that guard proves is that the root's **declared** slots hold — not that the toolchain set is
+complete. `typescript`, `vitest`, `tsup` and `eslint` are pinned per-package rather than at the
+root, so they own no root-declared slot and nothing here would report two workspaces building on
+different majors of them. That is a different problem (workspaces disagreeing) from the one this
+guard exists for (one shared slot silently changing hands); asserting cross-workspace agreement
+is a possible extension, not something the green line already covers.
 
 ## License
 

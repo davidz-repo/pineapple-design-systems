@@ -33,11 +33,13 @@ for being sensitive; things are excluded for being *specific*.
 
 ### 3. React and Radix stay peers, and stay external
 
-Every component package declares `react`, `react-dom` and `@radix-ui/themes` in
-`peerDependencies` **and** lists them in `tsup.config.ts`'s `external`. Both halves are
-required: the peer declaration keeps npm from installing a second copy into the consumer's
-tree, and `external` keeps the bundler from inlining one into `dist/`. A duplicate React is
-a broken-hooks bug that surfaces far from its cause.
+Every component package declares whatever the **consumer** supplies — React and React DOM in
+every case, plus Radix Themes and anything else meant to be shared — in `peerDependencies`
+**and** lists each one in `tsup.config.ts`'s `external`. The rule is general, and so is its
+check: the guard reads what a package actually declares and imports, not a fixed list of
+package names. Both halves are required: the peer declaration keeps npm from installing a
+second copy into the consumer's tree, and `external` keeps the bundler from inlining one into
+`dist/`. A duplicate React is a broken-hooks bug that surfaces far from its cause.
 
 Workspace dependencies (`@pineappleui/tokens`, etc.) are also `external` for the same reason.
 
@@ -50,6 +52,11 @@ that catches a real inlining: tsup externalises whatever the manifest declares, 
 *missing declaration* — not a short `external` array — that grows `dist/index.mjs` from 1 KB to
 80 KB of bundled React. See §"Adding a workspace later" on why the missing half of a rule needs
 a check rather than a reviewer.
+
+All four assertions read JS/TS import syntax, so **CSS is invisible to them**: a package a
+stylesheet pulls in with `@import` — Phase 3's theme does this for
+`@fontsource-variable/geist` — is a real runtime dependency of the consumer's bundle that none
+of them would report. Closing that is part of the Phase 3 PR that introduces the stylesheet.
 
 ### 4. ESM only
 
