@@ -41,11 +41,15 @@ a broken-hooks bug that surfaces far from its cause.
 
 Workspace dependencies (`@pineappleui/tokens`, etc.) are also `external` for the same reason.
 
-`scripts/check-peer-externals.mjs` enforces the lockstep: what `src/` imports and the manifest
-declares must be in `external`, must still be a bare import in the built `dist/index.mjs`, and
-nothing may be imported by `dist/` that no manifest field declares. JSX counts as a use of
-`react` even where no source file names it — see §"Adding a workspace later" on why the missing
-half of a rule needs a check rather than a reviewer.
+`scripts/check-peer-externals.mjs` enforces the lockstep: what `src/` uses at runtime must be
+declared as a peer or a dependency, what is declared and imported must be in `external`, what is
+external must still be a bare import in the built `dist/index.mjs`, and nothing may be imported
+by `dist/` that no manifest field declares. JSX counts as a use of `react` even where no source
+file names it, which is the case every Phase 2 wrapper is in. The first of the four is the one
+that catches a real inlining: tsup externalises whatever the manifest declares, so it is a
+*missing declaration* — not a short `external` array — that grows `dist/index.mjs` from 1 KB to
+80 KB of bundled React. See §"Adding a workspace later" on why the missing half of a rule needs
+a check rather than a reviewer.
 
 ### 4. ESM only
 
