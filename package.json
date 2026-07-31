@@ -33,7 +33,7 @@
     "check:publish": "node scripts/check-publish-contract.mjs",
     "check:drift": "node scripts/check-token-drift.mjs",
     "changeset": "changeset",
-    "version-packages": "changeset version && npm install --package-lock-only",
+    "version-packages": "changeset version && npm install --package-lock-only --no-audit --no-fund",
     "release": "changeset publish"
   },
   "devDependencies": {

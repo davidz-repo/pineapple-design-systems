@@ -75,7 +75,17 @@ npx changeset        # describe the change; commit the generated .changeset/*.md
 ```
 
 Merging to `main` opens (or updates) a Version PR. Merging *that* publishes to the public
-npm registry. Publishable packages carry `publishConfig.access: "public"` and a `license` —
+npm registry.
+
+The Version PR resyncs `package-lock.json` itself. `changeset version` rewrites the workspace
+manifests only, and the bot commits without installing, so the lockfile used to ship a version
+behind what was published — `npm ci` does not fail on a workspace version-field mismatch, so
+nothing caught it. The version step now runs `npm install --package-lock-only` after it, which
+means **a Version PR touching the lockfile is expected**: reviewing one, look for version-field
+changes plus, occasionally, a re-resolved range for an unrelated dependency that published since
+the last install.
+
+Publishable packages carry `publishConfig.access: "public"` and a `license` —
 npm defaults scoped packages to `restricted`, and a package with no license renders as
 "proprietary" to consumers' license scanners. `scripts/check-publish-contract.mjs` fails the
 build if either goes missing.

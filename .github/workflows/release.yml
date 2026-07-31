@@ -65,6 +65,14 @@ jobs:
           # `version-packages` appends `npm install --package-lock-only`, which
           # writes the new versions into the lockfile without touching
           # node_modules, so the Version PR carries its own resync.
+          # `--no-audit --no-fund` because an audit/funding summary in a release
+          # log is the reviewer-numbing noise this whole change argues against.
+          #
+          # Consequence worth knowing before reviewing one: every Version PR now
+          # legitimately touches package-lock.json, and not only the version
+          # fields — `--package-lock-only` re-resolves the declared ranges, so
+          # an unrelated dependency that published a new patch can move too. A
+          # bot PR with lockfile changes is expected here, not tampering.
           #
           # It has to be a package.json script, not an inline
           # `npx changeset version && npm install ...`. This input is run by
@@ -73,6 +81,13 @@ jobs:
           # would silently never run, which is the same class of quiet failure
           # this line exists to fix. npm runs scripts through a shell, so the
           # `&&` works there.
+          #
+          # This input is named `version` on @v1 only. On @v2/@main it is
+          # `version-script`, so a major bump must rename it here (and pin
+          # @changesets/cli v3, which @v2 requires). The old name is rejected
+          # rather than ignored — v2 throws "The following inputs have been
+          # renamed" — so that bump fails loudly instead of quietly versioning
+          # without the lockfile install.
           version: npm run version-packages
           publish: npx changeset publish
         env:
