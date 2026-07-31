@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/live-region",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "LiveRegion primitive for @pineappleui — an audited aria-live announcement wrapper.",
   "license": "MIT",
   "type": "module",

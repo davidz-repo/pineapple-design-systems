@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/use-local-storage",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "React hook for state synced to window.localStorage.",
   "license": "MIT",
   "type": "module",
