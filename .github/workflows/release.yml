@@ -44,7 +44,25 @@ jobs:
       - name: Create Version PR or publish
         uses: changesets/action@v1
         with:
-          version: npx changeset version
+          # `changeset version` rewrites the workspace manifests but never
+          # package-lock.json, and the bot commits the tree as-is with no
+          # install. `npm ci` does not fail on a workspace version-field
+          # mismatch, so the drift never surfaced: the lockfile sat at 0.0.0
+          # for tokens while it shipped 0.1.0 (#6) and then 0.1.1 (#9), and
+          # #11 desynced three more packages the same way.
+          #
+          # `version-packages` appends `npm install --package-lock-only`, which
+          # writes the new versions into the lockfile without touching
+          # node_modules, so the Version PR carries its own resync.
+          #
+          # It has to be a package.json script, not an inline
+          # `npx changeset version && npm install ...`. This input is run by
+          # @actions/exec with no shell, so `&&` is not an operator here — it
+          # would be passed to changeset as a literal argument and the install
+          # would silently never run, which is the same class of quiet failure
+          # this line exists to fix. npm runs scripts through a shell, so the
+          # `&&` works there.
+          version: npm run version-packages
           publish: npx changeset publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
