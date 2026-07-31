@@ -41,6 +41,12 @@ a broken-hooks bug that surfaces far from its cause.
 
 Workspace dependencies (`@pineappleui/tokens`, etc.) are also `external` for the same reason.
 
+`scripts/check-peer-externals.mjs` enforces the lockstep: what `src/` imports and the manifest
+declares must be in `external`, must still be a bare import in the built `dist/index.mjs`, and
+nothing may be imported by `dist/` that no manifest field declares. JSX counts as a use of
+`react` even where no source file names it — see §"Adding a workspace later" on why the missing
+half of a rule needs a check rather than a reviewer.
+
 ### 4. ESM only
 
 `"type": "module"`, `format: ['esm']`, output forced to `.mjs` via `outExtension` so that

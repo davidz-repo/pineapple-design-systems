@@ -21,14 +21,26 @@ packages/
 scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list
+  check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
 ```
 
 ## Working on it
 
 ```bash
 npm install
-npm run verify        # build + lint + test + typecheck, then the publish guard
+npm run verify        # build + lint + test + typecheck, then the guards
 ```
+
+`verify` runs three guards after the four turbo tasks. Each is also a script of its own, and
+each fails with the fix in the message:
+
+| Script | Guards against |
+|---|---|
+| `npm run check:publish` | a manifest that cannot publish, and a workspace running zero tasks |
+| `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
+| `npm run check:externals` | a peer that got inlined into `dist/`, and an undeclared one that did not |
+
+All three read build output, which is why they run after the build rather than before it.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'

@@ -82,6 +82,13 @@ jobs:
       - name: Check for hard-coded token lists
         run: node scripts/check-token-drift.mjs
 
+      # Also after the build: two of its three assertions read dist/, because
+      # what tsup was asked to externalise and what it actually emitted are
+      # different facts. An inlined React is a duplicate copy that only fails in
+      # the CONSUMER's app, so nothing downstream of here would ever report it.
+      - name: Check peers stayed external
+        run: node scripts/check-peer-externals.mjs
+
       # A PR that changes a publishable package without a changeset ships no
       # release. Only meaningful on a PR, where there is a base to diff against.
       - name: Check for a changeset
