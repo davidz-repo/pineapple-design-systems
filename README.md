@@ -11,12 +11,16 @@ belongs here and the port roadmap.
 
 ```
 packages/
-  tsconfig/        @pineappleui/tsconfig       private   TS bases (base, react-library)
-  eslint-config/   @pineappleui/eslint-config  private   antfu wrapper + shared rule blocks
-  vitest-preset/   @pineappleui/vitest-preset  private   React + jsdom Vitest factory
-  tokens/          @pineappleui/tokens         PUBLIC    accent colors + theme types
+  tsconfig/           @pineappleui/tsconfig           private   TS bases (base, react-library)
+  eslint-config/      @pineappleui/eslint-config      private   antfu wrapper + shared rule blocks
+  vitest-preset/      @pineappleui/vitest-preset      private   React + jsdom Vitest factory
+  tokens/             @pineappleui/tokens             PUBLIC    accent colors + theme types
+  use-local-storage/  @pineappleui/use-local-storage  PUBLIC    state synced to localStorage
+  live-region/        @pineappleui/live-region        PUBLIC    aria-live announcement wrapper
+  icons/              @pineappleui/icons              PUBLIC    Lucide wrapper, size tokens + a11y
 scripts/
-  check-publish-contract.mjs                             publish + task-coverage guard
+  check-publish-contract.mjs                                    publish + task-coverage guard
+  check-token-drift.mjs                                         no hand-typed copies of a token list
 ```
 
 ## Working on it
@@ -55,9 +59,12 @@ nothing — see `docs/plan.md` §"Adding a workspace later".
 
 ### Expected build output
 
-`tokens` builds with both `treeshake` and `sourcemap` on, which makes tsup emit a doubled
-`//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited from
-the upstream config, and it is **not** a bug to tune away.
+Every publishable package builds with both `treeshake` and `sourcemap` on, which makes tsup emit
+a doubled `//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited
+from the upstream config, and it is **not** a bug to tune away.
+
+`*.stories.tsx` files are ported and typechecked, but nothing here renders them yet — the Ladle
+gallery workspace lands in a later PR.
 
 ## Releasing
 
@@ -79,6 +86,18 @@ The root manifest declares `devEngines.packageManager` rather than `packageManag
 refuses to resolve the workspace without one of the two, and accepts only a single-major
 range. `devEngines` is never read by corepack, and `onFail: "warn"` keeps a different npm
 major (CI's Node 22 ships npm 10) from hard-failing an install.
+
+## A note on the root `vite` devDependency
+
+Nothing in this repo builds with vite — packages bundle through tsup, and vitest only ever
+pulled vite in as its own peer. That undeclared, peer-hoisted copy is exactly the problem: a
+transitive that nobody names loses the top `node_modules` slot to the first package that *does*
+name one. `@ladle/react` (a devDependency of `icons`, for the `Story` type its story imports)
+declares `vite@^6`, and so it silently dragged the workspace-wide test runner from vite 8 down
+to vite 6. Declaring `vite` at the root pins the shared slot at 8 and pushes Ladle's 6 into its
+own nested copy, where it affects only Ladle. This is the same correction `docs/plan.md`
+§"Deltas from the source monorepo" already records for `jsdom` & co — a dependency the upstream
+monorepo never had to name, because an app workspace's hoist named it for them.
 
 ## License
 
