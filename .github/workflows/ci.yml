@@ -94,6 +94,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Before the build, not after: this asserts that the lockfile still gives
+      # each root-declared toolchain package the top `node_modules/` slot. A
+      # slot that changed hands downgrades the toolchain every step below runs
+      # on — silently, since a hoisted downgrade breaks no install and fails no
+      # test. Knowing that first is what makes the rest of this job meaningful.
+      - name: Check the toolchain owns its hoist slots
+        run: node scripts/check-toolchain-hoist.mjs
+
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.
       #
@@ -116,6 +124,13 @@ jobs:
       # fix from a malformed manifest.
       - name: Check for hard-coded token lists
         run: node scripts/check-token-drift.mjs
+
+      # Also after the build: two of its four assertions read dist/, because
+      # what tsup was asked to externalise and what it actually emitted are
+      # different facts. An inlined React is a duplicate copy that only fails in
+      # the CONSUMER's app, so nothing downstream of here would ever report it.
+      - name: Check peers stayed external
+        run: node scripts/check-peer-externals.mjs
 
       # A PR that changes a publishable package without a changeset ships no
       # release. Only meaningful on a PR, where there is a base to diff against.
