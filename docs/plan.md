@@ -129,14 +129,15 @@ all of `src`) and linted, but **nothing in this repo renders them** — the Ladl
 workspace lands in a later PR. `icons` therefore carries `@ladle/react` as a devDependency
 purely for the `Story` type its playground story imports; no other package here provides it.
 
-### Phase 2 — Radix wrappers (3 of 11 landed)
+### Phase 2 — Radix wrappers (5 of 11 landed)
 
-Landed: `box`, `stack`, `inline` — the layout wrappers, each a `@radix-ui/themes` peer and
-nothing else. All three declare `@ladle/react` as a devDependency, because each one's story
-imports the `Story` type; see *Deltas from the source monorepo* below.
+Landed: `box`, `stack`, `inline` — the layout wrappers — plus `text` and `heading`, the
+typography pair. Each is a `@radix-ui/themes` peer and nothing else. All five declare
+`@ladle/react` as a devDependency, because each one's story imports the `Story` type; `text` and
+`heading` additionally declare `@pineappleui/tokens`, because their stories build an accent-colour
+control out of the real list. See *Deltas from the source monorepo* below for both.
 
-Remaining: `text`, `heading`, `badge`, `button`, `icon-button`, `card`, `text-field`,
-`text-area`.
+Remaining: `badge`, `button`, `icon-button`, `card`, `text-field`, `text-area`.
 
 All eleven have the same shape. Copy `packages/live-region` as the template — it is already a
 React package in the shape a Radix wrapper needs: `react` + `react-dom` peers (declared *and*
@@ -147,7 +148,18 @@ React package in the shape a Radix wrapper needs: `react` + `react-dom` peers (d
 
 Keep everything else — the four scripts, `files`, `exports`, `publishConfig`, `license`,
 `repository.directory` — identical. Any story that imports the `Story` type also needs
-`@ladle/react` as a devDependency; see *Deltas from the source monorepo* below.
+`@ladle/react` as a devDependency, and any story offering an accent-colour control needs
+`@pineappleui/tokens` as one; see *Deltas from the source monorepo* below for both.
+
+Two things to do per package that no template can carry for you:
+
+- **Read every ported test body, not its name.** Two of the five landed so far shipped an
+  assertion that its own name did not describe, and each one was green. Both are recorded as
+  standing deltas below.
+- **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
+  or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion
+  the component cannot fail. `@radix-ui/themes`' prop defs are the reference:
+  `node_modules/@radix-ui/themes/src/components/<name>.props.tsx`.
 
 Do **not** copy `packages/tokens` for these: it extends `base.json` (tokens are pure data) and
 declares no React, so it starts a React package two corrections behind live-region.
@@ -176,7 +188,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These seven differences are deliberate and should **not**
+Everything else is ported verbatim. These nine differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -238,6 +250,29 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   supports: its `as` is an enum of `'div' | 'span'`, so an `as="section"` would not typecheck —
   `asChild` is the only route to any other tag. Do not restore the no-op when syncing; carry the
   fix back the other way at cutover, as with the `icons` exports. *(Phase 2)*
+- **`text` and `heading` build their stories' accent-colour control from `ACCENT_COLORS`**, where
+  upstream hand-types `['', 'gray', 'indigo', 'violet', 'teal', 'orange', 'crimson']` into each
+  `Playground.argTypes`. That copy is *already* drifted: `bronze` joined the real list and never
+  reached either picker, which is the exact failure `check-token-drift` was written for — and the
+  guard fires on the ported file, naming both packages and printing this fix. So both import
+  `ACCENT_COLORS` from `@pineappleui/tokens` and spread it, which makes `@pineappleui/tokens` a
+  **devDependency** of each. Dev-only is the correct half: `files: ["dist"]` never ships a story,
+  and `check-peer-externals` excludes `*.stories.*` from its src scan for the same reason, so
+  neither published package gains a dependency. `''` (inherit) and `'gray'` (Radix's neutral
+  scale, not an accent) stay written out — one literal is a reference, not a copy of a list.
+  Expect this in every remaining Phase 2 package whose story offers a colour control. *(Phase 2)*
+- **`heading`'s size assertions are rewritten off Radix's own default** — the second finding of
+  the same class as `box`'s above, and the reason reading test *bodies* is now a checklist item
+  rather than an anecdote. Radix's `headingPropDefs.size.default` is `'6'`. Upstream asserts the
+  `size` pass-through with `size="6"` → `rt-r-size-6`, and asserts the level mapping with
+  `as="h3"` → `rt-r-size-6`, and `LEVEL_SIZE.h3` is also `'6'`. Both therefore re-assert the class
+  an untouched `<Heading>` already carries: a `Heading` that drops `size` on the floor entirely
+  passes both. Verified by mutation — neutering `resolvedSize` leaves both upstream assertions
+  green. Here the pass-through test uses `size="9"`, and the mapping is pinned at the two ends
+  that are distinguishable from the default, `h1` → `rt-r-size-8` and `h6` → `rt-r-size-3`; the
+  same mutation fails all three. The override test (`h1 size="2"`) and the bare-`<Heading>` test
+  were already sound and are ported verbatim. Do not restore the no-ops when syncing; carry the
+  fix back the other way at cutover. *(Phase 2)*
 
 ---
 
