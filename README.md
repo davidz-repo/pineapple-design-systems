@@ -127,11 +127,11 @@ pulled vite in as its own peer. That undeclared, peer-hoisted copy is exactly th
 transitive that nobody names loses the top `node_modules` slot to the first package that *does*
 name one. `@ladle/react` (a devDependency of `icons`, and of every Phase 2 wrapper, for the
 `Story` type their stories import) declares `vite@^6`, and so it silently dragged the
-workspace-wide test runner from vite 8 down
-to vite 6. Declaring `vite` at the root pins the shared slot at 8 and pushes Ladle's 6 into its
-own nested copy, where it affects only Ladle. This is the same correction `docs/plan.md`
-§"Deltas from the source monorepo" already records for `jsdom` & co — a dependency the upstream
-monorepo never had to name, because an app workspace's hoist named it for them.
+workspace-wide test runner from vite 8 down to vite 6. Declaring `vite` at the root pins the
+shared slot at 8 and pushes Ladle's 6 into its own nested copy, where it affects only Ladle.
+This is the same correction `docs/plan.md` §"Deltas from the source monorepo" already records
+for `jsdom` & co — a dependency the upstream monorepo never had to name, because an app
+workspace's hoist named it for them.
 
 The declaration alone does not stay true — a lockfile pins a resolved *version*, not ownership
 of the *slot*, so a future dependency needing another major could take it back on a routine

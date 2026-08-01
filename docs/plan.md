@@ -176,7 +176,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These six differences are deliberate and should **not**
+Everything else is ported verbatim. These seven differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -227,6 +227,17 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `import type { BoxProps }` with it; `stack` and `inline` keep theirs, which their
   `PlaygroundArgs` still uses. Expect this to repeat in every remaining Phase 2 package whose
   story feeds a control value to a space-scale prop. *(Phase 2)*
+- **`box`'s third test actually exercises `as` and `asChild`** — the first delta in **test
+  content**, where the six above are dependency, tsconfig, published-API and story differences.
+  Upstream names that test `renders as the provided element via the asChild pattern (with as)`
+  and then renders a bare `<Box>` and asserts `DIV`, passing neither prop: it re-asserts exactly
+  what the first test already covers, so the green line proves nothing about the behavior its
+  name claims. Here it splits in two — `as="span"` asserting a `SPAN`, and `asChild` over a
+  `<section>` asserting the child element replaces the div and still carries `rt-r-p-4`, which
+  also pins that Radix's props reach the slotted element. Both match what `@radix-ui/themes`
+  supports: its `as` is an enum of `'div' | 'span'`, so an `as="section"` would not typecheck —
+  `asChild` is the only route to any other tag. Do not restore the no-op when syncing; carry the
+  fix back the other way at cutover, as with the `icons` exports. *(Phase 2)*
 
 ---
 

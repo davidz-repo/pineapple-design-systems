@@ -14,9 +14,20 @@ describe('@pineappleui/box', () => {
     expect((container.firstChild as HTMLElement).className).toMatch(/rt-r-p-4/);
   });
 
-  it('renders as the provided element via the asChild pattern (with as)', () => {
-    const { container } = render(<Box>plain</Box>);
-    expect((container.firstChild as HTMLElement).tagName).toBe('DIV');
+  it('renders the element named by the as prop (as="span" renders a span)', () => {
+    const { container } = render(<Box as="span">span</Box>);
+    expect((container.firstChild as HTMLElement).tagName).toBe('SPAN');
+  });
+
+  it('renders the child element in place of the div when asChild is set', () => {
+    const { container } = render(
+      <Box asChild p="4">
+        <section>child</section>
+      </Box>,
+    );
+    const element = container.firstChild as HTMLElement;
+    expect(element.tagName).toBe('SECTION');
+    expect(element.className).toMatch(/rt-r-p-4/);
   });
 
   it('forwards refs to the underlying element', () => {
