@@ -188,7 +188,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These nine differences are deliberate and should **not**
+Everything else is ported verbatim. These ten differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -276,6 +276,16 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   additionally asserts `rt-r-size-6` — the one place the default is the behavior under test rather
   than a hole in it. Do not restore the no-ops when syncing; carry the fix back the other way at
   cutover. *(Phase 2)*
+- **`text`'s ref test asserts `HTMLSpanElement`, where upstream asserts `HTMLElement`** — the third
+  test-content delta, and the mildest: unlike `box`'s and `heading`'s, the upstream assertion is not
+  a no-op, since it still fails if the ref never arrives. What it cannot notice is *which* element
+  arrived — `instanceof HTMLElement` holds for every one of them, so the tag could change underneath
+  a consumer that focuses or measures the node and the test would stay green. Radix types `Text`'s
+  ref as `HTMLSpanElement` and renders a `<span>` unless `as` says otherwise, so the tighter
+  assertion is the one the component actually promises, and it is the shape `box` already uses
+  (`HTMLDivElement`). Expect this per package in the rest of Phase 2: the right assertion is
+  whatever element that package's Radix primitive types its ref as, not `HTMLElement`. Do not loosen
+  it back when syncing; carry the tightening the other way at cutover. *(Phase 2)*
 
 ---
 
