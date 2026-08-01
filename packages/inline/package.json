@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/inline",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Inline primitive for @pineappleui — horizontal layout, a Radix Flex with direction='row' and wrapping defaults.",
   "license": "MIT",
   "type": "module",
