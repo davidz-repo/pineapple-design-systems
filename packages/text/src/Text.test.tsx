@@ -22,12 +22,14 @@ describe('@pineappleui/text', () => {
   });
 
   it('forwards refs to the underlying element', () => {
-    let received: HTMLElement | null = null;
+    // Radix's Text renders a <span>; HTMLElement would also pass for a <div> or
+    // a <p>, so it would not catch the element changing underneath us.
+    let received: HTMLSpanElement | null = null;
     render(
       <Text ref={(el) => { received = el; }}>
         Ref test
       </Text>,
     );
-    expect(received).toBeInstanceOf(HTMLElement);
+    expect(received).toBeInstanceOf(HTMLSpanElement);
   });
 });

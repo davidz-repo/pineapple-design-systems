@@ -268,11 +268,14 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `as="h3"` → `rt-r-size-6`, and `LEVEL_SIZE.h3` is also `'6'`. Both therefore re-assert the class
   an untouched `<Heading>` already carries: a `Heading` that drops `size` on the floor entirely
   passes both. Verified by mutation — neutering `resolvedSize` leaves both upstream assertions
-  green. Here the pass-through test uses `size="9"`, and the mapping is pinned at the two ends
-  that are distinguishable from the default, `h1` → `rt-r-size-8` and `h6` → `rt-r-size-3`; the
-  same mutation fails all three. The override test (`h1 size="2"`) and the bare-`<Heading>` test
-  were already sound and are ported verbatim. Do not restore the no-ops when syncing; carry the
-  fix back the other way at cutover. *(Phase 2)*
+  green. Here the pass-through test uses `size="9"`, and the mapping is pinned at every entry
+  distinguishable from the default — `h1` → `rt-r-size-8`, `h2` → `-7`, `h4` → `-5`, `h5` → `-4`
+  and `h6` → `-3`; the same mutation fails all six. `h3` stays untested on purpose: it maps to
+  `'6'`, so an assertion for it would be the very no-op this delta records. The override test
+  (`h1 size="2"`) was already sound and is ported verbatim; the bare-`<Heading>` test was too, and
+  additionally asserts `rt-r-size-6` — the one place the default is the behavior under test rather
+  than a hole in it. Do not restore the no-ops when syncing; carry the fix back the other way at
+  cutover. *(Phase 2)*
 
 ---
 
