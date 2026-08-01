@@ -1,5 +1,17 @@
 # @pineappleui/icons
 
+## 0.2.0
+
+### Minor Changes
+
+- [#13](https://github.com/davidz-repo/pineapple-design-systems/pull/13) [`91cffe5`](https://github.com/davidz-repo/pineapple-design-systems/commit/91cffe5c2e0473248021f6113d1fc33de42bdd03) Thanks [@davidz-repo](https://github.com/davidz-repo)! - `@pineappleui/icons` now exports `ICON_NAMES` and `ICON_SIZES` — the glyph names and the size
+  tokens as runtime values (`readonly IconName[]` / `readonly IconSize[]`), for consumers building
+  an icon picker, a gallery or a `<select>`. A type cannot be iterated, so `IconName` alone left
+  every such UI hand-typing the set. Both are derived from the internal `ICONS` and `SIZES` maps,
+  which stay the single definition site: adding a glyph adds it to everything built on them, with
+  no second list to keep in step. The package's own story gallery now maps over the exports rather
+  than the private copies it used to carry.
+
 ## 0.1.0
 
 ### Minor Changes
