@@ -1,0 +1,56 @@
+{
+  "name": "@pineappleui/inline",
+  "version": "0.0.0",
+  "description": "Inline primitive for @pineappleui — horizontal layout, a Radix Flex with direction='row' and wrapping defaults.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davidz-repo/pineapple-design-systems.git",
+    "directory": "packages/inline"
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@radix-ui/themes": "^3.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@ladle/react": "^5.1.1",
+    "@pineappleui/eslint-config": "*",
+    "@pineappleui/tsconfig": "*",
+    "@pineappleui/vitest-preset": "*",
+    "@radix-ui/themes": "^3.3.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^10.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "~5.7.2",
+    "vitest": "^4.1.2"
+  }
+}

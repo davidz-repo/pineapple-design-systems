@@ -129,10 +129,14 @@ all of `src`) and linted, but **nothing in this repo renders them** — the Ladl
 workspace lands in a later PR. `icons` therefore carries `@ladle/react` as a devDependency
 purely for the `Story` type its playground story imports; no other package here provides it.
 
-### Phase 2 — Radix wrappers
+### Phase 2 — Radix wrappers (3 of 11 landed)
 
-`box`, `stack`, `inline`, `text`, `heading`, `badge`, `button`, `icon-button`, `card`,
-`text-field`, `text-area`.
+Landed: `box`, `stack`, `inline` — the layout wrappers, each a `@radix-ui/themes` peer and
+nothing else. All three declare `@ladle/react` as a devDependency, because each one's story
+imports the `Story` type; see *Deltas from the source monorepo* below.
+
+Remaining: `text`, `heading`, `badge`, `button`, `icon-button`, `card`, `text-field`,
+`text-area`.
 
 All eleven have the same shape. Copy `packages/live-region` as the template — it is already a
 React package in the shape a Radix wrapper needs: `react` + `react-dom` peers (declared *and*
@@ -172,7 +176,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These five differences are deliberate and should **not**
+Everything else is ported verbatim. These seven differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -212,6 +216,28 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `Object.keys()` call. `Icon.tsx` keeps the component and `IconProps`; `index.ts` is the only
   place the two halves meet. Do not "restore" the local arrays when syncing with upstream;
   carry the export back the other way instead. *(Phase 1)*
+- **The Radix wrappers' playground stories drop one type assertion each.** Upstream writes
+  `gap={gap as StackProps['gap']}` (and `p={p as BoxProps['p']}`) to push a `string` control
+  value into a Radix space prop. That assertion is a no-op: Radix types those props
+  `enum | string`, so the prop already accepts a plain `string`.
+  `ts/no-unnecessary-type-assertion` is type-aware and says so — it fires here and not upstream
+  only because this repo resolves a newer `@typescript-eslint` (8.65 against upstream's 8.58),
+  which is a lint gate getting sharper, not a difference in the code. The fix is the one
+  `eslint --fix` writes: delete the assertion. `box` loses its now-unused
+  `import type { BoxProps }` with it; `stack` and `inline` keep theirs, which their
+  `PlaygroundArgs` still uses. Expect this to repeat in every remaining Phase 2 package whose
+  story feeds a control value to a space-scale prop. *(Phase 2)*
+- **`box`'s third test actually exercises `as` and `asChild`** — the first delta in **test
+  content**, where the six above are dependency, tsconfig, published-API and story differences.
+  Upstream names that test `renders as the provided element via the asChild pattern (with as)`
+  and then renders a bare `<Box>` and asserts `DIV`, passing neither prop: it re-asserts exactly
+  what the first test already covers, so the green line proves nothing about the behavior its
+  name claims. Here it splits in two — `as="span"` asserting a `SPAN`, and `asChild` over a
+  `<section>` asserting the child element replaces the div and still carries `rt-r-p-4`, which
+  also pins that Radix's props reach the slotted element. Both match what `@radix-ui/themes`
+  supports: its `as` is an enum of `'div' | 'span'`, so an `as="section"` would not typecheck —
+  `asChild` is the only route to any other tag. Do not restore the no-op when syncing; carry the
+  fix back the other way at cutover, as with the `icons` exports. *(Phase 2)*
 
 ---
 
