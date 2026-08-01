@@ -21,6 +21,8 @@ packages/
   box/                @pineappleui/box                PUBLIC    Radix Box pass-through
   stack/              @pineappleui/stack              PUBLIC    vertical layout (Radix Flex, column)
   inline/             @pineappleui/inline             PUBLIC    horizontal layout (Radix Flex, wrapping row)
+  text/               @pineappleui/text               PUBLIC    Radix Text pass-through (body copy)
+  heading/            @pineappleui/heading            PUBLIC    Radix Heading, size defaulted per level
 scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list
