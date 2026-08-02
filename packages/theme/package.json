@@ -36,8 +36,8 @@
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
-    "@pineappleui/tokens": "*",
-    "@pineappleui/use-local-storage": "*"
+    "@pineappleui/tokens": "^0.1.1",
+    "@pineappleui/use-local-storage": "^0.1.0"
   },
   "peerDependencies": {
     "@radix-ui/themes": "^3.3.0",
