@@ -108,6 +108,15 @@ jobs:
       - name: Check the toolchain owns its hoist slots
         run: node scripts/check-toolchain-hoist.mjs
 
+      # Also before the build, and for the same kind of reason: it reads configs
+      # only, and the drift it catches is one that makes the build below MEAN
+      # less. A package missing from the gallery's devDependencies has no turbo
+      # edge, so a story edit does not change the gallery build's hash and the
+      # step after this replays a cached build that never compiled the edit —
+      # green, in the ordinary way, having looked at nothing.
+      - name: Check the gallery's alias fences agree
+        run: node scripts/check-alias-fences.mjs
+
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.
       #
