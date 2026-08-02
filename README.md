@@ -36,6 +36,7 @@ scripts/
   check-token-drift.mjs                                         no hand-typed copies of a token list
   check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
   check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
+  check-alias-fences.mjs                                        the gallery's three alias lists agree
 ```
 
 ## Working on it
@@ -50,19 +51,22 @@ The gallery resolves every `@pineappleui/*` import to that package's `src/`, not
 `dist/` — so a component edit shows up on reload with no build in between. Its `build` task
 (`ladle build`) is what proves in CI that every story still compiles.
 
-`verify` runs four guards around the four turbo tasks. Each is also a script of its own, and
+`verify` runs five guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
 
 | Script | Guards against |
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
+| `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
 | `npm run check:publish` | a manifest that cannot publish, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, and an undeclared one that did not |
 
-`check:hoist` runs *first* and needs no build: it reads `package-lock.json`, so it answers
-"is the toolchain the one we declared?" before anything runs on that toolchain. The other
-three read build output and run after.
+`check:hoist` and `check:aliases` run *before* the build and need no build output: the first
+reads `package-lock.json`, so it answers "is the toolchain the one we declared?" before
+anything runs on that toolchain, and the second reads the gallery's configs, where a missing
+devDependency is what would let the build below replay from cache without compiling the change
+that prompted it. The other three read `dist/` and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'

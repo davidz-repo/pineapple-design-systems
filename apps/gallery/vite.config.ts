@@ -7,10 +7,21 @@ import { defineConfig } from 'vite';
 // becomes the same call against a dirname derived from `import.meta.url`.
 const galleryDir = path.dirname(fileURLToPath(import.meta.url));
 
-// No `plugins: [react()]` here on purpose: Ladle already applies its own React
-// plugin to every story, and a second copy in the merged config transforms each
-// file twice. Vite's `mergeConfig` concatenates plugin arrays rather than
-// deduplicating them, so this is a real double-transform, not a no-op.
+// Ladle is what loads this file, and Ladle's own vite is what consumes it:
+// `@ladle/react@5` depends on `vite@^6`, which npm keeps at
+// `node_modules/@ladle/react/node_modules/vite` because the root's `vite@^8`
+// owns the shared top slot (that hoist is asserted by
+// `scripts/check-toolchain-hoist.mjs`). So every option below must be valid for
+// **vite 6**, not for the vite 8 this file imports from — `defineConfig` is an
+// identity function, so the root's copy contributes types and nothing else.
+//
+// No `plugins: [react()]` here because none is needed: Ladle appends its own
+// React plugin whenever the user config does not supply one —
+// `!hasReactPlugin && !hasReactSwcPlugin && react()` in
+// `@ladle/react/lib/cli/vite-base.js`. Those two flags come from scanning this
+// config's `plugins` for the names `vite:react-babel` and `vite:react-swc`, so
+// adding a React plugin here would not double-transform anything either: Ladle
+// would detect it and skip its own. It would simply be a line with nothing to do.
 export default defineConfig({
   resolve: {
     // Every @pineappleui/* package resolves to its SOURCE, not to `dist/`. The

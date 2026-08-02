@@ -5,7 +5,7 @@
   "private": true,
   "description": "Ladle gallery that renders every @pineappleui package's stories from source.",
   "scripts": {
-    "ladle": "ladle serve --port 6006",
+    "ladle": "ladle serve",
     "build": "ladle build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
