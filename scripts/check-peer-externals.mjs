@@ -71,9 +71,17 @@
 //
 // Read: every `.css` under `src/` and every `.css` in `dist/`. Both, because the
 // two answer different questions — `src/` is what was written, `dist/` is what
-// ships — and a build config that stopped copying the stylesheet would empty the
-// second while the first still looked right. Only `@import` is read; a bare
-// specifier inside `url()` is not resolvable CSS and no stylesheet here has one.
+// ships. A build config that stopped copying the stylesheet empties the second
+// while the first still looks right, and E does NOT fail on that: with no
+// `dist/styles.css` there is nothing to scan, and a scan of nothing passes.
+// Delete the file and this guard exits 0. What fails is
+// check-publish-contract's tarball assertion — `exports["./styles.css"]` names
+// a path the tarball would not contain. Reading `dist/` here buys VISIBILITY
+// rather than the catch: the stylesheet count in the pass line below drops, so
+// the loss is legible instead of arriving as a clean scan of nothing.
+//
+// Only `@import` is read; a bare specifier inside `url()` is not resolvable CSS
+// and no stylesheet here has one.
 //
 // Everything below reads source as TEXT: the configs are TypeScript, and
 // importing them would mean compiling them. A text scan is imprecise at the
@@ -775,7 +783,7 @@ function checkPackage(relDir) {
     fail(
       pkgName,
       `has ${TSUP_CONFIG} but no ${BUILD_ENTRY}`,
-      'run `npx turbo run build` first. Two of the four assertions here read the '
+      'run `npx turbo run build` first. Three of the five assertions here read the '
       + 'built output, because what the config asks for and what the bundler emitted '
       + 'are different facts.',
     );
@@ -857,6 +865,17 @@ function checkPackage(relDir) {
 
   const built = collectBuiltImports(pkgName, entryPath);
   if (built === null) return; // Already reported.
+
+  // B and C compare at PACKAGE granularity: `@radix-ui/themes/helpers` and
+  // `@radix-ui/themes` are one name here. That is what makes them true — a
+  // source importing a subpath and a bundle importing the bare name (or the
+  // reverse) is ordinary output, and comparing full specifiers would fail every
+  // one of those. The residual gap, named rather than papered over: a subpath
+  // that got INLINED while the bare import survived is invisible to B.
+  // `@pineappleui/theme` imports both `@radix-ui/themes` and
+  // `@radix-ui/themes/helpers`, so a build that bundled `getMatchingGrayColor`
+  // and left `import { Theme } from '@radix-ui/themes'` standing would still
+  // read as external here.
   const builtPackages = new Set([...built].map(packageOfSpecifier));
 
   // A. Declared + imported must be external.

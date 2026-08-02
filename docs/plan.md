@@ -64,9 +64,14 @@ It stops there deliberately, and each omission is a fact about how a stylesheet 
 than a gap. `external` is about what the JS bundler inlines, and the `copy` loader parses
 nothing — there is nothing for a CSS `@import` to be external *to*. `dist/index.mjs` never
 mentions a stylesheet's imports at all; what ships is the `.css` file, which is why the
-assertion reads that. Reading `src/` **and** `dist/` is what catches the loader being dropped:
-the copy stops happening while the source still looks right, and the count of stylesheets
-scanned in the guard's pass line is what says so out loud rather than reporting a clean scan of
+assertion reads that.
+
+Reading `src/` **and** `dist/` does not, by itself, *catch* the loader being dropped. With no
+`dist/styles.css` there is nothing for E to scan, and a scan of nothing passes — delete the file
+and `check-peer-externals` exits 0. What catches it is `check-publish-contract`'s tarball
+assertion (§5): `exports["./styles.css"]` names a path the tarball would not contain, and that
+fails. What reading `dist/` buys is **visibility**: the count of stylesheets scanned in the
+guard's pass line drops, so the loss is legible there instead of arriving as a clean scan of
 nothing.
 
 ### 4. ESM only
@@ -275,9 +280,25 @@ Radix's `<Theme>` and a local `useState` only because `@pineappleui/theme` had n
 It has, so this file converged on upstream's shape rather than diverging further, which is why
 none of it was ever recorded as a delta — every entry in that list is a standing difference a
 future sync must not revert, and this one would have told the next reader to keep something
-written to be thrown away. The one line that outlived the swap is the accent default: it was
-`ACCENT_COLORS[0]`, derived rather than hand-typed, and it is now the package's own
-`DEFAULT_PREFERENCES` — the choice moved rather than being copied to a second place.
+written to be thrown away.
+
+The accent default did not move across the swap: it **flipped**. The decorator seeded its local
+`useState` with `ACCENT_COLORS[0]`, which is `indigo` — the list runs `indigo … bronze`, ordered
+to match upstream's picker (commit 5411352) — and the gallery now starts on
+`DEFAULT_PREFERENCES.accentColor`, which is `bronze`. That is an intentional correction rather
+than a regression: `bronze` is this design system's real default accent, and `ACCENT_COLORS[0]`
+was only ever "whatever is first in the picker", which stopped agreeing with the default the day
+the ordering was fixed.
+
+It also answers, rather than drops, the #24 checklist bullet that called `ACCENT_COLORS[0]` a
+*derived* default and said not to replace it with a literal on the way past. The literal now
+lives in `DEFAULT_PREFERENCES`, which is the right home for it, and
+`packages/tokens/src/tokens.ts` says why in its own header: array order is picker order and
+carries no implication about which accent is the default — `bronze` is the default *despite*
+sitting last, because it pairs with the `sand` gray. Deriving the default from a position in
+that list would re-couple the two things 5411352 separated, and reordering the picker would then
+silently move the default. One name is a reference, not a copy of a list, which is the same rule
+`check-token-drift` is written around.
 
 The dev-server port is stated once, in `.ladle/config.mjs` (`port: 6006`); the `ladle` script is
 a bare `ladle serve`, because a `--port` flag on it would be a second copy of the same number.
@@ -359,7 +380,7 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These eighteen differences are deliberate and should **not**
+Everything else is ported verbatim. These nineteen differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -559,6 +580,22 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `theme--themed-text-and-button`, with both stories kept apart from de-branding. Every other
   package here has exactly one story file named for it; this is that convention, not an exception
   to it. *(Phase 3)*
+- **`theme` owns the storage key in one internal module, and `getFoucScript` defaults to it** —
+  upstream writes the key into `ThemePreferencesProvider.tsx`, makes `getFoucScript`'s
+  `storageKey` a required option, and leaves the consumer to pass the same string. A key the two
+  disagree on is not an error anywhere: the script reads nothing, paints the default, and React
+  snaps to the stored theme one frame later — the exact flash the snippet is inlined to prevent
+  — and no type can see it, because the script's copy of the key lives inside a string. Here
+  `src/preferences.ts` owns `STORAGE_KEY`, `DEFAULT_PREFERENCES` and the `DEFAULT_ACCENT` derived
+  from it; the provider and the generator both import it, and both of `getFoucScript`'s options
+  now default — `storageKey` to that key, `rootElementId` to `root` — with the overrides kept for
+  a tree that is not the ordinary one. `preferences.ts` is internal: `index.ts` does not
+  re-export it, so nothing about the published surface moves. Separately, every value the
+  generator interpolates is escaped for the inline-HTML context it lands in (`<` as its `\u003C` escape),
+  because the HTML parser does not parse a script body — it scans it for `</script` and ends the
+  element there, so a value carrying that sequence drops the rest of the snippet into the
+  document as markup. Do not restore the required option or the hand-typed key when syncing;
+  carry both back the other way at cutover. *(Phase 3)*
 - **`theme`'s stylesheet doubles the selector on its font override** — `.radix-themes.radix-themes`
   where upstream writes `.radix-themes`, which is the same element at twice the specificity
   (0,2,0 against Radix's own 0,1,0). Upstream's comment says these "win by source order", and
