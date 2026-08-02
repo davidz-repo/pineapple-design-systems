@@ -156,8 +156,8 @@ Keep everything else — the four scripts, `files`, `exports`, `publishConfig`, 
 
 Two things to do per package that no template can carry for you:
 
-- **Read every ported test body, not its name.** Two of the five landed so far shipped an
-  assertion that its own name did not describe, and each one was green. Both are recorded as
+- **Read every ported test body, not its name.** Three of the nine landed so far shipped an
+  assertion that its own name did not describe, and each one was green. All three are recorded as
   standing deltas below.
 - **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
   or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion

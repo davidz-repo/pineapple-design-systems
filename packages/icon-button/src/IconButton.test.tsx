@@ -6,7 +6,10 @@ import { IconButton } from './index';
 // Radix defaults IconButton to `variant="solid"`, `size="2"` and
 // `loading={false}`, so the assertions below are written against values that
 // are NOT those defaults: `soft`, and loading turned on. An IconButton that
-// dropped the prop on the floor would fail both.
+// dropped the prop on the floor would fail both. Each is pinned by the class
+// Radix's prop def gives it — `rt-variant-soft` and `rt-loading` — because
+// those name the prop that arrived, where `data-disabled` alone cannot: Radix
+// sets it for a plain `disabled` too.
 describe('@pineappleui/icon-button', () => {
   it('renders a native button with the provided children', () => {
     const { getByRole } = render(
@@ -25,13 +28,19 @@ describe('@pineappleui/icon-button', () => {
     expect(button.className).toMatch(/rt-variant-soft/);
   });
 
-  it('renders the Radix loading state (data-disabled set)', () => {
+  it('renders the Radix loading state (sets the rt-loading class, and data-disabled)', () => {
     const { getByRole } = render(
       <IconButton aria-label="loading" loading><span>icon</span></IconButton>,
     );
     const button = getByRole('button');
-    // Radix's loading state sets data-disabled on the button itself. The
-    // visible spinner is rendered as an absolutely-positioned span via
+    // `loading` is a boolean prop def whose className is `rt-loading`, so the
+    // class is set by that prop and no other — as stable a marker as the
+    // `rt-variant-*` above, and the only one of the two below that proves
+    // `loading` is what arrived.
+    expect(button.className).toMatch(/rt-loading/);
+    // Radix's loading state additionally sets data-disabled on the button
+    // itself. True, but not sufficient alone: a plain `disabled` sets it too.
+    // The visible spinner is rendered as an absolutely-positioned span via
     // CSS; we don't assert on the specific element type because Radix may
     // swap it across versions.
     expect(button.hasAttribute('data-disabled')).toBe(true);
