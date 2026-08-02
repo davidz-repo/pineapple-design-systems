@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/badge",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Badge primitive for @pineappleui — a thin wrapper around the @radix-ui/themes Badge.",
   "license": "MIT",
   "type": "module",
