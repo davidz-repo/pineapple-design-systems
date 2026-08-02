@@ -50,7 +50,8 @@ npm run ladle -w @pineappleui/gallery   # the story gallery on http://localhost:
 
 The gallery resolves every `@pineappleui/*` import to that package's `src/`, not to its
 `dist/` — so a component edit shows up on reload with no build in between. Its `build` task
-(`ladle build`) is what proves in CI that every story still compiles.
+(`ladle build`, behind a wrapper that fails the task when the build does — ladle exits 0 either
+way) is what proves in CI that every story still compiles.
 
 `verify` runs five guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
@@ -59,7 +60,7 @@ each fails with the fix in the message:
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
-| `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, and a workspace running zero tasks |
+| `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling workspace shipping to consumers, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, an undeclared one that did not, and a dependency only a stylesheet's `@import` names |
 
