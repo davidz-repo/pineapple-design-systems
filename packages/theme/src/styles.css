@@ -11,9 +11,18 @@
 @import '@fontsource-variable/geist/index.css';
 
 /* Point Radix Themes at Geist for both UI/body and headings. Overriding these
-   CSS variables cascades to every surface rendered under Radix <Theme>. The
-   Radix import above comes first, so these win by source order. */
-.radix-themes {
+   CSS variables cascades to every surface rendered under Radix <Theme>.
+
+   The selector is doubled — same element, twice the specificity (0,2,0 against
+   Radix's own 0,1,0) — so it wins on specificity rather than on source order.
+   Source order is not this package's to control: the `@import` above puts
+   Radix's stylesheet first HERE, but a consumer who also imports
+   `@radix-ui/themes/styles.css` themselves, or whose bundler concatenates the
+   two the other way round, gets Radix's `.radix-themes { --default-font-family }`
+   last — and at equal specificity last wins. The failure is silent and looks
+   like nothing: the app renders in Radix's default font, which is a normal-
+   looking font, so nobody reads it as a broken import. */
+.radix-themes.radix-themes {
   --default-font-family: 'Geist Variable', system-ui, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --heading-font-family: 'Geist Variable', system-ui, -apple-system,

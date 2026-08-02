@@ -359,7 +359,7 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These seventeen differences are deliberate and should **not**
+Everything else is ported verbatim. These eighteen differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -559,6 +559,15 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `theme--themed-text-and-button`, with both stories kept apart from de-branding. Every other
   package here has exactly one story file named for it; this is that convention, not an exception
   to it. *(Phase 3)*
+- **`theme`'s stylesheet doubles the selector on its font override** — `.radix-themes.radix-themes`
+  where upstream writes `.radix-themes`, which is the same element at twice the specificity
+  (0,2,0 against Radix's own 0,1,0). Upstream's comment says these "win by source order", and
+  they do *there*: it is an app, and that app's bundle puts the `@import`ed Radix stylesheet
+  first. A published package does not own its source order. A consumer who also imports
+  `@radix-ui/themes/styles.css` themselves, or whose bundler concatenates the two the other way
+  round, gets Radix's `--default-font-family` last, and at equal specificity last wins. What they
+  see is the app rendering in Radix's default font — a normal-looking font, which is why nobody
+  reads it as a broken import. Do not "simplify" the doubled selector back when syncing. *(Phase 3)*
 - **`use-local-storage`'s `set` accepts a functional updater, and `theme`'s two setters use it** —
   a deliberate divergence in **published API**, like `icons`' exported lists, and the first one
   that reaches back into a package an earlier phase already landed. Upstream's hook takes a value
