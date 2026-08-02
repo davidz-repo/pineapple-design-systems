@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Publish-contract guard for every workspace under `packages/*`.
+// Publish-contract guard for every workspace the root manifest declares.
 //
 // Everything checked here is a SILENT failure without this script:
 //
@@ -31,6 +31,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const REQUIRED_SCRIPTS = ['build', 'lint', 'test', 'typecheck'];
 const DIST_PREFIX = 'dist/';
@@ -53,7 +54,6 @@ const OPT_OUT_PATH = `${OPT_OUT_NAMESPACE}.${OPT_OUT_FIELD}`;
 const MIN_REASON_LENGTH = 20;
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const packagesDir = path.join(repoRoot, 'packages');
 
 // The canonical licence text every publishable package must ship verbatim.
 const rootLicense = readFileSync(path.join(repoRoot, LICENSE_FILE), 'utf8');
@@ -77,19 +77,6 @@ function fail(pkgName, problem, fix) {
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
-}
-
-/**
- * Every workspace folder under `packages/`, discovered from the root
- * package-lock so the guard sees exactly what npm installed — a folder that
- * npm does not treat as a workspace would otherwise be checked (or missed)
- * inconsistently with the build.
- */
-function listPackageDirs() {
-  const lock = readJson(path.join(repoRoot, 'package-lock.json'));
-  return Object.keys(lock.packages ?? {})
-    .filter(key => key.startsWith('packages/') && key.split('/').length === 2)
-    .sort();
 }
 
 /**
@@ -367,15 +354,23 @@ function checkLicenseMatchesRoot(pkgName, relDir) {
   }
 }
 
-const packageDirs = listPackageDirs();
+// Discovery — and the assertion that the root declares no workspace root it
+// cannot walk — is shared with check-peer-externals.mjs, so the two can never
+// disagree about what a workspace is. Task coverage is the assertion that most
+// needs the full list: a workspace this guard never enumerates is a workspace
+// free to run zero tasks, under a line that still says "N workspace(s) OK".
+const packageDirs = listWorkspaceDirs('check-publish-contract');
 if (packageDirs.length === 0) {
-  console.error('check-publish-contract: found no workspaces under packages/. '
-    + 'Run `npm install` so package-lock.json lists them.');
+  console.error('check-publish-contract: found no workspaces in the root package.json '
+    + 'globs. Run `npm install` so package-lock.json lists them.');
   process.exit(1);
 }
 
 for (const relDir of packageDirs) {
-  const manifestPath = path.join(packagesDir, path.basename(relDir), 'package.json');
+  // Resolved from the workspace path itself, never by re-rooting its basename
+  // under packages/: `apps/gallery` would otherwise be read as
+  // `packages/gallery` — another package's manifest, or none at all.
+  const manifestPath = path.join(repoRoot, relDir, 'package.json');
   const manifest = readJson(manifestPath);
   const pkgName = manifest.name ?? relDir;
 
@@ -395,7 +390,7 @@ for (const relDir of packageDirs) {
 
 if (failures.length > 0) {
   console.error(
-    `\ncheck-publish-contract: ${failures.length} problem(s) in packages/*\n\n`
+    `\ncheck-publish-contract: ${failures.length} problem(s) across the workspaces\n\n`
     + `${failures.map(f => `  ✗ ${f}`).join('\n\n')}\n`,
   );
   process.exit(1);

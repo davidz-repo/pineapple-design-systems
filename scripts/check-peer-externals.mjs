@@ -70,7 +70,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire, isBuiltin } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { assertWorkspaceGlobsUnderstood } from './workspace-globs.mjs';
+import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 // A workspace is in scope iff it has a tsup config: that is what produces the
 // `dist/` these assertions read. Tooling packages (tsconfig, eslint-config,
@@ -142,19 +142,6 @@ function readJson(filePath, { allowComments = false } = {}) {
   catch (cause) {
     throw new Error(`${filePath} is not valid JSON${allowComments ? 'C' : ''}: ${cause.message}`, { cause });
   }
-}
-
-/**
- * Every workspace folder under `packages/`, read from the root package-lock so
- * this guard sees exactly the set npm installed — same source of truth as
- * check-publish-contract.mjs, so the two can never disagree about what a
- * workspace is.
- */
-function listPackageDirs() {
-  const lock = readJson(path.join(repoRoot, 'package-lock.json'));
-  return Object.keys(lock.packages ?? {})
-    .filter(key => key.startsWith('packages/') && key.split('/').length === 2)
-    .sort();
 }
 
 /** @param {string} dir @returns {string[]} absolute paths */
@@ -849,12 +836,13 @@ function checkPackage(relDir) {
   };
 }
 
-assertWorkspaceGlobsUnderstood('check-peer-externals');
-
-const packageDirs = listPackageDirs();
+// Discovery — and the assertion that the root declares no workspace root it
+// cannot walk — is shared with check-publish-contract.mjs, so the two can never
+// disagree about what a workspace is.
+const packageDirs = listWorkspaceDirs('check-peer-externals');
 if (packageDirs.length === 0) {
   console.error(
-    '\ncheck-peer-externals: found no workspaces under packages/.\n'
+    '\ncheck-peer-externals: found no workspaces in the root package.json globs.\n'
     + '  fix: run `npm install` so package-lock.json lists them. Zero workspaces is a\n'
     + '       guard that looked at nothing, not a repo that is clean.\n',
   );
@@ -870,7 +858,7 @@ for (const relDir of packageDirs) {
 
 if (failures.length > 0) {
   console.error(
-    `\ncheck-peer-externals: ${failures.length} problem(s) in packages/*\n\n`
+    `\ncheck-peer-externals: ${failures.length} problem(s) across the workspaces\n\n`
     + `${failures.map(f => `  ✗ ${f}`).join('\n\n')}\n`,
   );
   process.exit(1);
