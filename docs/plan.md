@@ -338,17 +338,20 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   that the text sits on a `.rt-TextFieldSlot` and that a `.rt-TextFieldRoot` is its ancestor, which
   is what the name claims. Verified by mutation, swapping `<TextField.Slot>` for a bare `<span>`:
   the upstream shape stays green, the rewrite fails on `expected '' to match /rt-TextFieldSlot/`.
-  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline`
-  still have, and this delta closes only `text-field`'s — and the ref is the interesting half of a
-  compound component: Radix types `TextField.Root`'s ref `ElementRef<'input'>` and composes it
-  onto the inner `<input>`, not onto the `<div>` the root renders for the slots — so "the ref
-  reaches the node you focus" is exactly the thing a pass-through package should pin. The new test
-  asserts `HTMLInputElement`, per the `text` delta's
-  standing rule. `text-area` needed no rewrite: `size="3"` and `variant="soft"` both sit off Radix's
-  `'2'` / `'surface'` defaults (a bare render carries `rt-r-size-2 rt-variant-surface`, checked by
-  execution rather than by eye), and its ref assertion already names `HTMLTextAreaElement`, which is
-  what Radix types it as. Do not restore the no-op or drop the ref test when syncing; carry both
-  back the other way at cutover. *(Phase 2)*
+  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline` still
+  have, and this delta closes only `text-field`'s — and the ref is the interesting half of a
+  compound component: Radix types `TextField.Root`'s ref `ElementRef<'input'>` and composes it onto
+  the inner `<input>`, not onto the `<div>` the root renders for the slots — so "the ref reaches
+  the node you focus" is exactly the thing a pass-through package should pin. The new test asserts
+  `HTMLInputElement`, per the `text` delta's standing rule. `text-area` needed no rewrite:
+  `size="3"` and `variant="soft"` both sit off Radix's `'2'` / `'surface'` defaults (a bare render
+  carries `rt-r-size-2 rt-variant-surface`, checked by execution rather than by eye), and its ref
+  assertion already names `HTMLTextAreaElement`, which is what Radix types it as. It gains one test
+  all the same: `textAreaPropDefs.resize` carries no `default` at all, so a bare render has no
+  `rt-r-resize-*` class and `resize="vertical"` → `rt-r-resize-vertical` is an assertion nothing
+  but a live pass-through can pass — and the README sells `resize` as a contract bullet with
+  nothing pinning it. Do not restore the no-op or drop either new test when syncing; carry all
+  three back the other way at cutover. *(Phase 2)*
 
 ---
 
