@@ -38,12 +38,30 @@ export function ThemePreferencesProvider({ children }: { children: ReactNode }) 
   // If the stored value is somehow invalid (e.g. from a previous schema), fall back to defaults.
   const prefs = isValidPreferences(stored) ? stored : DEFAULT_PREFERENCES;
 
+  // Both setters write the WHOLE record, so each has to carry the other
+  // preference across — and it has to be the other preference as of the WRITE,
+  // not as of the render that created the setter. Spreading `prefs` here reads
+  // this render's snapshot, so two setter calls in one tick both start from the
+  // state before either, and the second silently discards the first. React does
+  // not re-render between them, so there is no moment at which the intermediate
+  // value could be read back.
+  //
+  // The updater form of `set` is handed what the previous call produced, which
+  // is `useState`'s own guarantee and the reason it has that form. Validity is
+  // re-checked inside, because `previous` is the raw stored value — the same
+  // thing `prefs` above is derived from, and for the same reason.
   function setAppearance(appearance: AppearanceSetting) {
-    setStored({ ...prefs, appearance });
+    setStored(previous => ({
+      ...(isValidPreferences(previous) ? previous : DEFAULT_PREFERENCES),
+      appearance,
+    }));
   }
 
   function setAccentColor(accentColor: AccentColor) {
-    setStored({ ...prefs, accentColor });
+    setStored(previous => ({
+      ...(isValidPreferences(previous) ? previous : DEFAULT_PREFERENCES),
+      accentColor,
+    }));
   }
 
   return (

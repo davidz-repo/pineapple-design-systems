@@ -335,7 +335,7 @@ another thing that task slot earns.
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These sixteen differences are deliberate and should **not**
+Everything else is ported verbatim. These seventeen differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -532,6 +532,23 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `theme--themed-text-and-button`, with both stories kept apart from de-branding. Every other
   package here has exactly one story file named for it; this is that convention, not an exception
   to it. *(Phase 3)*
+- **`use-local-storage`'s `set` accepts a functional updater, and `theme`'s two setters use it** —
+  a deliberate divergence in **published API**, like `icons`' exported lists, and the first one
+  that reaches back into a package an earlier phase already landed. Upstream's hook takes a value
+  only, `(value: T) => void`, and upstream's `ThemePreferencesProvider` spreads the record its
+  render captured: `setStored({ ...prefs, appearance })`. Each setter is created during a render
+  and closes over that render's `prefs`, so **two setter calls in one tick both resolve against
+  the state before either** — a "reset to the light bronze theme" button, or the gallery's
+  appearance bridge writing while a story picks an accent — and the second overwrites the first
+  with nothing reporting it. React does not re-render in between, so there is no moment at which
+  the intermediate value could be read back, and every upstream test writes one preference at a
+  time. Verified by probe before the fix, in both orders: setting the appearance then the accent
+  reverts the appearance, and the reverse reverts the accent. The hook therefore takes
+  `T | ((previous: T) => T)` — `useState`'s own pair of shapes, resolved against a ref so `set`
+  keeps writing `localStorage` exactly once per call — and the two setters pass an updater. Two
+  tests pin it, one per order, and both fail on the captured spread. Do not restore the value-only
+  signature or the captured spread when syncing; carry both back the other way at cutover.
+  *(Phase 3, changing a Phase 1 package)*
 
 ---
 

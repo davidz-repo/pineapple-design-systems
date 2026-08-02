@@ -107,6 +107,48 @@ describe('useThemePreferences', () => {
     expect(result.current.appearance).toBe('dark');
   });
 
+  // Two setters in ONE tick, which is what a "reset to the light bronze theme"
+  // button is. Each setter is created during a render and closes over that
+  // render's preference record, so a setter that spreads what it captured
+  // resolves against the state BEFORE both calls — the second write overwrites
+  // the first, and the first is gone with nothing reporting it. React has not
+  // re-rendered in between, so there is no moment at which the intermediate
+  // value could be read; the only fix is for the second call to be handed what
+  // the first produced, which is the updater form of `set`.
+  //
+  // Both orders, because each one is a different setter losing the write.
+  it('keeps both writes when the appearance is set before the accent, in one tick', () => {
+    const { result } = renderHook(() => useThemePreferences(), { wrapper });
+
+    act(() => {
+      result.current.setAppearance('dark');
+      result.current.setAccentColor(PICKED_ACCENT);
+    });
+
+    expect(result.current.appearance).toBe('dark');
+    expect(result.current.accentColor).toBe(PICKED_ACCENT);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toEqual({
+      appearance: 'dark',
+      accentColor: PICKED_ACCENT,
+    });
+  });
+
+  it('keeps both writes when the accent is set before the appearance, in one tick', () => {
+    const { result } = renderHook(() => useThemePreferences(), { wrapper });
+
+    act(() => {
+      result.current.setAccentColor(PICKED_ACCENT);
+      result.current.setAppearance('dark');
+    });
+
+    expect(result.current.appearance).toBe('dark');
+    expect(result.current.accentColor).toBe(PICKED_ACCENT);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toEqual({
+      appearance: 'dark',
+      accentColor: PICKED_ACCENT,
+    });
+  });
+
   it('throws when called outside ThemePreferencesProvider', () => {
     // renderHook without a wrapper — no provider in the tree.
     expect(() => renderHook(() => useThemePreferences())).toThrow(
