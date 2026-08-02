@@ -23,6 +23,10 @@ packages/
   inline/             @pineappleui/inline             PUBLIC    horizontal layout (Radix Flex, wrapping row)
   text/               @pineappleui/text               PUBLIC    Radix Text pass-through (body copy)
   heading/            @pineappleui/heading            PUBLIC    Radix Heading, size defaulted per level
+  badge/              @pineappleui/badge              PUBLIC    Radix Badge pass-through (inline label)
+  button/             @pineappleui/button             PUBLIC    Radix Button pass-through
+  icon-button/        @pineappleui/icon-button        PUBLIC    Radix IconButton pass-through (square, one glyph)
+  card/               @pineappleui/card               PUBLIC    Radix Card pass-through (padded surface)
 scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list
