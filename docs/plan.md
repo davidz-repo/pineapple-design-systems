@@ -54,9 +54,25 @@ that catches a real inlining: tsup externalises whatever the manifest declares, 
 a check rather than a reviewer.
 
 All four assertions read JS/TS import syntax, so **CSS is invisible to them**: a package a
-stylesheet pulls in with `@import` — Phase 3's theme does this for
+stylesheet pulls in with `@import` — `@pineappleui/theme` does this for
 `@fontsource-variable/geist` — is a real runtime dependency of the consumer's bundle that none
-of them would report. Closing that is part of the Phase 3 PR that introduces the stylesheet.
+of them would report. A **fifth** assertion covers it, added with the stylesheet that first
+needed it: every bare specifier `@import`ed by a `.css` file under `src/` or in `dist/` must be
+declared as a peer or a dependency, which is the CSS reading of the first assertion above.
+
+It stops there deliberately, and each omission is a fact about how a stylesheet ships rather
+than a gap. `external` is about what the JS bundler inlines, and the `copy` loader parses
+nothing — there is nothing for a CSS `@import` to be external *to*. `dist/index.mjs` never
+mentions a stylesheet's imports at all; what ships is the `.css` file, which is why the
+assertion reads that.
+
+Reading `src/` **and** `dist/` does not, by itself, *catch* the loader being dropped. With no
+`dist/styles.css` there is nothing for E to scan, and a scan of nothing passes — delete the file
+and `check-peer-externals` exits 0. What catches it is `check-publish-contract`'s tarball
+assertion (§5): `exports["./styles.css"]` names a path the tarball would not contain, and that
+fails. What reading `dist/` buys is **visibility**: the count of stylesheets scanned in the
+guard's pass line drops, so the loss is legible there instead of arriving as a clean scan of
+nothing.
 
 ### 4. ESM only
 
@@ -70,8 +86,13 @@ npm defaults **scoped** packages to `restricted`. A missing `access` does not fa
 CI, or `changeset version` — it fails at the first `npm publish`, hours later. A missing
 `license` renders as "proprietary" on the package page and trips consumers' license scanners.
 `scripts/check-publish-contract.mjs` enforces both, along with `files`, `exports`, the
-`dist/`-rooted entry points, `repository.directory`, and the actual tarball contents. It also
-enforces task coverage for **every** workspace, publishable or private — see §8.
+`dist/`-rooted entry points, `repository.directory`, and the actual tarball contents — including
+that every path `main`, `module`, `types` and each leaf of `exports` names is *in* that tarball.
+That last one is what a second entry point needs: `@pineappleui/theme`'s
+`exports["./styles.css"]` is written by a tsup loader rather than by the JS build, so the day
+that loader goes the package still publishes, still ships a non-empty `dist/`, and fails at the
+consumer's `import '@pineappleui/theme/styles.css'`. It also enforces task coverage for **every**
+workspace, publishable or private — see §8.
 
 Private packages carry no `publishConfig` and stay at version `0.0.0`.
 
@@ -176,61 +197,108 @@ declares no React, so it starts a React package two corrections behind live-regi
 
 `apps/gallery` — private, `0.0.0`, ESM — is the first workspace outside `packages/*`, and the
 first surface in this repo that **renders** anything. Ladle globs
-`packages/*/src/**/*.stories.{ts,tsx}`, which is 13 story files and 37 stories today: the 11
-Phase 2 wrappers plus `icons` and `live-region`. A new package's stories appear the moment the
-file exists — there is no per-package registration to forget.
+`packages/*/src/**/*.stories.{ts,tsx}`, which is 14 story files and 39 stories today: the 11
+Phase 2 wrappers plus `icons`, `live-region` and `theme`. A new package's stories appear the
+moment the file exists — there is no per-package registration to forget.
 
 Four things it does that the upstream gallery does not, each of them repo law here:
 
-1. **All four task slots are accounted for.** `build` is `ladle build`, `lint` is `eslint .`,
-   `typecheck` is `tsc --noEmit`, and `test` is a declared opt-out. `build` earns its slot: it
-   compiles every discovered story through the alias chain, so a story that stops compiling, an
-   alias that stops resolving, or a decorator that breaks every story fails CI. Upstream defines
-   `lint` only and calls the Ladle build `ladle:build`, which `turbo run build` skips silently —
-   the exact shape §"Adding a workspace later" exists to prevent. `apps/gallery/turbo.json`
-   declares this task's `build/**` outputs, next to the task that writes them, so the root
-   config keeps saying `dist/**` and only the workspace that emits something else says so.
+1. **All four task slots are accounted for.** `build` is `node scripts/build.mjs`, `lint` is
+   `eslint .`, `typecheck` is `tsc --noEmit`, and `test` is a declared opt-out. `build` earns its
+   slot: it compiles every discovered story through the alias chain, so a story that stops
+   compiling, an alias that stops resolving, or a decorator that breaks every story fails CI.
+   Upstream defines `lint` only and calls the Ladle build `ladle:build`, which `turbo run build`
+   skips silently — the exact shape §"Adding a workspace later" exists to prevent.
+   `apps/gallery/turbo.json` declares this task's `build/**` outputs, next to the task that
+   writes them, so the root config keeps saying `dist/**` and only the workspace that emits
+   something else says so.
 
-   **That slot means something only because the gallery declares all 15 aliased packages as
+   **The wrapper is what makes that slot mean anything.** `ladle build` exits **0** on a failed
+   build. @ladle/react 5.1.1 wraps vite's `build()` in a try/catch that logs the error and
+   returns `false` (`lib/cli/vite-prod.js`), and `lib/cli/build.js` ignores that return value —
+   so the process prints "✗ Build failed", writes a fresh `meta.json` listing every story it was
+   asked to compile, prints its timing line and exits 0. `build/` is left holding the PREVIOUS
+   bundle, because vite's `emptyOutDir` runs at write time and the write is never reached. Every
+   failure this task exists to catch fails in exactly that shape, so before the wrapper the task
+   reported green over a stale gallery. `apps/gallery/scripts/build.mjs` runs the same build and
+   then checks four independent things — the exit code; the failure marker present or the success
+   marker absent in the output; `build/index.html` not rewritten by this run, which is the one
+   signal that does not depend on matching someone else's string, since vite does not write that
+   file when the build fails; and `build/meta.json` parsing and listing at least one story. Any
+   of them exits 1. Proved by breaking an import in a story: the task exits 1, and exits 0 again
+   once it is restored. The story count deliberately stops at "more than zero" — comparing it
+   against the story files on disk would be a second implementation of the glob
+   `scripts/check-alias-fences.mjs` already owns.
+
+   **That slot means something only because the gallery declares all 16 aliased packages as
    `*` devDependencies.** Turbo hashes a task's inputs from its own package directory, and the
    stories this build compiles live in `packages/*/src` — outside it. Nothing turbo can express
    reaches them: with no dependency edge, editing a story leaves the gallery build's hash
    unchanged, so a warm-cache CI run replays a green `build` that never compiled the edit. The
    stories *are* inputs to their own package's build, so the propagation comes from
    `dependsOn: ["^build"]` walking those edges — which is what the devDependencies exist to
-   create. They are not imports (the gallery's own code imports `@pineappleui/tokens` and
-   nothing else from the scope), so they read as unused and would be tidied away by anyone
-   trusting that reading; `scripts/check-alias-fences.mjs` is what makes removing one a failure
-   rather than a cleanup.
+   create. Two of them *are* imports — the gallery's own decorator imports `@pineappleui/theme`
+   and `@pineappleui/tokens` — and the other fourteen are not, so they read as unused and would
+   be tidied away by anyone trusting that reading; `scripts/check-alias-fences.mjs` is what makes
+   removing one a failure rather than a cleanup.
 2. **Workspace discovery is shared rather than copied.** Adding `apps/*` to the root
    `workspaces` is what `scripts/workspace-globs.mjs` was written to fail on, so extending it is
    the deliberate act it was designed to force. The discovery itself moved *into* that module
    (`listWorkspaceDirs()`), and `check-peer-externals` and `check-publish-contract` now call it
    instead of each filtering `packages/` keys of their own; `check-token-drift` joins
-   `check-toolchain-hoist` in calling the assertion. `check-publish-contract` therefore sees
-   **19** workspaces rather than 18 — which is the whole point, since the one it could not see
+   `check-toolchain-hoist` in calling the assertion. `check-publish-contract` therefore counts
+   the gallery among the workspaces it checks — **20** of them today, rather than the 19 that
+   filtering `packages/` would leave — which is the whole point, since the one it could not see
    is the one that would have run zero tasks.
-3. **The decorator mounts Radix's `<Theme>` directly**, and imports `@radix-ui/themes/styles.css`
-   with it — mounting the theme without its stylesheet renders unstyled markup that reads as a
-   broken component rather than a missing import. Ladle's built-in appearance toolbar arrives as
-   `globalState.theme` on the global provider, and a `Record<ThemeState, …>` maps it onto
-   `<Theme appearance>`; `auto` has no Radix equivalent (`'inherit'` resolves to light with no
-   ancestor `<Theme>`), so it is resolved against `matchMedia('(prefers-color-scheme: dark)')`
-   through `useSyncExternalStore`. The accent picker holds one `useState` and spreads
-   `ACCENT_COLORS` — never a hand-typed list, which `check-token-drift` enforces on this file
-   like any other.
+3. **The decorator mounts `@pineappleui/theme`'s providers and nothing else.** It imports
+   `@pineappleui/theme/styles.css` — the only stylesheet in the file, since that one pulls in
+   Radix's own — and wraps every story in `ThemePreferencesProvider` + `DesignSystemProvider`.
+   It mounts no `<Theme>` of its own, deliberately: the package mounts one, and a Radix `<Theme>`
+   nested inside another is legal and half-applies, so appearance and accent stop agreeing in
+   ways that read as a theme bug rather than as two providers. What is left here is the two knobs
+   Ladle exposes, wired to the package's preference state: an `AppearanceBridge` that copies
+   Ladle's appearance toolbar (`globalState.theme`, a `Record<ThemeState, AppearanceSetting>`
+   away from a preference — `Auto` maps to `system`, which `DesignSystemProvider` resolves
+   against `matchMedia`) into `setAppearance`, and an accent picker reading and writing
+   `useThemePreferences`. The picker spreads `ACCENT_COLORS` — never a hand-typed list, which
+   `check-token-drift` enforces on this file like any other — and holds no state of its own, so
+   the accent now persists across reloads because the package stores it.
+
+   The bridge is the one place this file is not upstream's: upstream keeps `setAppearance` out of
+   its effect's dependencies behind a ref, because the provider re-creates that function every
+   render and an honest dependency list would loop. Here the effect depends on everything it
+   reads and writes only when the toolbar and the preference disagree — which is what makes
+   re-running it on every render harmless, and it settles after one write. Never disable
+   `react-hooks/exhaustive-deps`; a dependency that "has to" be omitted is a restructure.
 4. **Nothing product-specific comes across.** Upstream's gallery also globs the product app's
    screen stories and declares `react-router-dom` and `@radix-ui/react-icons` for them; none of
    that has anything to render here, so none of it is declared. This is principle 2 applied to a
    workspace instead of a package.
 
-Point 3 is a **temporary** divergence, not a delta, and that is why it is written here rather
-than in *Deltas from the source monorepo* below. Every entry in that list is a standing
-difference that a future sync must not revert. This one is the opposite: upstream's decorator
-composes `@tejamate/theme`'s providers, and the only reason this one does not is that
-`@pineappleui/theme` has not been ported yet. When Phase 3 lands, this file adopts the theme
-provider and the local `useState` goes away — converging on upstream rather than diverging
-further. Recording it as a delta would tell the next reader to keep it.
+Point 3 was a **temporary** divergence until Phase 3, and it is now closed: the decorator held
+Radix's `<Theme>` and a local `useState` only because `@pineappleui/theme` had not been ported.
+It has, so this file converged on upstream's shape rather than diverging further, which is why
+none of it was ever recorded as a delta — every entry in that list is a standing difference a
+future sync must not revert, and this one would have told the next reader to keep something
+written to be thrown away.
+
+The accent default did not move across the swap: it **flipped**. The decorator seeded its local
+`useState` with `ACCENT_COLORS[0]`, which is `indigo` — the list runs `indigo … bronze`, ordered
+to match upstream's picker (commit 5411352) — and the gallery now starts on
+`DEFAULT_PREFERENCES.accentColor`, which is `bronze`. That is an intentional correction rather
+than a regression: `bronze` is this design system's real default accent, and `ACCENT_COLORS[0]`
+was only ever "whatever is first in the picker", which stopped agreeing with the default the day
+the ordering was fixed.
+
+It also answers, rather than drops, the #24 checklist bullet that called `ACCENT_COLORS[0]` a
+*derived* default and said not to replace it with a literal on the way past. The literal now
+lives in `DEFAULT_PREFERENCES`, which is the right home for it, and
+`packages/tokens/src/tokens.ts` says why in its own header: array order is picker order and
+carries no implication about which accent is the default — `bronze` is the default *despite*
+sitting last, because it pairs with the `sand` gray. Deriving the default from a position in
+that list would re-couple the two things 5411352 separated, and reordering the picker would then
+silently move the default. One name is a reference, not a copy of a list, which is the same rule
+`check-token-drift` is written around.
 
 The dev-server port is stated once, in `.ladle/config.mjs` (`port: 6006`); the `ladle` script is
 a bare `ladle serve`, because a `--port` flag on it would be a second copy of the same number.
@@ -257,30 +325,48 @@ Two remaining notes on the hand-maintained parts:
   that pattern matches nothing — so without the explicit ignore, `eslint .` lints the bundle it
   just emitted and the lint result depends on whether a build ran first.
 
-### Phase 3 — theme
+### Phase 3 — theme (landed)
 
-`theme` depends on `tokens` + `use-local-storage`, so it lands last. It ships CSS, which
-makes its build config differ from every other package:
+| Package | Publishes | Notes |
+|---|---|---|
+| `@pineappleui/theme` | **yes** | the two providers, the stylesheet, and the first-paint snippet |
+
+`theme` depends on `tokens` + `use-local-storage`, so it landed last. It is the first package
+here with real runtime `dependencies` other than `icons`' Lucide: `@pineappleui/tokens` and
+`@pineappleui/use-local-storage` (workspace, external to the bundle) and
+`@fontsource-variable/geist` (pulled in by the stylesheet, not by any module). React, React DOM
+and `@radix-ui/themes` are peers as everywhere else.
+
+It ships CSS, which makes its build config the only one that differs:
 
 - `loader: { '.css': 'copy' }` — ship the stylesheet verbatim, no CSS parsing or bundling
 - `dts: { entry: 'src/index.ts' }` — without scoping, tsup tries to emit a `.d.ts` for the
   CSS entry and fails
-- an extra `exports["./styles.css"]` entry
+- an extra `exports["./styles.css"]` entry, which `check-publish-contract` now checks is
+  actually in the tarball (§5)
 - `sideEffects: ["**/*.css"]` rather than `false`
-- pulls `@fontsource-variable/geist` as a real dependency
+- `@fontsource-variable/geist` as a real dependency, because the stylesheet `@import`s it and
+  the consumer's bundler is what resolves that — the case principle 3's fifth assertion exists
+  for
 
-Two things to get right in the same PR, in `apps/gallery/.ladle/components.tsx`, where the
-gallery's temporary knobs live (see *The gallery workspace* above):
+The gallery swapped over in the same PR, in `apps/gallery/.ladle/components.tsx`: the direct
+`<Theme>` and `import '@radix-ui/themes/styles.css'` were **removed** rather than wrapped, the
+local accent `useState` went away with them, and `@pineappleui/theme` joined the three alias
+lists. See *The gallery workspace* above, point 3, for the shape it landed in.
 
-- The decorator's direct `<Theme>` and its `import '@radix-ui/themes/styles.css'` must be
-  **removed**, not wrapped. `@pineappleui/theme` mounts its own `<Theme>`, and a Radix `<Theme>`
-  nested inside another one is legal — it renders, and it half-applies: the inner one keeps
-  whatever the outer set for anything it does not itself specify, so appearance and accent stop
-  agreeing in ways that read as a theme bug rather than as two providers.
-- The accent default is the swap point. The decorator currently seeds `useState` with
-  `ACCENT_COLORS[0]`; theme owns that choice in its `DEFAULT_PREFERENCES`, so the local state
-  goes away with it rather than being kept in sync. `ACCENT_COLORS[0]` is a *derived* default —
-  do not replace it with a literal on the way past.
+The one thing that needed care beyond the swap: `@pineappleui/theme/styles.css` has to resolve
+in the gallery, where the alias points at `src/`. The subpath alias key each package already
+carries (`'@pineappleui/theme/'` → `packages/theme/src/`, ahead of the bare key) is what does
+it, so the gallery loads the *source* stylesheet like it loads source components, `@import`s and
+all. `tsc` says nothing about that: `vite/client`'s ambient `*.css` module matches any specifier
+ending in `.css`, so a typo typechecks clean, and the gallery `build` is the only task that
+would see it.
+
+It would not have *failed*, though, which is the part this PR corrects rather than repeats:
+`ladle build` prints the resolve error, writes a fresh `meta.json`, leaves the previous bundle in
+`build/` and exits **0**. So the task this section relied on reported green. It fails now because
+`apps/gallery/scripts/build.mjs` reads the build's output and its artifacts and exits 1 on either
+— see *The gallery workspace* above, point 1.
 
 ### Deferred
 
@@ -294,7 +380,7 @@ gallery's temporary knobs live (see *The gallery workspace* above):
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These thirteen differences are deliberate and should **not**
+Everything else is ported verbatim. These nineteen differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -451,6 +537,91 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   but a live pass-through can pass — and the README sells `resize` as a contract bullet with
   nothing pinning it. Do not restore the no-op or drop either new test when syncing; carry all
   three back the other way at cutover. *(Phase 2)*
+- **`theme`'s first-paint generator serializes the two lists its script carries**, where upstream
+  hand-types both. `getFoucScript` returns a string that runs before any module loads, and
+  upstream reasons from that to a hand-typed `var ACCENT_COLORS = […]` plus a `GRAY_BY_ACCENT`
+  map duplicating Radix's `getMatchingGrayColor` — with a comment saying both will silently drift
+  and a test to catch it when they do. The premise is false, and `check-token-drift`'s header is
+  where this repo already says so: the GENERATED script cannot import, but the GENERATOR is an
+  ordinary module. Both lists are now interpolated — `${JSON.stringify([...ACCENT_COLORS])}` from
+  `@pineappleui/tokens`, and the gray map built from `getMatchingGrayColor` itself, which is
+  exactly what Radix's `<Theme>` falls back to given that `DesignSystemProvider` passes it no
+  `grayColor`. The guard fires on the ported file otherwise: six members of `ACCENT_COLORS` in
+  one file, written out twice. Adding an accent now needs no edit here at all, which is the thing
+  upstream's comment asks a human to remember — and because the interpolation happens when
+  `getFoucScript()` is *called*, the script a consumer inlines carries whatever list their
+  installed `@pineappleui/tokens` exports. The test that diffed the literal against the export
+  stays, renamed off "hand-types": it asserts what reaches the browser whichever way the
+  generator got it, and it is what fails if someone writes the array back by hand. *(Phase 3)*
+- **`theme`'s provider test derives the accents it stores, and the package gains the test that
+  pins its setters writing the whole record** — the sixth test-content delta, and two things at
+  once, as `text-field`'s was. Upstream hand-types two accent names into
+  `ThemePreferencesProvider.test.tsx`, one stored and one picked; two members of a list
+  `@pineappleui/tokens` owns, in one file, is the copy `check-token-drift` fails on, and the fix
+  is the one every Phase 2 story already uses — `ACCENT_COLORS.filter(…)`, "some accent that is
+  not the default", which is all either test needs them to be. The default itself stays a literal:
+  it is the value under test, and asserting it against the constant it asserts would hold no
+  matter what that constant said. Separately, all seven upstream tests start from **empty**
+  storage, where the preference a setter might drop already equals the default — so nothing
+  notices a setter that stops carrying the other preference across. Two new tests close it, one
+  per setter, each seeding both preferences and asserting the whole record after one write: one
+  test pins one direction, so the pair is the assertion rather than either half of it. Verified
+  by mutation both ways — `setStored({ ...DEFAULT_PREFERENCES, accentColor })` fails the accent
+  one, `setStored({ ...DEFAULT_PREFERENCES, appearance })` fails the appearance one, and the
+  seven upstream tests stay green under either. It is a user whose dark mode reverts to "follow
+  the OS" the moment they pick an accent, and — the mirror, which one test alone did not catch —
+  whose accent reverts to bronze the moment they switch to dark. Do not restore the literals or
+  drop either test when syncing; carry both back the other way at cutover. *(Phase 3)*
+- **`theme`'s two upstream story files land as one, `Theme.stories.tsx`.** Upstream splits them:
+  `Smoke.stories.tsx` at the package root, `providers/Providers.stories.tsx` beside the provider.
+  Ladle names a story group after the file it came from, so in a gallery that lists every other
+  package under its own name those two arrive as `smoke` and `providers` — two unattributed
+  groups sitting next to `badge`, `box` and `card`. Merged, they are `theme--hello-world` and
+  `theme--themed-text-and-button`, with both stories kept apart from de-branding. Every other
+  package here has exactly one story file named for it; this is that convention, not an exception
+  to it. *(Phase 3)*
+- **`theme` owns the storage key in one internal module, and `getFoucScript` defaults to it** —
+  upstream writes the key into `ThemePreferencesProvider.tsx`, makes `getFoucScript`'s
+  `storageKey` a required option, and leaves the consumer to pass the same string. A key the two
+  disagree on is not an error anywhere: the script reads nothing, paints the default, and React
+  snaps to the stored theme one frame later — the exact flash the snippet is inlined to prevent
+  — and no type can see it, because the script's copy of the key lives inside a string. Here
+  `src/preferences.ts` owns `STORAGE_KEY`, `DEFAULT_PREFERENCES` and the `DEFAULT_ACCENT` derived
+  from it; the provider and the generator both import it, and both of `getFoucScript`'s options
+  now default — `storageKey` to that key, `rootElementId` to `root` — with the overrides kept for
+  a tree that is not the ordinary one. `preferences.ts` is internal: `index.ts` does not
+  re-export it, so nothing about the published surface moves. Separately, every value the
+  generator interpolates is escaped for the inline-HTML context it lands in (`<` as its `\u003C` escape),
+  because the HTML parser does not parse a script body — it scans it for `</script` and ends the
+  element there, so a value carrying that sequence drops the rest of the snippet into the
+  document as markup. Do not restore the required option or the hand-typed key when syncing;
+  carry both back the other way at cutover. *(Phase 3)*
+- **`theme`'s stylesheet doubles the selector on its font override** — `.radix-themes.radix-themes`
+  where upstream writes `.radix-themes`, which is the same element at twice the specificity
+  (0,2,0 against Radix's own 0,1,0). Upstream's comment says these "win by source order", and
+  they do *there*: it is an app, and that app's bundle puts the `@import`ed Radix stylesheet
+  first. A published package does not own its source order. A consumer who also imports
+  `@radix-ui/themes/styles.css` themselves, or whose bundler concatenates the two the other way
+  round, gets Radix's `--default-font-family` last, and at equal specificity last wins. What they
+  see is the app rendering in Radix's default font — a normal-looking font, which is why nobody
+  reads it as a broken import. Do not "simplify" the doubled selector back when syncing. *(Phase 3)*
+- **`use-local-storage`'s `set` accepts a functional updater, and `theme`'s two setters use it** —
+  a deliberate divergence in **published API**, like `icons`' exported lists, and the first one
+  that reaches back into a package an earlier phase already landed. Upstream's hook takes a value
+  only, `(value: T) => void`, and upstream's `ThemePreferencesProvider` spreads the record its
+  render captured: `setStored({ ...prefs, appearance })`. Each setter is created during a render
+  and closes over that render's `prefs`, so **two setter calls in one tick both resolve against
+  the state before either** — a "reset to the light bronze theme" button, or the gallery's
+  appearance bridge writing while a story picks an accent — and the second overwrites the first
+  with nothing reporting it. React does not re-render in between, so there is no moment at which
+  the intermediate value could be read back, and every upstream test writes one preference at a
+  time. Verified by probe before the fix, in both orders: setting the appearance then the accent
+  reverts the appearance, and the reverse reverts the accent. The hook therefore takes
+  `T | ((previous: T) => T)` — `useState`'s own pair of shapes, resolved against a ref so `set`
+  keeps writing `localStorage` exactly once per call — and the two setters pass an updater. Two
+  tests pin it, one per order, and both fail on the captured spread. Do not restore the value-only
+  signature or the captured spread when syncing; carry both back the other way at cutover.
+  *(Phase 3, changing a Phase 1 package)*
 
 ---
 

@@ -18,6 +18,7 @@ const [density, setDensity] = useLocalStorage<string>('density', 'compact');
 | Export | What it is |
 | --- | --- |
 | `useLocalStorage<T>(key, initial)` | Returns `[value, set]`. Reads `key` on first render, falls back to `initial`, and writes JSON on every `set`. |
+| `SetStoredValue<T>` | What `set` accepts: `T`, or `(previous: T) => T`. |
 
 ## The one package here that reads a browser global
 
@@ -36,6 +37,13 @@ every *other* package still takes its persisted value as a prop and calls back t
 - **Write failures are ignored on purpose.** A quota or private-mode error must not break the
   UI: React state still updates, only the persistence is lost. This is the one place the
   package swallows an error, and it is the reason it can be called during render safely.
+- **`set` takes a value or an updater, as `useState` does.** `set(next)` and
+  `set(previous => next)` are both allowed, and the second is the one to reach for when the next
+  value is derived from the current one. Two `set(...)` calls in the same tick that each spread a
+  value captured by the render resolve against the *same* snapshot, so the second overwrites the
+  first — an updater is handed what the call before it produced instead. The one caveat is
+  React's own: a `T` that is itself a function cannot be stored by passing it directly, since
+  that is read as an updater; pass `() => theFunction`.
 - **`initial` is read once.** It seeds the `useState` initializer; changing it on a later render
   does not overwrite what is already stored.
 - **No cross-tab sync.** The hook does not subscribe to the `storage` event. Two tabs each keep

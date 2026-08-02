@@ -140,7 +140,7 @@ jobs:
       - name: Check for hard-coded token lists
         run: node scripts/check-token-drift.mjs
 
-      # Also after the build: two of its four assertions read dist/, because
+      # Also after the build: three of its five assertions read dist/, because
       # what tsup was asked to externalise and what it actually emitted are
       # different facts. An inlined React is a duplicate copy that only fails in
       # the CONSUMER's app, so nothing downstream of here would ever report it.

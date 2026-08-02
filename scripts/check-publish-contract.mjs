@@ -20,6 +20,19 @@
 //     fails here, loudly, with the fix in the message.
 //   - A `files` field that drifts (or a stray top-level file) ships source into
 //     the tarball. Nothing in the build complains.
+//   - An `exports` subpath pointing at a file the build no longer writes — say
+//     `"./styles.css": "./dist/styles.css"` after the tsup loader that copies it
+//     is dropped — publishes cleanly. `files: ["dist"]` is still honoured, the
+//     tarball is still non-empty, and the failure is the consumer's
+//     `import '@pineappleui/theme/styles.css'` throwing in their build.
+//   - A runtime dependency on a SIBLING workspace written as `"*"` publishes
+//     that `"*"`. Locally it is the shorthand npm resolves to the package next
+//     door, so every build, test and typecheck here is correct — and changesets
+//     never rewrites it, because its range check reads `"*"` as an empty range
+//     and skips it. The tarball then tells every consumer "any version of
+//     @pineappleui/tokens will do", which npm satisfies with whatever is newest
+//     at install time. Nothing in this repo installs from the registry, so
+//     nothing here can notice.
 //
 // Every failure below prints the fix, not just the symptom.
 //
@@ -35,6 +48,18 @@ import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const REQUIRED_SCRIPTS = ['build', 'lint', 'test', 'typecheck'];
 const DIST_PREFIX = 'dist/';
+
+// The manifest fields that TRAVEL: npm resolves both against the consumer's
+// registry, so a range in either one is a promise made to somebody else.
+// `devDependencies` do not travel, which is why `"*"` is the house style there.
+const SHIPPED_DEPENDENCY_FIELDS = ['dependencies', 'peerDependencies'];
+
+// A range this guard can certify: one concrete `major.minor.patch`, optionally
+// carrying a prerelease/build tag, optionally prefixed by one comparator. That
+// covers every range this repo writes (`^0.1.1`, `~5.2.9`, `19.0.0`) and
+// deliberately nothing else — a compound range (`>=1 <2`, `1 || 2`) is a
+// legitimate thing to want and not something a regex should quietly bless.
+const PINNED_RANGE = /^(?:\^|~|>=|>|<=|<|=)?\d+\.\d+\.\d+(?:[-+][\w.]+)*$/;
 
 // npm picks these up from the PACKAGE directory whatever `files` says — and only
 // from the package directory. A LICENSE at the repo root does not reach any
@@ -65,6 +90,13 @@ const failures = [];
 // instead of implying it. `defined` runs a script; `declared` is an
 // explicit, reasoned opt-out. There is no third category — that is the point.
 const taskSlots = { defined: 0, declared: 0 };
+
+// Sibling-workspace ranges seen in a field that travels. Reported for the same
+// reason as the stylesheet count in check-peer-externals: `@pineappleui/theme`
+// is the only package with one today, so a count of 0 is this assertion having
+// gone inert rather than the repo being clean.
+/** @type {string[]} */
+const shippedWorkspaceRanges = [];
 
 /**
  * @param {string} pkgName
@@ -168,6 +200,56 @@ function checkPublishable(pkgName, relDir, manifest) {
 }
 
 /**
+ * A sibling workspace named in a field that TRAVELS must carry a real range.
+ *
+ * `"*"` is the house style for a workspace `devDependency`, and it is correct
+ * there: npm resolves it to the package next door and nothing is published. In
+ * `dependencies` or `peerDependencies` the same three characters are shipped
+ * verbatim to every consumer, and they mean "any version" — including the next
+ * major, published years later, against an API this package was never compiled
+ * against.
+ *
+ * The reason it needs a check rather than a reviewer: `changeset version` looks
+ * like the thing that would fix it. It rewrites internal ranges on every bump
+ * (`updateInternalDependencies` in .changeset/config.json), so a range that is
+ * merely *stale* self-corrects — but its own range check treats `"*"` as empty
+ * and passes over it, so that one value is the only one it never touches. The
+ * release runs, the changelog is right, and the tarball ships `"*"`.
+ *
+ * @param {string} pkgName
+ * @param {string} relDir
+ * @param {object} manifest
+ * @param {Map<string, string>} workspaceVersions package name -> current version
+ */
+function checkWorkspaceRanges(pkgName, relDir, manifest, workspaceVersions) {
+  for (const field of SHIPPED_DEPENDENCY_FIELDS) {
+    for (const [name, range] of Object.entries(manifest[field] ?? {})) {
+      const version = workspaceVersions.get(name);
+      if (version === undefined) continue; // Not a sibling; npm's problem, not this one's.
+
+      shippedWorkspaceRanges.push(`${pkgName} ${field}["${name}"]=${range}`);
+      if (typeof range === 'string' && PINNED_RANGE.test(range)) continue;
+
+      fail(
+        pkgName,
+        `${field}["${name}"] is ${JSON.stringify(range)}, which is not a pinned semver range`,
+        `write \`"${name}": "^${version}"\` in ${relDir}/package.json — the caret of the `
+        + `version ${name} is at today. \`"*"\` is the right shorthand for a workspace `
+        + 'devDependency and the wrong one here: devDependencies never travel, these two '
+        + 'fields do, and npm resolves what ships against the REGISTRY. A consumer '
+        + `installing this package would take whatever ${name} is newest at that moment, `
+        + 'across majors this code has never been compiled against. `changeset version` '
+        + 'does not save you: it rewrites internal ranges on every bump, but its range '
+        + 'check reads `"*"` as empty and skips it, so that is the one value it leaves '
+        + 'alone. If a compound range (`>=1 <2`) is really wanted, teach `PINNED_RANGE` in '
+        + 'scripts/check-publish-contract.mjs to read it rather than loosening it to '
+        + 'anything.',
+      );
+    }
+  }
+}
+
+/**
  * Every workspace must either define all four task scripts or declare, in its
  * own manifest, which it omits and why. Runs for private packages too — see the
  * header: an unexercised tooling package reports green exactly like an
@@ -268,7 +350,55 @@ function checkPrivate(pkgName, manifest) {
   }
 }
 
-function checkTarball(pkgName, relDir) {
+/**
+ * Every file path a manifest points a consumer at: `main`, `module`, `types`,
+ * and every string leaf of `exports` — condition maps (`import`/`types`) and
+ * subpaths (`"./styles.css"`) alike, since each leaf is a path npm will be
+ * asked to resolve.
+ *
+ * @param {string} pkgName
+ * @param {object} manifest
+ * @returns {string[]|null} tarball-relative paths, null once a refusal is reported
+ */
+function listDeclaredEntryPoints(pkgName, manifest) {
+  const targets = new Set();
+
+  for (const field of ['main', 'module', 'types']) {
+    if (typeof manifest[field] === 'string') targets.add(manifest[field]);
+  }
+
+  const collect = (value) => {
+    if (typeof value === 'string') {
+      targets.add(value);
+      return;
+    }
+    if (value !== null && typeof value === 'object') {
+      for (const nested of Object.values(value)) collect(nested);
+    }
+  };
+  collect(manifest.exports ?? {});
+
+  const patterns = [...targets].filter(target => target.includes('*'));
+  if (patterns.length > 0) {
+    // A subpath pattern is a legitimate thing to want; resolving one needs a
+    // glob this guard does not do. Skipping it quietly would leave the entry
+    // points it covers unchecked under a line that says the package is OK.
+    fail(
+      pkgName,
+      `exports declares subpath pattern(s) (${patterns.join(', ')}), and this check `
+      + 'compares literal paths against the tarball file list',
+      'teach `listDeclaredEntryPoints()` in scripts/check-publish-contract.mjs to expand '
+      + 'a pattern against the tarball entries, or write the subpaths out literally. '
+      + 'Passing over the pattern would certify the entry points it covers without '
+      + 'having looked at one.',
+    );
+    return null;
+  }
+
+  return [...targets].map(target => target.replace(/^\.\//, ''));
+}
+
+function checkTarball(pkgName, relDir, manifest) {
   let entries;
   try {
     entries = listTarballEntries(pkgName);
@@ -310,6 +440,23 @@ function checkTarball(pkgName, relDir) {
       `the published tarball would contain unexpected file(s): ${strays.join(', ')}`,
       `tighten \`files\` back to ["dist"]. Anything outside package.json, ${LICENSE_FILE}, `
       + `${README_FILE} and ${DIST_PREFIX} ships source or local config to the public registry.`,
+    );
+  }
+
+  // Every path the manifest points at has to be IN the tarball. `files` and the
+  // dist/ check above only prove that something was packed; this proves the
+  // specific files consumers import were. The gap it closes is a second entry
+  // point — a stylesheet, a subpath export — that the build stopped writing.
+  for (const target of listDeclaredEntryPoints(pkgName, manifest) ?? []) {
+    if (entries.includes(target)) continue;
+    fail(
+      pkgName,
+      `the manifest points at ${target}, which the published tarball would not contain `
+      + `(it would ship: ${entries.join(', ')})`,
+      `either build the file (check this package's tsup.config.ts — a second \`entry\`, or `
+      + 'the loader that copies it, is what puts a non-JS file in dist/) or stop declaring '
+      + 'it. A published package whose `exports` names a missing file installs cleanly and '
+      + "fails at the consumer's import, which is the first place anything looks.",
     );
   }
 
@@ -366,14 +513,25 @@ if (packageDirs.length === 0) {
   process.exit(1);
 }
 
-for (const relDir of packageDirs) {
-  // Resolved from the workspace path itself, never by re-rooting its basename
-  // under packages/: `apps/gallery` would otherwise be read as
-  // `packages/gallery` — another package's manifest, or none at all.
-  const manifestPath = path.join(repoRoot, relDir, 'package.json');
-  const manifest = readJson(manifestPath);
-  const pkgName = manifest.name ?? relDir;
+// Read every manifest first: `checkWorkspaceRanges` needs to know which names
+// are siblings, and one workspace's answer depends on all the others.
+//
+// Resolved from the workspace path itself, never by re-rooting its basename
+// under packages/: `apps/gallery` would otherwise be read as `packages/gallery`
+// — another package's manifest, or none at all.
+const workspaces = packageDirs.map((relDir) => {
+  const manifest = readJson(path.join(repoRoot, relDir, 'package.json'));
+  return { relDir, manifest, pkgName: manifest.name ?? relDir };
+});
 
+/** Package name -> the version that workspace is at today. */
+const workspaceVersions = new Map(
+  workspaces
+    .filter(({ manifest }) => manifest.name && manifest.version)
+    .map(({ manifest }) => [manifest.name, manifest.version]),
+);
+
+for (const { relDir, manifest, pkgName } of workspaces) {
   // Runs for every workspace, private or not: turbo skips an undefined task
   // identically in both cases.
   checkTaskCoverage(pkgName, relDir, manifest);
@@ -383,7 +541,8 @@ for (const relDir of packageDirs) {
   }
   else {
     checkPublishable(pkgName, relDir, manifest);
-    checkTarball(pkgName, relDir);
+    checkWorkspaceRanges(pkgName, relDir, manifest, workspaceVersions);
+    checkTarball(pkgName, relDir, manifest);
     checkLicenseMatchesRoot(pkgName, relDir);
   }
 }
@@ -401,5 +560,7 @@ console.log(
   `check-publish-contract: ${packageDirs.length} workspace(s) OK `
   + `(${packageDirs.join(', ')})\n`
   + `  task coverage: ${taskSlots.defined}/${totalSlots} slots run a script, `
-  + `${taskSlots.declared} declared not applicable, 0 undeclared.`,
+  + `${taskSlots.declared} declared not applicable, 0 undeclared.\n`
+  + `  ${shippedWorkspaceRanges.length} shipped range(s) naming a sibling workspace: `
+  + `${shippedWorkspaceRanges.join(', ') || 'none'}`,
 );

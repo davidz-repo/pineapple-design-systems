@@ -64,6 +64,8 @@ export default defineConfig({
       '@pineappleui/text-area': path.resolve(galleryDir, '../../packages/text-area/src/index.ts'),
       '@pineappleui/text-field/': `${path.resolve(galleryDir, '../../packages/text-field/src')}/`,
       '@pineappleui/text-field': path.resolve(galleryDir, '../../packages/text-field/src/index.ts'),
+      '@pineappleui/theme/': `${path.resolve(galleryDir, '../../packages/theme/src')}/`,
+      '@pineappleui/theme': path.resolve(galleryDir, '../../packages/theme/src/index.ts'),
       '@pineappleui/tokens/': `${path.resolve(galleryDir, '../../packages/tokens/src')}/`,
       '@pineappleui/tokens': path.resolve(galleryDir, '../../packages/tokens/src/index.ts'),
       '@pineappleui/use-local-storage/': `${path.resolve(galleryDir, '../../packages/use-local-storage/src')}/`,

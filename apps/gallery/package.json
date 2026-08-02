@@ -6,7 +6,7 @@
   "description": "Ladle gallery that renders every @pineappleui package's stories from source.",
   "scripts": {
     "ladle": "ladle serve",
-    "build": "ladle build",
+    "build": "node scripts/build.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -31,6 +31,7 @@
     "@pineappleui/text": "*",
     "@pineappleui/text-area": "*",
     "@pineappleui/text-field": "*",
+    "@pineappleui/theme": "*",
     "@pineappleui/tokens": "*",
     "@pineappleui/tsconfig": "*",
     "@pineappleui/use-local-storage": "*",

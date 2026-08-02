@@ -18,7 +18,7 @@
 // empty. A reviewer diffing a Phase 2 package against the live-region template
 // has to notice that one string is missing from one array.
 //
-// Four assertions, per workspace that builds a `dist/`:
+// Five assertions, per workspace that builds a `dist/`:
 //
 //   A. STATIC — every module imported under `src/` that the manifest declares in
 //      `peerDependencies` or `dependencies` appears in `external`. Cheap, reads
@@ -41,6 +41,10 @@
 //      React is really inlined, and then A has nothing declared to check, C
 //      has no import to look at, and `dist/index.mjs` silently grows from 1 KB
 //      to 80 KB of somebody else's React.
+//   E. STYLESHEET — every package a shipped stylesheet pulls in with an
+//      `@import` is declared as a peer or a dependency. This is D for CSS, and
+//      it needs its own pass because A–D read JS/TS import syntax and would
+//      report nothing at all about a `.css` file.
 //
 // JSX counts as a runtime use of the JSX import source, even when a file names
 // no React identifier at all. `packages/icons/src/Icon.tsx` imports only
@@ -50,11 +54,34 @@
 // from the package's tsconfig chain rather than assumed, so a package that sets
 // `jsxImportSource` is checked against the source it actually uses.
 //
-// CSS is invisible to all four assertions. They read JS/TS import syntax, so a
-// dependency a stylesheet pulls in — Phase 3's theme does
-// `@import '@fontsource-variable/geist/index.css'`, resolved by the CONSUMER's
-// bundler — is a real runtime dependency that nothing here would report as
-// undeclared or as inlined. The Phase 3 PR is where that gets its own check.
+// CSS is invisible to assertions A–D, which is what E is for. They read JS/TS
+// import syntax, so a dependency a stylesheet pulls in — `@pineappleui/theme`
+// does `@import '@fontsource-variable/geist/index.css'` — would be reported by
+// none of them, and it is as real a runtime dependency as any: the stylesheet
+// ships verbatim (tsup's `copy` loader), so it is the CONSUMER's bundler that
+// resolves that specifier, against the CONSUMER's node_modules. Undeclared, npm
+// installs nothing for it and their build fails on a file they never wrote.
+//
+// E deliberately does NOT extend A, B or C to CSS, and each omission is a fact
+// about how a stylesheet ships rather than a gap:
+//   - `external` (A) is about what the JS bundler inlines. The `copy` loader
+//     parses nothing, so there is nothing for a CSS `@import` to be external to.
+//   - `dist/index.mjs` (B, C) never mentions a stylesheet's imports at all;
+//     what ships is the `.css` file, and E reads it in `dist/` for that reason.
+//
+// Read: every `.css` under `src/` and every `.css` in `dist/`. Both, because the
+// two answer different questions — `src/` is what was written, `dist/` is what
+// ships. A build config that stopped copying the stylesheet empties the second
+// while the first still looks right, and E does NOT fail on that: with no
+// `dist/styles.css` there is nothing to scan, and a scan of nothing passes.
+// Delete the file and this guard exits 0. What fails is
+// check-publish-contract's tarball assertion — `exports["./styles.css"]` names
+// a path the tarball would not contain. Reading `dist/` here buys VISIBILITY
+// rather than the catch: the stylesheet count in the pass line below drops, so
+// the loss is legible instead of arriving as a clean scan of nothing.
+//
+// Only `@import` is read; a bare specifier inside `url()` is not resolvable CSS
+// and no stylesheet here has one.
 //
 // Everything below reads source as TEXT: the configs are TypeScript, and
 // importing them would mean compiling them. A text scan is imprecise at the
@@ -62,7 +89,7 @@
 // a human resolves, never toward a silent pass — and each one names its
 // residual imprecision where it is defined.
 //
-// Run it *after* `turbo run build` — assertions B and C read `dist/`.
+// Run it *after* `turbo run build` — assertions B, C and E read `dist/`.
 //
 //   node scripts/check-peer-externals.mjs
 
@@ -77,10 +104,12 @@ import { listWorkspaceDirs } from './workspace-globs.mjs';
 // vitest-preset) ship source and have nothing to inline.
 const TSUP_CONFIG = 'tsup.config.ts';
 const BUILD_ENTRY = 'dist/index.mjs';
+const DIST_DIR = 'dist';
 const SRC_DIR = 'src';
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 const JSX_EXTENSIONS = new Set(['.tsx', '.jsx']);
+const STYLESHEET_EXTENSION = '.css';
 
 // tsup bundles the graph reachable from `entry`. Tests and stories are not in
 // it, so a story's `import { useState } from 'react'` is not a statement about
@@ -533,6 +562,87 @@ function collectBuiltImports(pkgName, entryPath) {
   return specifiers;
 }
 
+// A CSS `@import`, in both spellings the syntax allows — `@import 'pkg/x.css'`
+// and `@import url(pkg/x.css)`, quoted or not. Media queries, `layer()` and
+// `supports()` follow the specifier, so nothing needs to match past it.
+const CSS_IMPORT
+  = /@import\s+(?:url\(\s*(?<urlQuote>['"]?)(?<url>[^'")]+)\k<urlQuote>\s*\)|(?<quote>['"])(?<quoted>[^'"]+)\k<quote>)/g;
+
+/**
+ * A stylesheet with its comments blanked.
+ *
+ * `/* … *\/` is CSS's only comment form, and an `@import` inside one is prose:
+ * this file's own header explains an import in exactly that position.
+ *
+ * Imprecision, and it is the quiet direction: a literal `/*` inside a CSS
+ * string (`content: "/*"`) starts a comment here and swallows what follows, so
+ * an `@import` after it would be missed. Named rather than papered over — no
+ * stylesheet in this repo contains one, and the alternative (not stripping at
+ * all) makes every mention of the word in a comment a false failure.
+ *
+ * @param {string} source
+ * @returns {{ code: string } | { unterminated: string }}
+ */
+function stripCssComments(source) {
+  let code = '';
+  let index = 0;
+
+  while (index < source.length) {
+    if (source[index] === '/' && source[index + 1] === '*') {
+      const end = source.indexOf('*/', index + 2);
+      if (end === -1) return { unterminated: 'a block comment' };
+      code += ' ';
+      index = end + 2;
+      continue;
+    }
+    code += source[index];
+    index++;
+  }
+
+  return { code };
+}
+
+/**
+ * Every bare package name a stylesheet pulls in with `@import`, and which
+ * stylesheet each one came from.
+ *
+ * @param {string} pkgName
+ * @param {string} pkgDir absolute, for naming files the way the package does
+ * @param {string[]} files absolute paths
+ * @returns {Map<string, string[]>|null} package -> stylesheet paths relative to
+ * `pkgDir`, null once a read failure has been reported
+ */
+function collectStylesheetImports(pkgName, pkgDir, files) {
+  /** @type {Map<string, string[]>} */
+  const byPackage = new Map();
+
+  for (const file of files) {
+    const stripped = stripCssComments(readFileSync(file, 'utf8'));
+    if ('unterminated' in stripped) {
+      fail(
+        pkgName,
+        `${path.relative(repoRoot, file)} ends inside ${stripped.unterminated}, so this guard `
+        + 'cannot tell a rule from a comment in it',
+        'close the comment. This guard refuses a stylesheet it cannot read rather than '
+        + 'scanning half of it: half a file yields a shorter import list, and a shorter '
+        + 'import list passes.',
+      );
+      return null;
+    }
+
+    for (const match of stripped.code.matchAll(CSS_IMPORT)) {
+      const specifier = match.groups.url ?? match.groups.quoted;
+      if (!isBareSpecifier(specifier)) continue;
+      const name = packageOfSpecifier(specifier);
+      const sources = byPackage.get(name) ?? [];
+      sources.push(path.relative(pkgDir, file));
+      byPackage.set(name, sources);
+    }
+  }
+
+  return byPackage;
+}
+
 /**
  * The `external` array from a tsup config, read as text: the config is
  * TypeScript, and importing it would mean compiling it.
@@ -673,7 +783,7 @@ function checkPackage(relDir) {
     fail(
       pkgName,
       `has ${TSUP_CONFIG} but no ${BUILD_ENTRY}`,
-      'run `npx turbo run build` first. Two of the four assertions here read the '
+      'run `npx turbo run build` first. Three of the five assertions here read the '
       + 'built output, because what the config asks for and what the bundler emitted '
       + 'are different facts.',
     );
@@ -755,6 +865,17 @@ function checkPackage(relDir) {
 
   const built = collectBuiltImports(pkgName, entryPath);
   if (built === null) return; // Already reported.
+
+  // B and C compare at PACKAGE granularity: `@radix-ui/themes/helpers` and
+  // `@radix-ui/themes` are one name here. That is what makes them true — a
+  // source importing a subpath and a bundle importing the bare name (or the
+  // reverse) is ordinary output, and comparing full specifiers would fail every
+  // one of those. The residual gap, named rather than papered over: a subpath
+  // that got INLINED while the bare import survived is invisible to B.
+  // `@pineappleui/theme` imports both `@radix-ui/themes` and
+  // `@radix-ui/themes/helpers`, so a build that bundled `getMatchingGrayColor`
+  // and left `import { Theme } from '@radix-ui/themes'` standing would still
+  // read as external here.
   const builtPackages = new Set([...built].map(packageOfSpecifier));
 
   // A. Declared + imported must be external.
@@ -830,9 +951,44 @@ function checkPackage(relDir) {
     );
   }
 
+  // E. Everything a shipped stylesheet @imports must be declared.
+  //
+  // Read from `src/` AND from `dist/`: the first is what was written, the second
+  // is what ships, and the `copy` loader that keeps them identical is a config
+  // line like any other. A package with no stylesheet contributes no assertion
+  // here — visibly so, since the pass line below counts what was scanned.
+  const stylesheetFiles = [
+    ...(exists(srcDir) ? listFilesRecursively(srcDir) : []),
+    ...listFilesRecursively(path.join(pkgDir, DIST_DIR)),
+  ].filter(
+    file => path.extname(file) === STYLESHEET_EXTENSION
+      && !EXCLUDED_SOURCE_PATTERN.test(path.basename(file)),
+  );
+
+  const stylesheetImports = collectStylesheetImports(pkgName, pkgDir, stylesheetFiles);
+  if (stylesheetImports === null) return; // Already reported.
+
+  for (const [name, sources] of [...stylesheetImports].sort()) {
+    if (declared.has(name)) continue;
+    fail(
+      pkgName,
+      `${name} is pulled in with an \`@import\` by ${sources.join(' and ')}, but is in `
+      + 'neither peerDependencies nor dependencies',
+      `add "${name}" to dependencies in ${path.basename(pkgDir)}/package.json (or to `
+      + 'peerDependencies if the consumer is meant to supply it). The stylesheet ships '
+      + 'verbatim, so that `@import` is resolved by the CONSUMER\'s bundler against the '
+      + 'CONSUMER\'s node_modules — an undeclared one installs nothing for them and fails '
+      + 'their build in a file they never wrote. A devDependency does not travel in the '
+      + 'tarball, and the four assertions above read JS/TS import syntax, so none of them '
+      + 'can see this one.',
+    );
+  }
+
   return {
     relDir,
     externals: [...external].sort(),
+    stylesheets: stylesheetFiles.length,
+    stylesheetPackages: [...stylesheetImports.keys()].sort(),
   };
 }
 
@@ -849,7 +1005,7 @@ if (packageDirs.length === 0) {
   process.exit(1);
 }
 
-/** @type {{ relDir: string, externals: string[] }[]} */
+/** @type {{ relDir: string, externals: string[], stylesheets: number, stylesheetPackages: string[] }[]} */
 const checked = [];
 for (const relDir of packageDirs) {
   const result = checkPackage(relDir);
@@ -877,8 +1033,18 @@ if (checked.length === 0) {
   process.exit(1);
 }
 
+// Stated rather than implied: assertion E is inert for a package that ships no
+// CSS, which is every package but one today. A count of 0 is a line saying so,
+// not a green tick over an unread file.
+const scannedStylesheets = checked.reduce((total, { stylesheets }) => total + stylesheets, 0);
+
 console.log(
   `check-peer-externals: ${checked.length} bundled package(s) OK\n`
-  + `${checked.map(({ relDir, externals }) => `  ${relDir}: external [${externals.join(', ') || 'none'}]`).join('\n')}`
+  + `${checked.map(({ relDir, externals, stylesheets, stylesheetPackages }) =>
+    `  ${relDir}: external [${externals.join(', ') || 'none'}]`
+    + (stylesheets > 0
+      ? `, ${stylesheets} stylesheet(s) @importing [${stylesheetPackages.join(', ') || 'nothing'}]`
+      : '')).join('\n')}`
+  + `\n  ${scannedStylesheets} stylesheet(s) scanned for @import dependencies`
   + (skipped.length > 0 ? `\n  ${skipped.length} workspace(s) build no dist/, skipped: ${skipped.join(', ')}` : ''),
 );

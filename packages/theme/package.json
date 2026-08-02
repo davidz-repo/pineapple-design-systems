@@ -1,0 +1,63 @@
+{
+  "name": "@pineappleui/theme",
+  "version": "0.0.0",
+  "description": "Theme providers for @pineappleui — appearance + accent preferences, the Radix Themes wrapper they drive, a global stylesheet, and the first-paint snippet that pre-empts both.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davidz-repo/pineapple-design-systems.git",
+    "directory": "packages/theme"
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.2.9",
+    "@pineappleui/tokens": "^0.1.1",
+    "@pineappleui/use-local-storage": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@radix-ui/themes": "^3.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@pineappleui/eslint-config": "*",
+    "@pineappleui/tsconfig": "*",
+    "@pineappleui/vitest-preset": "*",
+    "@radix-ui/themes": "^3.3.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^10.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "~5.7.2",
+    "vitest": "^4.1.2"
+  }
+}
