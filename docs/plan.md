@@ -129,15 +129,18 @@ all of `src`) and linted, but **nothing in this repo renders them** — the Ladl
 workspace lands in a later PR. `icons` therefore carries `@ladle/react` as a devDependency
 purely for the `Story` type its playground story imports; no other package here provides it.
 
-### Phase 2 — Radix wrappers (5 of 11 landed)
+### Phase 2 — Radix wrappers (9 of 11 landed)
 
-Landed: `box`, `stack`, `inline` — the layout wrappers — plus `text` and `heading`, the
-typography pair. Each is a `@radix-ui/themes` peer and nothing else. All five declare
-`@ladle/react` as a devDependency, because each one's story imports the `Story` type; `text` and
-`heading` additionally declare `@pineappleui/tokens`, because their stories build an accent-colour
-control out of the real list. See *Deltas from the source monorepo* below for both.
+Landed: `box`, `stack`, `inline` — the layout wrappers — `text` and `heading`, the typography
+pair, and `badge`, `button`, `icon-button` and `card`, the actions and surfaces. Each is a
+`@radix-ui/themes` peer and nothing else. All nine declare `@ladle/react` as a devDependency,
+because each one's story imports the `Story` type; `text`, `heading`, `badge`, `button` and
+`icon-button` additionally declare `@pineappleui/tokens`, because their stories build an
+accent-colour control out of the real list, and `icon-button` alone declares `@pineappleui/icons`,
+for the glyph its stories put inside the button. All three are story-only and therefore dev-only.
+See *Deltas from the source monorepo* below for each.
 
-Remaining: `badge`, `button`, `icon-button`, `card`, `text-field`, `text-area`.
+Remaining: `text-field`, `text-area`.
 
 All eleven have the same shape. Copy `packages/live-region` as the template — it is already a
 React package in the shape a Radix wrapper needs: `react` + `react-dom` peers (declared *and*
@@ -153,8 +156,8 @@ Keep everything else — the four scripts, `files`, `exports`, `publishConfig`, 
 
 Two things to do per package that no template can carry for you:
 
-- **Read every ported test body, not its name.** Two of the five landed so far shipped an
-  assertion that its own name did not describe, and each one was green. Both are recorded as
+- **Read every ported test body, not its name.** Three of the nine landed so far shipped an
+  assertion that its own name did not describe, and each one was green. All three are recorded as
   standing deltas below.
 - **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
   or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion
@@ -188,7 +191,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These ten differences are deliberate and should **not**
+Everything else is ported verbatim. These twelve differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -250,17 +253,24 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   supports: its `as` is an enum of `'div' | 'span'`, so an `as="section"` would not typecheck —
   `asChild` is the only route to any other tag. Do not restore the no-op when syncing; carry the
   fix back the other way at cutover, as with the `icons` exports. *(Phase 2)*
-- **`text` and `heading` build their stories' accent-colour control from `ACCENT_COLORS`**, where
-  upstream hand-types `['', 'gray', 'indigo', 'violet', 'teal', 'orange', 'crimson']` into each
-  `Playground.argTypes`. That copy is *already* drifted: `bronze` joined the real list and never
-  reached either picker, which is the exact failure `check-token-drift` was written for — and the
-  guard fires on the ported file, naming both packages and printing this fix. So both import
-  `ACCENT_COLORS` from `@pineappleui/tokens` and spread it, which makes `@pineappleui/tokens` a
-  **devDependency** of each. Dev-only is the correct half: `files: ["dist"]` never ships a story,
-  and `check-peer-externals` excludes `*.stories.*` from its src scan for the same reason, so
-  neither published package gains a dependency. `''` (inherit) and `'gray'` (Radix's neutral
-  scale, not an accent) stay written out — one literal is a reference, not a copy of a list.
-  Expect this in every remaining Phase 2 package whose story offers a colour control. *(Phase 2)*
+- **Every story with a colour control builds it from `ACCENT_COLORS`** — `text`, `heading`,
+  `badge`, `button` and `icon-button` so far — where upstream hand-types the list into each
+  `Playground.argTypes`. `text`, `heading` and `badge` write
+  `['', 'gray', 'indigo', 'violet', 'teal', 'orange', 'crimson']`, a copy that is *already*
+  drifted: `bronze` joined the real list and never reached any of the three pickers, which is the
+  exact failure `check-token-drift` was written for — and the guard fires on the ported files,
+  naming them and printing this fix. `badge`'s `Colors` gallery hard-codes the same five a second
+  time and now maps over `ACCENT_COLORS` instead. `button` and `icon-button` are the case the
+  guard *cannot* see: their lists read `['', 'gray', 'blue', 'green', 'red', 'amber', 'purple']`,
+  which overlaps `ACCENT_COLORS` in nothing, so no member count trips — and yet two playgrounds
+  offer five accents this design system does not have while omitting all six it does. Both now
+  spread the real list too, which is a deliberate change to what those controls offer. All five
+  import `ACCENT_COLORS` from `@pineappleui/tokens`, which makes it a **devDependency** of each.
+  Dev-only is the correct half: `files: ["dist"]` never ships a story, and `check-peer-externals`
+  excludes `*.stories.*` from its src scan for the same reason, so no published package gains a
+  dependency. `''` (inherit) and `'gray'` (Radix's neutral scale, not an accent) stay written out
+  — one literal is a reference, not a copy of a list. Expect this in every remaining Phase 2
+  package whose story offers a colour control. *(Phase 2)*
 - **`heading`'s size assertions are rewritten off Radix's own default** — the second finding of
   the same class as `box`'s above, and the reason reading test *bodies* is now a checklist item
   rather than an anecdote. Radix's `headingPropDefs.size.default` is `'6'`. Upstream asserts the
@@ -286,6 +296,33 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   (`HTMLDivElement`). Expect this per package in the rest of Phase 2: the right assertion is
   whatever element that package's Radix primitive types its ref as, not `HTMLElement`. Do not loosen
   it back when syncing; carry the tightening the other way at cutover. *(Phase 2)*
+- **`icon-button` does not declare `@radix-ui/react-icons`, and its story uses
+  `@pineappleui/icons`.** Upstream lists that package in `peerDependencies`, in `devDependencies`
+  and in `tsup`'s `external`, and nothing the package publishes imports it — the only import is
+  `IconButton.stories.tsx`'s `HeartIcon`, and `files: ["dist"]` never ships a story. A peer nobody
+  imports is not a harmless extra line: npm asks every consumer to install it, and the four
+  `check-peer-externals` assertions are all keyed on imports, so none of them would ever report it.
+  The declaration is dropped from all three places. The story's glyph then comes from
+  `@pineappleui/icons` — this design system's own icon package, already in the repo — as a
+  story-only **devDependency**, on the same dev-only footing as `@pineappleui/tokens` above. That
+  is a change to story content, not just to a manifest: the buttons render `<Icon name="copy" />`
+  rather than a heart, and each carries its own `aria-label`, because `Icon` is decorative by
+  default and an icon-only control with no accessible name announces as "button". *(Phase 2)*
+- **`card`'s first test asserts the `<div>` its name claims** — the fourth test-content delta but the
+  third of the class the Phase 2 checklist counts, because `text`'s tightening above is a
+  test-content delta and not a name its body failed to describe — and the same shape as `box`'s.
+  Upstream names it `renders a div with the provided children` and then
+  asserts only that the text is in the document, never that a `div` is what rendered: the half of
+  the name that mentions the element is unexercised, so Radix swapping `Card`'s tag would not fail
+  it. One line fixes it — `expect(el.tagName).toBe('DIV')` — which is exactly the shape upstream's
+  own `badge` test already uses for its `<span>`. This is the one place a Radix default is the
+  behaviour under test rather than a hole in the test, as with the bare-`<Heading>` case. The other
+  three `card` assertions were audited and are verbatim: `size="3"` and `variant="classic"` both
+  sit off Radix's defaults (`'1'` and `'surface'`), and the ref assertion already names
+  `HTMLDivElement`. `badge`, `button` and `icon-button` needed no rewrite at all — `variant="solid"`
+  against a `soft` default, `variant="soft"` against a `solid` one, `loading` against `false`,
+  `color="crimson"` against `''`, and refs typed `HTMLSpanElement` / `HTMLButtonElement` to match
+  what Radix types each primitive's ref as. *(Phase 2)*
 
 ---
 
