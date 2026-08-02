@@ -518,12 +518,15 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   it is the value under test, and asserting it against the constant it asserts would hold no
   matter what that constant said. Separately, all seven upstream tests start from **empty**
   storage, where the preference a setter might drop already equals the default — so nothing
-  notices a `setAccentColor` that stops carrying `appearance` across. Verified by mutation:
-  `setStored({ ...DEFAULT_PREFERENCES, accentColor })` keeps all seven green and fails only the
-  new test, and it is a user whose dark mode reverts to "follow the OS" the moment they pick an
-  accent. The new one seeds both preferences and asserts the whole record after one write. Do not
-  restore the literals or drop the test when syncing; carry both back the other way at cutover.
-  *(Phase 3)*
+  notices a setter that stops carrying the other preference across. Two new tests close it, one
+  per setter, each seeding both preferences and asserting the whole record after one write: one
+  test pins one direction, so the pair is the assertion rather than either half of it. Verified
+  by mutation both ways — `setStored({ ...DEFAULT_PREFERENCES, accentColor })` fails the accent
+  one, `setStored({ ...DEFAULT_PREFERENCES, appearance })` fails the appearance one, and the
+  seven upstream tests stay green under either. It is a user whose dark mode reverts to "follow
+  the OS" the moment they pick an accent, and — the mirror, which one test alone did not catch —
+  whose accent reverts to bronze the moment they switch to dark. Do not restore the literals or
+  drop either test when syncing; carry both back the other way at cutover. *(Phase 3)*
 - **`theme`'s two upstream story files land as one, `Theme.stories.tsx`.** Upstream splits them:
   `Smoke.stories.tsx` at the package root, `providers/Providers.stories.tsx` beside the provider.
   Ladle names a story group after the file it came from, so in a gallery that lists every other

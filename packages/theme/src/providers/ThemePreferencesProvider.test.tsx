@@ -86,10 +86,16 @@ describe('useThemePreferences', () => {
   // The two setters write the WHOLE record, so each one has to carry the other
   // preference across. Nothing above notices when one stops: every test that
   // writes starts from EMPTY storage, where the value being dropped already
-  // equals the default. Verified by mutation — `setStored({
-  // ...DEFAULT_PREFERENCES, accentColor })` keeps all seven tests above green
-  // and fails only this one, and it is a user whose dark mode reverts to
-  // "follow the OS" the moment they pick an accent.
+  // equals the default.
+  //
+  // One test per setter, because one test pins one direction. Verified by
+  // mutation, both ways: `setAccentColor` writing `{ ...DEFAULT_PREFERENCES,
+  // accentColor }` fails the first of these two, and `setAppearance` writing
+  // `{ ...DEFAULT_PREFERENCES, appearance }` fails the second — and the second
+  // mutation was green against every test in this file until the second test
+  // was written, which is why the pair is here rather than the accent case
+  // alone. It is a user whose accent reverts to bronze the moment they switch
+  // to dark: the mirror of the accent case, and just as invisible.
   it('keeps the stored appearance when only the accent is set', () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -105,6 +111,23 @@ describe('useThemePreferences', () => {
     };
     expect(stored).toEqual({ appearance: 'dark', accentColor: PICKED_ACCENT });
     expect(result.current.appearance).toBe('dark');
+  });
+
+  it('keeps the stored accent when only the appearance is set', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ appearance: 'light', accentColor: STORED_ACCENT }),
+    );
+    const { result } = renderHook(() => useThemePreferences(), { wrapper });
+    act(() => {
+      result.current.setAppearance('dark');
+    });
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as {
+      appearance?: string;
+      accentColor?: string;
+    };
+    expect(stored).toEqual({ appearance: 'dark', accentColor: STORED_ACCENT });
+    expect(result.current.accentColor).toBe(STORED_ACCENT);
   });
 
   // Two setters in ONE tick, which is what a "reset to the light bronze theme"
