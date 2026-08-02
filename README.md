@@ -27,6 +27,8 @@ packages/
   button/             @pineappleui/button             PUBLIC    Radix Button pass-through
   icon-button/        @pineappleui/icon-button        PUBLIC    Radix IconButton pass-through (square, one glyph)
   card/               @pineappleui/card               PUBLIC    Radix Card pass-through (padded surface)
+  text-field/         @pineappleui/text-field         PUBLIC    Radix TextField namespace (Root + Slot)
+  text-area/          @pineappleui/text-area          PUBLIC    Radix TextArea pass-through (multi-line input)
 scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list
