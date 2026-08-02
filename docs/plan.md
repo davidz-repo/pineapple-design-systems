@@ -308,8 +308,10 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   is a change to story content, not just to a manifest: the buttons render `<Icon name="copy" />`
   rather than a heart, and each carries its own `aria-label`, because `Icon` is decorative by
   default and an icon-only control with no accessible name announces as "button". *(Phase 2)*
-- **`card`'s first test asserts the `<div>` its name claims** — the fourth test-content delta, and
-  the same shape as `box`'s. Upstream names it `renders a div with the provided children` and then
+- **`card`'s first test asserts the `<div>` its name claims** — the fourth test-content delta but the
+  third of the class the Phase 2 checklist counts, because `text`'s tightening above is a
+  test-content delta and not a name its body failed to describe — and the same shape as `box`'s.
+  Upstream names it `renders a div with the provided children` and then
   asserts only that the text is in the document, never that a `div` is what rendered: the half of
   the name that mentions the element is unexercised, so Radix swapping `Card`'s tag would not fail
   it. One line fixes it — `expect(el.tagName).toBe('DIV')` — which is exactly the shape upstream's
