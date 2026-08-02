@@ -129,18 +129,21 @@ all of `src`) and linted, but **nothing in this repo renders them** — the Ladl
 workspace lands in a later PR. `icons` therefore carries `@ladle/react` as a devDependency
 purely for the `Story` type its playground story imports; no other package here provides it.
 
-### Phase 2 — Radix wrappers (9 of 11 landed)
+### Phase 2 — Radix wrappers (11 of 11 landed)
 
 Landed: `box`, `stack`, `inline` — the layout wrappers — `text` and `heading`, the typography
-pair, and `badge`, `button`, `icon-button` and `card`, the actions and surfaces. Each is a
-`@radix-ui/themes` peer and nothing else. All nine declare `@ladle/react` as a devDependency,
-because each one's story imports the `Story` type; `text`, `heading`, `badge`, `button` and
-`icon-button` additionally declare `@pineappleui/tokens`, because their stories build an
-accent-colour control out of the real list, and `icon-button` alone declares `@pineappleui/icons`,
-for the glyph its stories put inside the button. All three are story-only and therefore dev-only.
-See *Deltas from the source monorepo* below for each.
+pair, `badge`, `button`, `icon-button` and `card`, the actions and surfaces, and `text-field` and
+`text-area`, the text inputs. Each is a `@radix-ui/themes` peer and nothing else. All eleven
+declare `@ladle/react` as a devDependency, because each one's story imports the `Story` type;
+`text`, `heading`, `badge`, `button`, `icon-button`, `text-field` and `text-area` additionally
+declare `@pineappleui/tokens`, because their stories build an accent-colour control out of the real
+list, and `icon-button` alone declares `@pineappleui/icons`, for the glyph its stories put inside
+the button. All three are story-only and therefore dev-only. See *Deltas from the source monorepo*
+below for each.
 
-Remaining: `text-field`, `text-area`.
+`text-field` is the one that is not a single element: Radix's `TextField` is a compound namespace
+(`TextField.Root`, `TextField.Slot`), and the package re-exports it whole rather than wrapping a
+part of it.
 
 All eleven have the same shape. Copy `packages/live-region` as the template — it is already a
 React package in the shape a Radix wrapper needs: `react` + `react-dom` peers (declared *and*
@@ -156,9 +159,10 @@ Keep everything else — the four scripts, `files`, `exports`, `publishConfig`, 
 
 Two things to do per package that no template can carry for you:
 
-- **Read every ported test body, not its name.** Three of the nine landed so far shipped an
-  assertion that its own name did not describe, and each one was green. All three are recorded as
-  standing deltas below.
+- **Read every ported test body, not its name.** Four of the eleven shipped an assertion that its
+  own name did not describe, and each one was green. All four are recorded as standing deltas
+  below — as is the fifth thing reading the bodies turned up, which is an absent ref test:
+  `text-field` gains the one it never had, and `stack` and `inline` still have none.
 - **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
   or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion
   the component cannot fail. `@radix-ui/themes`' prop defs are the reference:
@@ -191,7 +195,7 @@ makes its build config differ from every other package:
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These twelve differences are deliberate and should **not**
+Everything else is ported verbatim. These thirteen differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -213,8 +217,8 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
 - **`icons`** declares `@ladle/react` as a `devDependency`, where upstream declares it nowhere:
   its `Icon.stories.tsx` imports the `Story` type, and upstream resolves that through
   `apps/gallery`'s hoist. There is no gallery workspace here yet, so without the declaration the
-  story does not typecheck. Expect this delta to repeat: 10 of the 11 Phase 2 packages import
-  from `@ladle/react` in their stories and will each need it. Only a story written in the bare
+  story does not typecheck. The delta repeated in every one of the 11 Phase 2 packages: each one's
+  story imports from `@ladle/react`, and each declares it. Only a story written in the bare
   CSF `export default { title }` form — like `live-region`'s — imports nothing from Ladle and
   therefore needs no devDependency. *(Phase 1)*
 - **`icons`** exports `ICON_NAMES` and `ICON_SIZES` — the first four deltas are dependency and
@@ -254,23 +258,23 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `asChild` is the only route to any other tag. Do not restore the no-op when syncing; carry the
   fix back the other way at cutover, as with the `icons` exports. *(Phase 2)*
 - **Every story with a colour control builds it from `ACCENT_COLORS`** — `text`, `heading`,
-  `badge`, `button` and `icon-button` so far — where upstream hand-types the list into each
-  `Playground.argTypes`. `text`, `heading` and `badge` write
+  `badge`, `button`, `icon-button`, `text-field` and `text-area`, which is every Phase 2 package
+  that offers one — where upstream hand-types the list into each `Playground.argTypes`. `text`,
+  `heading`, `badge`, `text-field` and `text-area` write
   `['', 'gray', 'indigo', 'violet', 'teal', 'orange', 'crimson']`, a copy that is *already*
-  drifted: `bronze` joined the real list and never reached any of the three pickers, which is the
+  drifted: `bronze` joined the real list and never reached any of the five pickers, which is the
   exact failure `check-token-drift` was written for — and the guard fires on the ported files,
   naming them and printing this fix. `badge`'s `Colors` gallery hard-codes the same five a second
   time and now maps over `ACCENT_COLORS` instead. `button` and `icon-button` are the case the
   guard *cannot* see: their lists read `['', 'gray', 'blue', 'green', 'red', 'amber', 'purple']`,
   which overlaps `ACCENT_COLORS` in nothing, so no member count trips — and yet two playgrounds
   offer five accents this design system does not have while omitting all six it does. Both now
-  spread the real list too, which is a deliberate change to what those controls offer. All five
+  spread the real list too, which is a deliberate change to what those controls offer. All seven
   import `ACCENT_COLORS` from `@pineappleui/tokens`, which makes it a **devDependency** of each.
   Dev-only is the correct half: `files: ["dist"]` never ships a story, and `check-peer-externals`
   excludes `*.stories.*` from its src scan for the same reason, so no published package gains a
   dependency. `''` (inherit) and `'gray'` (Radix's neutral scale, not an accent) stay written out
-  — one literal is a reference, not a copy of a list. Expect this in every remaining Phase 2
-  package whose story offers a colour control. *(Phase 2)*
+  — one literal is a reference, not a copy of a list. *(Phase 2)*
 - **`heading`'s size assertions are rewritten off Radix's own default** — the second finding of
   the same class as `box`'s above, and the reason reading test *bodies* is now a checklist item
   rather than an anecdote. Radix's `headingPropDefs.size.default` is `'6'`. Upstream asserts the
@@ -323,6 +327,31 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   against a `soft` default, `variant="soft"` against a `solid` one, `loading` against `false`,
   `color="crimson"` against `''`, and refs typed `HTMLSpanElement` / `HTMLButtonElement` to match
   what Radix types each primitive's ref as. *(Phase 2)*
+- **`text-field`'s slot test asserts the containment its name claims, and the package gains the ref
+  test it never had** — the fifth test-content delta, of which the first half is the fourth of the
+  class the Phase 2 checklist counts and the second half is a different thing entirely: an absent
+  test rather than a name its body failed to describe. Upstream names the test
+  `renders TextField.Slot children inside the field` and asserts
+  `expect(getByText('@')).toBeTruthy()`. That assertion cannot fail — `getByText` already throws
+  when the text is absent, so the `expect` adds nothing — and it says nothing about either the slot
+  or the field: an `@` rendered by any element anywhere in the document passes it. It now asserts
+  that the text sits on a `.rt-TextFieldSlot` and that a `.rt-TextFieldRoot` is its ancestor, which
+  is what the name claims. Verified by mutation, swapping `<TextField.Slot>` for a bare `<span>`:
+  the upstream shape stays green, the rewrite fails on `expected '' to match /rt-TextFieldSlot/`.
+  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline` still
+  have, and this delta closes only `text-field`'s — and the ref is the interesting half of a
+  compound component: Radix types `TextField.Root`'s ref `ElementRef<'input'>` and composes it onto
+  the inner `<input>`, not onto the `<div>` the root renders for the slots — so "the ref reaches
+  the node you focus" is exactly the thing a pass-through package should pin. The new test asserts
+  `HTMLInputElement`, per the `text` delta's standing rule. `text-area` needed no rewrite:
+  `size="3"` and `variant="soft"` both sit off Radix's `'2'` / `'surface'` defaults (a bare render
+  carries `rt-r-size-2 rt-variant-surface`, checked by execution rather than by eye), and its ref
+  assertion already names `HTMLTextAreaElement`, which is what Radix types it as. It gains one test
+  all the same: `textAreaPropDefs.resize` carries no `default` at all, so a bare render has no
+  `rt-r-resize-*` class and `resize="vertical"` → `rt-r-resize-vertical` is an assertion nothing
+  but a live pass-through can pass — and the README sells `resize` as a contract bullet with
+  nothing pinning it. Do not restore the no-op or drop either new test when syncing; carry all
+  three back the other way at cutover. *(Phase 2)*
 
 ---
 
