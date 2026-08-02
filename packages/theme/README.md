@@ -34,7 +34,7 @@ import '@pineappleui/theme/styles.css';
 | `ThemePreferencesProvider` | Holds the preference record and persists it. Renders no DOM of its own. |
 | `useThemePreferences()` | Reads that record — `appearance`, `accentColor`, and a setter for each. Throws outside the provider. |
 | `DesignSystemProvider` | Renders Radix's `<Theme>` from the current preferences, resolving "follow the OS" against `matchMedia`. |
-| `getFoucScript({ storageKey })` | The first-paint script, as a string, for an inline `<script>` in `<head>`. |
+| `getFoucScript()` | The first-paint script, as a string, for an inline `<script>` in `<head>`. |
 | `@pineappleui/theme/styles.css` | The stylesheet. A side-effect import, not a JS export. |
 
 The accent names are `@pineappleui/tokens`' `ACCENT_COLORS`, and the appearance and preference
@@ -60,9 +60,15 @@ vocabulary, and a picker should be built from the exported list rather than a co
   "ask the OS", so `system` is resolved against `prefers-color-scheme` and re-resolves when the
   OS setting changes.
 - **The first-paint script is opt-in, and it is the consumer's `<head>` that runs it.** Inline
-  the string in a `<script>` **before** any stylesheet or module tag, pass it the same storage
-  key the provider uses, and the page paints the stored theme instead of painting the default
-  and snapping to it. Skip it and nothing breaks — you get the flash.
+  the string in a `<script>` **before** any stylesheet or module tag and the page paints the
+  stored theme instead of painting the default and snapping to it. Skip it and nothing breaks —
+  you get the flash. `getFoucScript()` takes no arguments in the ordinary case; both options
+  exist for the tree that is not ordinary:
+
+  | Option | Default | What it is |
+  | --- | --- | --- |
+  | `storageKey` | the key `ThemePreferencesProvider` persists under | The script and the provider have to read the same key, and the default is what makes them. A key that does not match is not an error anywhere — the script reads nothing, paints the default, and React snaps to the stored theme one frame later, which is the flash you inlined it to remove. |
+  | `rootElementId` | `'root'` | The element the script paints. It must be the one your provider tree renders into: Radix's `<Theme>` claims that node on hydration, so painting any other is a first paint hydration disagrees with. If no such element exists when the script runs, it returns silently — it is in `<head>`, where the mount point may not be parsed yet, and throwing there would take your other inline scripts with it. |
 - **React, React DOM and Radix Themes are peers.** The consumer supplies one copy of each.
   `@pineappleui/tokens`, `@pineappleui/use-local-storage` and the Geist font package are real
   runtime dependencies of this one, installed with it; the font is a dependency because the

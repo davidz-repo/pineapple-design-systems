@@ -4,9 +4,8 @@ import { ACCENT_COLORS } from '@pineappleui/tokens';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { STORAGE_KEY } from '../preferences';
 import { ThemePreferencesProvider, useThemePreferences } from './ThemePreferencesProvider';
-
-const STORAGE_KEY = 'pineappleui.theme.v1';
 
 // The provider's own default, written out rather than imported: it is the value
 // under test below, and an assertion against the constant it is asserting would

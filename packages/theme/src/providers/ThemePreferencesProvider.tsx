@@ -5,17 +5,9 @@ import { createContext, use } from 'react';
 import { ACCENT_COLORS } from '@pineappleui/tokens';
 import { useLocalStorage } from '@pineappleui/use-local-storage';
 
+import { DEFAULT_PREFERENCES, STORAGE_KEY } from '../preferences';
+
 import type { AccentColor, AppearanceSetting, ThemePreferences } from '@pineappleui/tokens';
-
-const STORAGE_KEY = 'pineappleui.theme.v1';
-
-// Keep `accentColor` in sync with the first-paint script's fallback accent in
-// `../getFoucScript.ts` — a mismatch shows the wrong accent for one paint, and
-// `getFoucScript.test.ts` is what fails when they disagree.
-const DEFAULT_PREFERENCES: ThemePreferences = {
-  appearance: 'system',
-  accentColor: 'bronze',
-};
 
 interface ThemePreferencesContextValue {
   appearance: AppearanceSetting;

@@ -1,5 +1,7 @@
 import { Button, Text } from '@radix-ui/themes';
 
+import { STORAGE_KEY } from './preferences';
+
 // These stories mount nothing themselves: the gallery's global decorator
 // (ThemePreferencesProvider + DesignSystemProvider, in
 // apps/gallery/.ladle/components.tsx) is the tree under test, and every other
@@ -29,9 +31,12 @@ export function ThemedTextAndButton() {
       </Text>
       <Text size="3">
         Radix accent color and appearance (light/dark) come from ThemePreferencesProvider via
-        DesignSystemProvider. Use the accent picker in the top-right, or the appearance toolbar,
-        and both land in localStorage under pineappleui.theme.v1 — which DevTools → Application
-        can also edit by hand.
+        DesignSystemProvider, which persists both under one localStorage key (
+        {STORAGE_KEY}
+        ). The accent picker in the top-right writes it, and it survives a reload — an edit made
+        by hand in DevTools → Application sticks too. Appearance does not: in the gallery Ladle's
+        toolbar owns it, and the decorator's bridge writes the toolbar's value back over the
+        stored one at mount.
       </Text>
       <Button>Accent-colored button</Button>
     </div>

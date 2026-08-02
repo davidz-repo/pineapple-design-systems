@@ -8,11 +8,20 @@ import { render, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { getFoucScript } from './getFoucScript';
+import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 import { DesignSystemProvider } from './providers/DesignSystemProvider';
 import { ThemePreferencesProvider, useThemePreferences } from './providers/ThemePreferencesProvider';
 
-const STORAGE_KEY = 'pineappleui.theme.v1';
-const FOUC_SCRIPT = getFoucScript({ storageKey: STORAGE_KEY });
+// Called with NO arguments, which is how a consumer calls it: the key is the
+// provider's own, and the pairing the tests below assert is the one the default
+// gives you rather than one this file arranged by passing the same string twice.
+const FOUC_SCRIPT = getFoucScript();
+
+// Some accent that is not the default, read off the real list rather than typed
+// a second time — two members of `ACCENT_COLORS` in one file is the copy
+// `check-token-drift` exists to catch. The literal `bronze` below stays: it is
+// the default, which is the value those tests are about.
+const [NON_DEFAULT_ACCENT] = ACCENT_COLORS.filter(accentColor => accentColor !== DEFAULT_ACCENT);
 
 // ── Running the boot script the way a browser does ──────────────────────────
 //
@@ -36,9 +45,9 @@ function runInDocument(source: string): void {
   script.remove();
 }
 
-function seedStoredPreferences(preferences: unknown): void {
+function seedStoredPreferences(preferences: unknown, key: string = STORAGE_KEY): void {
   runInDocument(
-    `localStorage.setItem(${JSON.stringify(STORAGE_KEY)}, ${JSON.stringify(JSON.stringify(preferences))});`,
+    `localStorage.setItem(${JSON.stringify(key)}, ${JSON.stringify(JSON.stringify(preferences))});`,
   );
 }
 
@@ -203,6 +212,56 @@ describe('getFoucScript', () => {
     const scriptAccentColors: unknown = JSON.parse(literal.replace(/'/g, '"'));
 
     expect(scriptAccentColors).toEqual([...ACCENT_COLORS]);
+  });
+
+  // The pairing that used to be the caller's job. `getFoucScript()` reads the
+  // key the provider persists under, so the two cannot disagree — and this is
+  // what fails if the generator ever goes back to defaulting the key to a
+  // literal of its own, which is the same drift as a hand-typed accent list and
+  // just as invisible: a mismatched key paints the default and lets React snap.
+  it('reads the key ThemePreferencesProvider writes', () => {
+    expect(FOUC_SCRIPT).toContain(JSON.stringify(STORAGE_KEY));
+  });
+
+  // The script is inlined in <script>...</script>, and the HTML parser does not
+  // parse JavaScript — it scans for `</script` and ends the element there. Any
+  // `</` the generator emits is therefore a potential early close, so the
+  // assertion is on the sequence rather than on the tag: `</script>` is the one
+  // that bites today, and `</SCRIPT`, `</script foo` and every other spelling
+  // the parser accepts are covered by never emitting `</` at all.
+  it('emits no `</` for any interpolated value, so an inline <script> cannot close early', () => {
+    const hostile = '</script><script>globalThis.pwned = true;</script>';
+
+    for (const script of [
+      FOUC_SCRIPT,
+      getFoucScript({ storageKey: hostile }),
+      getFoucScript({ rootElementId: hostile }),
+    ]) {
+      expect(script).not.toContain('</');
+    }
+  });
+
+  // Escaping must not change what the script MEANS: `<` is the same
+  // character to the JS parser, so a key with a `<` in it still round-trips.
+  it('still reads a storage key containing a `<`', () => {
+    const trickyKey = `${STORAGE_KEY}.</script>`;
+    seedStoredPreferences({ appearance: 'system', accentColor: NON_DEFAULT_ACCENT }, trickyKey);
+
+    document.body.innerHTML = '<div id="root"></div>';
+    runInDocument(getFoucScript({ storageKey: trickyKey }));
+
+    expect(document.getElementById('root')?.getAttribute('data-accent-color'))
+      .toBe(NON_DEFAULT_ACCENT);
+  });
+
+  // The default is `root`, which is what every assertion in this file exercises
+  // through `bootFoucScript()`. This is the override, for a consumer whose
+  // provider tree is mounted somewhere else.
+  it('paints the element rootElementId names', () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    runInDocument(getFoucScript({ rootElementId: 'app' }));
+
+    expect(document.getElementById('app')?.getAttribute('data-accent-color')).toBe(DEFAULT_ACCENT);
   });
 
   it('applies every accent in ACCENT_COLORS, paired with its Radix gray', () => {
