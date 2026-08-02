@@ -161,8 +161,8 @@ Two things to do per package that no template can carry for you:
 
 - **Read every ported test body, not its name.** Four of the eleven shipped an assertion that its
   own name did not describe, and each one was green. All four are recorded as standing deltas
-  below — as is the fifth thing reading the bodies turned up, which is a package with no ref test
-  at all.
+  below — as is the fifth thing reading the bodies turned up, which is an absent ref test:
+  `text-field` gains the one it never had, and `stack` and `inline` still have none.
 - **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
   or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion
   the component cannot fail. `@radix-ui/themes`' prop defs are the reference:
@@ -338,11 +338,12 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   that the text sits on a `.rt-TextFieldSlot` and that a `.rt-TextFieldRoot` is its ancestor, which
   is what the name claims. Verified by mutation, swapping `<TextField.Slot>` for a bare `<span>`:
   the upstream shape stays green, the rewrite fails on `expected '' to match /rt-TextFieldSlot/`.
-  Separately, `text-field` is the only Phase 2 package that ships **no ref test at all**, and the
-  ref is the interesting half of a compound component: Radix types `TextField.Root`'s ref
-  `ElementRef<'input'>` and composes it onto the inner `<input>`, not onto the `<div>` the root
-  renders for the slots — so "the ref reaches the node you focus" is exactly the thing a
-  pass-through package should pin. The new test asserts `HTMLInputElement`, per the `text` delta's
+  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline`
+  still have, and this delta closes only `text-field`'s — and the ref is the interesting half of a
+  compound component: Radix types `TextField.Root`'s ref `ElementRef<'input'>` and composes it
+  onto the inner `<input>`, not onto the `<div>` the root renders for the slots — so "the ref
+  reaches the node you focus" is exactly the thing a pass-through package should pin. The new test
+  asserts `HTMLInputElement`, per the `text` delta's
   standing rule. `text-area` needed no rewrite: `size="3"` and `variant="soft"` both sit off Radix's
   `'2'` / `'surface'` defaults (a bare render carries `rt-r-size-2 rt-variant-surface`, checked by
   execution rather than by eye), and its ref assertion already names `HTMLTextAreaElement`, which is
