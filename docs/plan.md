@@ -198,14 +198,32 @@ moment the file exists — there is no per-package registration to forget.
 
 Four things it does that the upstream gallery does not, each of them repo law here:
 
-1. **All four task slots are accounted for.** `build` is `ladle build`, `lint` is `eslint .`,
-   `typecheck` is `tsc --noEmit`, and `test` is a declared opt-out. `build` earns its slot: it
-   compiles every discovered story through the alias chain, so a story that stops compiling, an
-   alias that stops resolving, or a decorator that breaks every story fails CI. Upstream defines
-   `lint` only and calls the Ladle build `ladle:build`, which `turbo run build` skips silently —
-   the exact shape §"Adding a workspace later" exists to prevent. `apps/gallery/turbo.json`
-   declares this task's `build/**` outputs, next to the task that writes them, so the root
-   config keeps saying `dist/**` and only the workspace that emits something else says so.
+1. **All four task slots are accounted for.** `build` is `node scripts/build.mjs`, `lint` is
+   `eslint .`, `typecheck` is `tsc --noEmit`, and `test` is a declared opt-out. `build` earns its
+   slot: it compiles every discovered story through the alias chain, so a story that stops
+   compiling, an alias that stops resolving, or a decorator that breaks every story fails CI.
+   Upstream defines `lint` only and calls the Ladle build `ladle:build`, which `turbo run build`
+   skips silently — the exact shape §"Adding a workspace later" exists to prevent.
+   `apps/gallery/turbo.json` declares this task's `build/**` outputs, next to the task that
+   writes them, so the root config keeps saying `dist/**` and only the workspace that emits
+   something else says so.
+
+   **The wrapper is what makes that slot mean anything.** `ladle build` exits **0** on a failed
+   build. @ladle/react 5.1.1 wraps vite's `build()` in a try/catch that logs the error and
+   returns `false` (`lib/cli/vite-prod.js`), and `lib/cli/build.js` ignores that return value —
+   so the process prints "✗ Build failed", writes a fresh `meta.json` listing every story it was
+   asked to compile, prints its timing line and exits 0. `build/` is left holding the PREVIOUS
+   bundle, because vite's `emptyOutDir` runs at write time and the write is never reached. Every
+   failure this task exists to catch fails in exactly that shape, so before the wrapper the task
+   reported green over a stale gallery. `apps/gallery/scripts/build.mjs` runs the same build and
+   then checks four independent things — the exit code; the failure marker present or the success
+   marker absent in the output; `build/index.html` not rewritten by this run, which is the one
+   signal that does not depend on matching someone else's string, since vite does not write that
+   file when the build fails; and `build/meta.json` parsing and listing at least one story. Any
+   of them exits 1. Proved by breaking an import in a story: the task exits 1, and exits 0 again
+   once it is restored. The story count deliberately stops at "more than zero" — comparing it
+   against the story files on disk would be a second implementation of the glob
+   `scripts/check-alias-fences.mjs` already owns.
 
    **That slot means something only because the gallery declares all 16 aliased packages as
    `*` devDependencies.** Turbo hashes a task's inputs from its own package directory, and the
@@ -320,8 +338,14 @@ in the gallery, where the alias points at `src/`. The subpath alias key each pac
 carries (`'@pineappleui/theme/'` → `packages/theme/src/`, ahead of the bare key) is what does
 it, so the gallery loads the *source* stylesheet like it loads source components, `@import`s and
 all. `tsc` says nothing about that: `vite/client`'s ambient `*.css` module matches any specifier
-ending in `.css`, so a typo typechecks clean — the gallery `build` is what fails, which is
-another thing that task slot earns.
+ending in `.css`, so a typo typechecks clean, and the gallery `build` is the only task that
+would see it.
+
+It would not have *failed*, though, which is the part this PR corrects rather than repeats:
+`ladle build` prints the resolve error, writes a fresh `meta.json`, leaves the previous bundle in
+`build/` and exits **0**. So the task this section relied on reported green. It fails now because
+`apps/gallery/scripts/build.mjs` reads the build's output and its artifacts and exits 1 on either
+— see *The gallery workspace* above, point 1.
 
 ### Deferred
 

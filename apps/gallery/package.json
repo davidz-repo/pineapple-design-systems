@@ -6,7 +6,7 @@
   "description": "Ladle gallery that renders every @pineappleui package's stories from source.",
   "scripts": {
     "ladle": "ladle serve",
-    "build": "ladle build",
+    "build": "node scripts/build.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
