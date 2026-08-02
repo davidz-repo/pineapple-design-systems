@@ -83,11 +83,17 @@ jobs:
       # entry, so the cache restores exactly as before and the salt changes
       # nothing without failing anything. That is the silent no-op this PR
       # exists to remove, so if either line is ever re-salted, re-salt both.
+      #
+      # `apps/**` joined the hashed set with the gallery workspace. A new source
+      # tree that no pattern here matches is not a wrong answer — turbo re-hashes
+      # its own inputs, so a stale restore still recomputes — but it is a key that
+      # never changes when that tree does, which is one more place a new workspace
+      # can be invisible to the thing meant to see it.
       - name: Restore turbo cache
         uses: actions/cache@v4
         with:
           path: .turbo/cache
-          key: turbo-npm11-${{ runner.os }}-${{ hashFiles('packages/**/src/**', 'packages/**/package.json', 'package-lock.json', 'turbo.json') }}
+          key: turbo-npm11-${{ runner.os }}-${{ hashFiles('packages/**/src/**', 'packages/**/package.json', 'apps/**', 'package-lock.json', 'turbo.json') }}
           restore-keys: |
             turbo-npm11-${{ runner.os }}-
 
@@ -101,6 +107,15 @@ jobs:
       # test. Knowing that first is what makes the rest of this job meaningful.
       - name: Check the toolchain owns its hoist slots
         run: node scripts/check-toolchain-hoist.mjs
+
+      # Also before the build, and for the same kind of reason: it reads configs
+      # only, and the drift it catches is one that makes the build below MEAN
+      # less. A package missing from the gallery's devDependencies has no turbo
+      # edge, so a story edit does not change the gallery build's hash and the
+      # step after this replays a cached build that never compiled the edit —
+      # green, in the ordinary way, having looked at nothing.
+      - name: Check the gallery's alias fences agree
+        run: node scripts/check-alias-fences.mjs
 
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.

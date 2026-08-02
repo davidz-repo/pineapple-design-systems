@@ -6,6 +6,12 @@ node_modules
 dist/
 **/dist/
 
+# Ladle gallery production build output (`ladle build` -> apps/gallery/build/).
+# Scoped to apps/ rather than a bare `build/`: every publishable package emits
+# to dist/, and a repo-wide `build` pattern would also swallow a source folder
+# of that name.
+apps/*/build/
+
 # Turborepo local cache
 .turbo
 **/.turbo

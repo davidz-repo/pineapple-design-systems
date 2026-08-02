@@ -125,9 +125,10 @@ source monorepo apart from the scope rename and de-branding of comments, test `d
 and descriptions.
 
 `live-region` and `icons` ship a `*.stories.tsx`. The stories are typechecked (`include` covers
-all of `src`) and linted, but **nothing in this repo renders them** — the Ladle gallery
-workspace lands in a later PR. `icons` therefore carries `@ladle/react` as a devDependency
-purely for the `Story` type its playground story imports; no other package here provides it.
+all of `src`) and linted, and since the gallery workspace landed they are also rendered — see
+*The gallery workspace* below. `icons` carries `@ladle/react` as a devDependency for the
+`Story` type its playground story imports; it declares it rather than resolving it through the
+gallery's hoist, so the package typechecks on its own.
 
 ### Phase 2 — Radix wrappers (11 of 11 landed)
 
@@ -171,6 +172,91 @@ Two things to do per package that no template can carry for you:
 Do **not** copy `packages/tokens` for these: it extends `base.json` (tokens are pure data) and
 declares no React, so it starts a React package two corrections behind live-region.
 
+### The gallery workspace (landed)
+
+`apps/gallery` — private, `0.0.0`, ESM — is the first workspace outside `packages/*`, and the
+first surface in this repo that **renders** anything. Ladle globs
+`packages/*/src/**/*.stories.{ts,tsx}`, which is 13 story files and 37 stories today: the 11
+Phase 2 wrappers plus `icons` and `live-region`. A new package's stories appear the moment the
+file exists — there is no per-package registration to forget.
+
+Four things it does that the upstream gallery does not, each of them repo law here:
+
+1. **All four task slots are accounted for.** `build` is `ladle build`, `lint` is `eslint .`,
+   `typecheck` is `tsc --noEmit`, and `test` is a declared opt-out. `build` earns its slot: it
+   compiles every discovered story through the alias chain, so a story that stops compiling, an
+   alias that stops resolving, or a decorator that breaks every story fails CI. Upstream defines
+   `lint` only and calls the Ladle build `ladle:build`, which `turbo run build` skips silently —
+   the exact shape §"Adding a workspace later" exists to prevent. `apps/gallery/turbo.json`
+   declares this task's `build/**` outputs, next to the task that writes them, so the root
+   config keeps saying `dist/**` and only the workspace that emits something else says so.
+
+   **That slot means something only because the gallery declares all 15 aliased packages as
+   `*` devDependencies.** Turbo hashes a task's inputs from its own package directory, and the
+   stories this build compiles live in `packages/*/src` — outside it. Nothing turbo can express
+   reaches them: with no dependency edge, editing a story leaves the gallery build's hash
+   unchanged, so a warm-cache CI run replays a green `build` that never compiled the edit. The
+   stories *are* inputs to their own package's build, so the propagation comes from
+   `dependsOn: ["^build"]` walking those edges — which is what the devDependencies exist to
+   create. They are not imports (the gallery's own code imports `@pineappleui/tokens` and
+   nothing else from the scope), so they read as unused and would be tidied away by anyone
+   trusting that reading; `scripts/check-alias-fences.mjs` is what makes removing one a failure
+   rather than a cleanup.
+2. **Workspace discovery is shared rather than copied.** Adding `apps/*` to the root
+   `workspaces` is what `scripts/workspace-globs.mjs` was written to fail on, so extending it is
+   the deliberate act it was designed to force. The discovery itself moved *into* that module
+   (`listWorkspaceDirs()`), and `check-peer-externals` and `check-publish-contract` now call it
+   instead of each filtering `packages/` keys of their own; `check-token-drift` joins
+   `check-toolchain-hoist` in calling the assertion. `check-publish-contract` therefore sees
+   **19** workspaces rather than 18 — which is the whole point, since the one it could not see
+   is the one that would have run zero tasks.
+3. **The decorator mounts Radix's `<Theme>` directly**, and imports `@radix-ui/themes/styles.css`
+   with it — mounting the theme without its stylesheet renders unstyled markup that reads as a
+   broken component rather than a missing import. Ladle's built-in appearance toolbar arrives as
+   `globalState.theme` on the global provider, and a `Record<ThemeState, …>` maps it onto
+   `<Theme appearance>`; `auto` has no Radix equivalent (`'inherit'` resolves to light with no
+   ancestor `<Theme>`), so it is resolved against `matchMedia('(prefers-color-scheme: dark)')`
+   through `useSyncExternalStore`. The accent picker holds one `useState` and spreads
+   `ACCENT_COLORS` — never a hand-typed list, which `check-token-drift` enforces on this file
+   like any other.
+4. **Nothing product-specific comes across.** Upstream's gallery also globs the product app's
+   screen stories and declares `react-router-dom` and `@radix-ui/react-icons` for them; none of
+   that has anything to render here, so none of it is declared. This is principle 2 applied to a
+   workspace instead of a package.
+
+Point 3 is a **temporary** divergence, not a delta, and that is why it is written here rather
+than in *Deltas from the source monorepo* below. Every entry in that list is a standing
+difference that a future sync must not revert. This one is the opposite: upstream's decorator
+composes `@tejamate/theme`'s providers, and the only reason this one does not is that
+`@pineappleui/theme` has not been ported yet. When Phase 3 lands, this file adopts the theme
+provider and the local `useState` goes away — converging on upstream rather than diverging
+further. Recording it as a delta would tell the next reader to keep it.
+
+The dev-server port is stated once, in `.ladle/config.mjs` (`port: 6006`); the `ladle` script is
+a bare `ladle serve`, because a `--port` flag on it would be a second copy of the same number.
+Ports are allocated **per app**: the next `apps/*` workspace picks a distinct one. Two apps on
+6006 collide the moment both are up, and concurrent worktrees make that ordinary — a worktree
+isolates files, not ports.
+
+Two remaining notes on the hand-maintained parts:
+
+- The alias list is written out in **three** places — `resolve.alias` in `vite.config.ts` and
+  `paths` in `tsconfig.json`, both inside `@pineappleui-aliases` marker fences matching
+  upstream's shape, plus the `@pineappleui/*` devDependencies in `package.json` that give turbo
+  its edges. Upstream generates the first two from a `sync-aliases.mjs`; that script is not
+  ported, so the lists are maintained by hand — but the **drift** no longer passes silently.
+  `scripts/check-alias-fences.mjs` asserts that the three name the same packages and that every
+  `packages/*` directory owning a story file is among them, and it names the package and the
+  three files when they disagree. Each of the three failed differently and quietly: no vite
+  alias resolves a cross-package `@pineappleui/*` import to `dist/` — the last build — instead
+  of `src/`; no tsconfig path checks that package's built `.d.ts` while vite bundles its source;
+  no devDependency drops the turbo edge (point 1 above). Porting the generator is now a nicety
+  rather than the thing standing between the repo and a wrong gallery.
+- `eslint.config.mjs` names `build` in `ignores` explicitly. The repo-root `.gitignore` covers
+  `apps/*/build/`, but ESLint reads a `.gitignore` relative to the workspace it is linting, where
+  that pattern matches nothing — so without the explicit ignore, `eslint .` lints the bundle it
+  just emitted and the lint result depends on whether a build ran first.
+
 ### Phase 3 — theme
 
 `theme` depends on `tokens` + `use-local-storage`, so it lands last. It ships CSS, which
@@ -182,6 +268,19 @@ makes its build config differ from every other package:
 - an extra `exports["./styles.css"]` entry
 - `sideEffects: ["**/*.css"]` rather than `false`
 - pulls `@fontsource-variable/geist` as a real dependency
+
+Two things to get right in the same PR, in `apps/gallery/.ladle/components.tsx`, where the
+gallery's temporary knobs live (see *The gallery workspace* above):
+
+- The decorator's direct `<Theme>` and its `import '@radix-ui/themes/styles.css'` must be
+  **removed**, not wrapped. `@pineappleui/theme` mounts its own `<Theme>`, and a Radix `<Theme>`
+  nested inside another one is legal — it renders, and it half-applies: the inner one keeps
+  whatever the outer set for anything it does not itself specify, so appearance and accent stop
+  agreeing in ways that read as a theme bug rather than as two providers.
+- The accent default is the swap point. The decorator currently seeds `useState` with
+  `ACCENT_COLORS[0]`; theme owns that choice in its `DEFAULT_PREFERENCES`, so the local state
+  goes away with it rather than being kept in sync. `ACCENT_COLORS[0]` is a *derived* default —
+  do not replace it with a literal on the way past.
 
 ### Deferred
 
@@ -357,13 +456,20 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
 
 ## Adding a workspace later
 
-CI runs **one unfiltered job**. Adding `apps/*` (a Ladle gallery, a docs site) therefore
-needs **no CI change** — but it does require two things:
+CI runs **one unfiltered job**. Adding a second workspace root therefore needs no change to
+**what CI runs** — `apps/*` arrived with the Ladle gallery and the job selection was untouched.
+The workflow was edited, once, and for a different reason: `apps/**` joined the `hashFiles` list
+in the turbo cache key, which changes what a cache key *covers*, never what runs. But it does
+require three things:
 
 1. add the glob to `workspaces` in the root `package.json`
-2. **account for all four tasks** (`build`, `lint`, `test`, `typecheck`) in the new workspace
+2. add it to `UNDERSTOOD_GLOBS` in `scripts/workspace-globs.mjs`, which is where workspace
+   discovery lives. Step 1 without step 2 is a hard failure by design: every guard calls the
+   assertion, so a glob nobody taught the discovery about stops the build with the fix in the
+   message rather than quietly shrinking what the guards cover
+3. **account for all four tasks** (`build`, `lint`, `test`, `typecheck`) in the new workspace
 
-The second one matters more than it looks: `turbo run <task>` *silently skips* a package that
+The third one matters more than it looks: `turbo run <task>` *silently skips* a package that
 does not define the task and still reports success. A workspace missing `test` is not a
 failing test — it is no test at all, reported green.
 

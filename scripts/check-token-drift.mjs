@@ -39,6 +39,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { assertWorkspaceGlobsUnderstood } from './workspace-globs.mjs';
 
 // The package that owns every list checked here. Its own sources are the
 // definition site: exempt structurally, by path, never by name.
@@ -126,6 +127,13 @@ function listTrackedFiles() {
   });
   return stdout.split('\0').filter(Boolean);
 }
+
+// This guard's scan is `git ls-files`, so unlike the two that walk a workspace
+// list it cannot silently shrink when a workspace root is added — a new tree is
+// scanned the moment it is tracked. It shares the assertion all the same, so
+// "which layouts does this repo's tooling understand?" has one answer, read from
+// scripts/workspace-globs.mjs, rather than one answer per guard.
+assertWorkspaceGlobsUnderstood('check-token-drift');
 
 const tokensEntryPath = path.join(repoRoot, TOKENS_ENTRY);
 let tokens;

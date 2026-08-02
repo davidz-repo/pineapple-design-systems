@@ -29,11 +29,14 @@ packages/
   card/               @pineappleui/card               PUBLIC    Radix Card pass-through (padded surface)
   text-field/         @pineappleui/text-field         PUBLIC    Radix TextField namespace (Root + Slot)
   text-area/          @pineappleui/text-area          PUBLIC    Radix TextArea pass-through (multi-line input)
+apps/
+  gallery/            @pineappleui/gallery            private   Ladle gallery; renders every package's stories
 scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list
   check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
   check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
+  check-alias-fences.mjs                                        the gallery's three alias lists agree
 ```
 
 ## Working on it
@@ -41,21 +44,29 @@ scripts/
 ```bash
 npm install
 npm run verify        # hoist guard, then build + lint + test + typecheck, then the rest
+npm run ladle -w @pineappleui/gallery   # the story gallery on http://localhost:6006
 ```
 
-`verify` runs four guards around the four turbo tasks. Each is also a script of its own, and
+The gallery resolves every `@pineappleui/*` import to that package's `src/`, not to its
+`dist/` — so a component edit shows up on reload with no build in between. Its `build` task
+(`ladle build`) is what proves in CI that every story still compiles.
+
+`verify` runs five guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
 
 | Script | Guards against |
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
+| `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
 | `npm run check:publish` | a manifest that cannot publish, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, and an undeclared one that did not |
 
-`check:hoist` runs *first* and needs no build: it reads `package-lock.json`, so it answers
-"is the toolchain the one we declared?" before anything runs on that toolchain. The other
-three read build output and run after.
+`check:hoist` and `check:aliases` run *before* the build and need no build output: the first
+reads `package-lock.json`, so it answers "is the toolchain the one we declared?" before
+anything runs on that toolchain, and the second reads the gallery's configs, where a missing
+devDependency is what would let the build below replay from cache without compiling the change
+that prompted it. The other three read `dist/` and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'
@@ -90,8 +101,11 @@ Every publishable package builds with both `treeshake` and `sourcemap` on, which
 a doubled `//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited
 from the upstream config, and it is **not** a bug to tune away.
 
-`*.stories.tsx` files are ported and typechecked, but nothing here renders them yet — the Ladle
-gallery workspace lands in a later PR.
+`*.stories.tsx` files live next to the component they document and are typechecked and linted by
+the package that owns them. `apps/gallery` is what renders them: it globs
+`packages/*/src/**/*.stories.{ts,tsx}`, so a new package's stories appear the moment the file
+exists, with nothing to register. `ladle build` writes `apps/gallery/build/`, which is
+gitignored.
 
 ## Releasing
 
@@ -130,13 +144,16 @@ is verified by a package manager it does not declare.
 
 ## A note on the root `vite` devDependency
 
-Nothing in this repo builds with vite — packages bundle through tsup, and vitest only ever
+No publishable package here builds with vite — they bundle through tsup, and vitest only ever
 pulled vite in as its own peer. That undeclared, peer-hoisted copy is exactly the problem: a
 transitive that nobody names loses the top `node_modules` slot to the first package that *does*
-name one. `@ladle/react` (a devDependency of `icons`, and of every Phase 2 wrapper, for the
-`Story` type their stories import) declares `vite@^6`, and so it silently dragged the
-workspace-wide test runner from vite 8 down to vite 6. Declaring `vite` at the root pins the
-shared slot at 8 and pushes Ladle's 6 into its own nested copy, where it affects only Ladle.
+name one. `@ladle/react` (a devDependency of `icons` and of every Phase 2 wrapper for the
+`Story` type their stories import, and the gallery's actual renderer) declares `vite@^6`, and so
+it silently dragged the workspace-wide test runner from vite 8 down to vite 6. Declaring `vite`
+at the root pins the shared slot at 8 and pushes Ladle's 6 into its own nested copy, where it
+affects only Ladle — including when Ladle builds the gallery, which runs on that nested 6. The
+gallery's own `vite` devDependency is for its config's `defineConfig` and the `vite/client`
+types its CSS import needs, not for a second bundler.
 This is the same correction `docs/plan.md` §"Deltas from the source monorepo" already records
 for `jsdom` & co — a dependency the upstream monorepo never had to name, because an app
 workspace's hoist named it for them.
