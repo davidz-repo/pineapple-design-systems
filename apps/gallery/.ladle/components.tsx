@@ -1,64 +1,77 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 
 import { ThemeState } from '@ladle/react';
+import {
+  DesignSystemProvider,
+  ThemePreferencesProvider,
+  useThemePreferences,
+} from '@pineappleui/theme';
 import { ACCENT_COLORS } from '@pineappleui/tokens';
-import { Theme } from '@radix-ui/themes';
 
 import type { GlobalProvider } from '@ladle/react';
-import type { AccentColor } from '@pineappleui/tokens';
-import '@radix-ui/themes/styles.css';
+import type { AccentColor, AppearanceSetting } from '@pineappleui/tokens';
+import '@pineappleui/theme/styles.css';
 
 // Every story in this repo assumes Radix's <Theme> is in scope — the wrappers
-// are pass-throughs whose classes only resolve inside it. This decorator is the
-// only place that mounts it, and it must import Radix's stylesheet itself:
-// mounting <Theme> without `@radix-ui/themes/styles.css` renders unstyled
-// markup that looks like a broken component rather than a missing import.
+// are pass-throughs whose classes only resolve inside it. `@pineappleui/theme`
+// is what mounts it now, and its stylesheet is the only one imported here:
+// `styles.css` pulls in Radix's own, so a second `@radix-ui/themes/styles.css`
+// import would be a duplicate rather than a requirement.
 //
-// @pineappleui/theme (the package that will own appearance + accent state, and
-// its own stylesheet) has not been ported yet. Rather than pre-empt its API, the
-// two knobs below are held in plain local state and handed straight to Radix
-// props. When theme lands, this file swaps to its provider — nothing else moves.
-
-type ResolvedAppearance = 'light' | 'dark';
+// This decorator mounts NO <Theme> of its own, deliberately. A Radix <Theme>
+// nested inside another one is legal and half-applies — the inner one inherits
+// whatever the outer set for anything it does not itself specify — so appearance
+// and accent stop agreeing in ways that read as a theme bug rather than as two
+// providers. What is left here is the two knobs Ladle exposes, wired to the
+// package's own preference state: the appearance toolbar, and an accent picker.
 
 // Ladle's built-in appearance toolbar (the bulb in the top bar) writes
-// globalState.theme, which arrives as a prop on the global provider. Mapping it
-// to Radix's `appearance` here is the whole bridge: <Theme> re-renders and every
-// story follows. Auto has no Radix equivalent — 'inherit' resolves to light with
-// no ancestor Theme to inherit from — so it is resolved against the OS instead.
-const APPEARANCE_BY_LADLE_THEME: Record<ThemeState, ResolvedAppearance | null> = {
+// globalState.theme, which arrives as a prop on the global provider. Every value
+// it can hold has a preference equivalent, `Auto` included: resolving "follow
+// the OS" is DesignSystemProvider's job, not this file's.
+const APPEARANCE_BY_LADLE_THEME: Record<ThemeState, AppearanceSetting> = {
   [ThemeState.Light]: 'light',
   [ThemeState.Dark]: 'dark',
-  [ThemeState.Auto]: null,
+  [ThemeState.Auto]: 'system',
 };
 
-const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+// The toolbar is the source of truth for appearance in the gallery, and the
+// theme package's preference record is what every story reads. This copies one
+// into the other.
+//
+// The effect depends on everything it uses, `setAppearance` included, which
+// ThemePreferencesProvider re-creates on every render — so the effect re-runs on
+// every render, and the equality check is what makes that harmless: it writes
+// only when the two disagree, and after one write they agree. (Dropping the
+// dependency instead, with a ref or a lint disable, buys nothing and hides which
+// values the effect actually reads.)
+function AppearanceBridge({ ladleTheme }: { ladleTheme: ThemeState }) {
+  const { appearance, setAppearance } = useThemePreferences();
+  const toolbarAppearance = APPEARANCE_BY_LADLE_THEME[ladleTheme];
 
-/** @param onStoreChange re-render callback supplied by useSyncExternalStore */
-function subscribeToColorScheme(onStoreChange: () => void) {
-  const query = window.matchMedia(DARK_SCHEME_QUERY);
-  query.addEventListener('change', onStoreChange);
-  return () => query.removeEventListener('change', onStoreChange);
-}
+  useEffect(() => {
+    if (toolbarAppearance !== appearance) {
+      setAppearance(toolbarAppearance);
+    }
+  }, [toolbarAppearance, appearance, setAppearance]);
 
-function readSystemAppearance(): ResolvedAppearance {
-  return window.matchMedia(DARK_SCHEME_QUERY).matches ? 'dark' : 'light';
-}
-
-interface AccentPickerProps {
-  value: AccentColor;
-  onChange: (accentColor: AccentColor) => void;
+  return null;
 }
 
 // Ladle 5 has no API for adding a control to its own toolbar, so the accent
 // picker rides along inside the story frame, pinned to the top-right. The
 // swatch is `var(--accent-9)` — Radix's primary accent step — so it repaints the
-// moment <Theme accentColor> changes, which is the feedback that a click landed.
+// moment the theme's accent changes, which is the feedback that a click landed.
 //
 // The options are ACCENT_COLORS spread, never a hand-written list: a copy of
 // that list is what shipped a picker missing `bronze` upstream, and
-// scripts/check-token-drift.mjs fails this file if one reappears.
-function AccentPicker({ value, onChange }: AccentPickerProps) {
+// scripts/check-token-drift.mjs fails this file if one reappears. The selected
+// value is the theme package's own preference — there is no local copy of it
+// here to keep in sync, and it persists across reloads because the package
+// stores it.
+function AccentPicker() {
+  const { accentColor, setAccentColor } = useThemePreferences();
+
   return (
     <div
       style={{
@@ -93,12 +106,12 @@ function AccentPicker({ value, onChange }: AccentPickerProps) {
         Accent:
         <select
           id="gallery-accent"
-          value={value}
-          onChange={event => onChange(event.target.value as AccentColor)}
+          value={accentColor}
+          onChange={event => setAccentColor(event.target.value as AccentColor)}
           style={{ font: 'inherit', padding: '2px 4px' }}
         >
-          {ACCENT_COLORS.map(accentColor => (
-            <option key={accentColor} value={accentColor}>{accentColor}</option>
+          {ACCENT_COLORS.map(accent => (
+            <option key={accent} value={accent}>{accent}</option>
           ))}
         </select>
       </label>
@@ -109,19 +122,16 @@ function AccentPicker({ value, onChange }: AccentPickerProps) {
 // `minHeight: 100vh` makes Radix's `--color-background` paint the whole story
 // frame rather than just the bounding box of the story's own content. Without
 // it, switching to dark recolours the story and leaves the rest of the iframe
-// white, which reads as "dark mode is broken".
-export const Provider: GlobalProvider = ({ globalState, children }) => {
-  const [accentColor, setAccentColor] = useState<AccentColor>(ACCENT_COLORS[0]);
-  const systemAppearance = useSyncExternalStore(subscribeToColorScheme, readSystemAppearance);
-
-  return (
-    <Theme
-      appearance={APPEARANCE_BY_LADLE_THEME[globalState.theme] ?? systemAppearance}
-      accentColor={accentColor}
-      style={{ minHeight: '100vh' }}
-    >
-      <AccentPicker value={accentColor} onChange={setAccentColor} />
-      {children}
-    </Theme>
-  );
-};
+// white, which reads as "dark mode is broken". It sits on a div INSIDE the
+// providers now: <Theme> belongs to DesignSystemProvider, which takes no style.
+export const Provider: GlobalProvider = ({ globalState, children }) => (
+  <ThemePreferencesProvider>
+    <DesignSystemProvider>
+      <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
+        <AppearanceBridge ladleTheme={globalState.theme} />
+        <AccentPicker />
+        {children}
+      </div>
+    </DesignSystemProvider>
+  </ThemePreferencesProvider>
+);

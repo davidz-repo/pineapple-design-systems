@@ -31,6 +31,7 @@
     "@pineappleui/text": "*",
     "@pineappleui/text-area": "*",
     "@pineappleui/text-field": "*",
+    "@pineappleui/theme": "*",
     "@pineappleui/tokens": "*",
     "@pineappleui/tsconfig": "*",
     "@pineappleui/use-local-storage": "*",

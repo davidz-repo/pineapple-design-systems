@@ -1,0 +1,41 @@
+@import '@radix-ui/themes/styles.css';
+
+/* Self-hosted OFL font (no CDN) — this registers the `@font-face`
+   ('Geist Variable') referenced below. Owned by the design system so every
+   @pineappleui/theme consumer (app or gallery) gets the type for free.
+
+   This `@import` is why `@fontsource-variable/geist` is a runtime dependency of
+   this package rather than a devDependency: the stylesheet ships verbatim and
+   the CONSUMER's bundler is what resolves the specifier, against the consumer's
+   own node_modules. */
+@import '@fontsource-variable/geist/index.css';
+
+/* Point Radix Themes at Geist for both UI/body and headings. Overriding these
+   CSS variables cascades to every surface rendered under Radix <Theme>. The
+   Radix import above comes first, so these win by source order. */
+.radix-themes {
+  --default-font-family: 'Geist Variable', system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --heading-font-family: 'Geist Variable', system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Stronger hover feedback on FILLED buttons (solid/classic — Button + IconButton
+   share .rt-BaseButton). Opacity is only safe on filled variants: text + fill dim
+   together so their contrast ratio is preserved. Outline/ghost/soft buttons and
+   text links (.rt-Link) keep Radix's own gentler hover — opacity there would drop
+   their text below AA against the page and read as disabled. Transition on the base
+   selector so the dim eases in AND out. */
+.radix-themes .rt-BaseButton:where(.rt-variant-solid, .rt-variant-classic) {
+  transition: opacity 120ms ease;
+}
+.radix-themes
+  .rt-BaseButton:where(.rt-variant-solid, .rt-variant-classic):not(:disabled):not([data-disabled]):hover {
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radix-themes .rt-BaseButton:where(.rt-variant-solid, .rt-variant-classic) {
+    transition: none;
+  }
+}

@@ -29,6 +29,7 @@ packages/
   card/               @pineappleui/card               PUBLIC    Radix Card pass-through (padded surface)
   text-field/         @pineappleui/text-field         PUBLIC    Radix TextField namespace (Root + Slot)
   text-area/          @pineappleui/text-area          PUBLIC    Radix TextArea pass-through (multi-line input)
+  theme/              @pineappleui/theme              PUBLIC    theme providers + stylesheet + first-paint snippet
 apps/
   gallery/            @pineappleui/gallery            private   Ladle gallery; renders every package's stories
 scripts/
@@ -58,9 +59,9 @@ each fails with the fix in the message:
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
-| `npm run check:publish` | a manifest that cannot publish, and a workspace running zero tasks |
+| `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
-| `npm run check:externals` | a peer that got inlined into `dist/`, and an undeclared one that did not |
+| `npm run check:externals` | a peer that got inlined into `dist/`, an undeclared one that did not, and a dependency only a stylesheet's `@import` names |
 
 `check:hoist` and `check:aliases` run *before* the build and need no build output: the first
 reads `package-lock.json`, so it answers "is the toolchain the one we declared?" before

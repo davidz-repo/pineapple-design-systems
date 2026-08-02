@@ -20,6 +20,11 @@
 //     fails here, loudly, with the fix in the message.
 //   - A `files` field that drifts (or a stray top-level file) ships source into
 //     the tarball. Nothing in the build complains.
+//   - An `exports` subpath pointing at a file the build no longer writes — say
+//     `"./styles.css": "./dist/styles.css"` after the tsup loader that copies it
+//     is dropped — publishes cleanly. `files: ["dist"]` is still honoured, the
+//     tarball is still non-empty, and the failure is the consumer's
+//     `import '@pineappleui/theme/styles.css'` throwing in their build.
 //
 // Every failure below prints the fix, not just the symptom.
 //
@@ -268,7 +273,55 @@ function checkPrivate(pkgName, manifest) {
   }
 }
 
-function checkTarball(pkgName, relDir) {
+/**
+ * Every file path a manifest points a consumer at: `main`, `module`, `types`,
+ * and every string leaf of `exports` — condition maps (`import`/`types`) and
+ * subpaths (`"./styles.css"`) alike, since each leaf is a path npm will be
+ * asked to resolve.
+ *
+ * @param {string} pkgName
+ * @param {object} manifest
+ * @returns {string[]|null} tarball-relative paths, null once a refusal is reported
+ */
+function listDeclaredEntryPoints(pkgName, manifest) {
+  const targets = new Set();
+
+  for (const field of ['main', 'module', 'types']) {
+    if (typeof manifest[field] === 'string') targets.add(manifest[field]);
+  }
+
+  const collect = (value) => {
+    if (typeof value === 'string') {
+      targets.add(value);
+      return;
+    }
+    if (value !== null && typeof value === 'object') {
+      for (const nested of Object.values(value)) collect(nested);
+    }
+  };
+  collect(manifest.exports ?? {});
+
+  const patterns = [...targets].filter(target => target.includes('*'));
+  if (patterns.length > 0) {
+    // A subpath pattern is a legitimate thing to want; resolving one needs a
+    // glob this guard does not do. Skipping it quietly would leave the entry
+    // points it covers unchecked under a line that says the package is OK.
+    fail(
+      pkgName,
+      `exports declares subpath pattern(s) (${patterns.join(', ')}), and this check `
+      + 'compares literal paths against the tarball file list',
+      'teach `listDeclaredEntryPoints()` in scripts/check-publish-contract.mjs to expand '
+      + 'a pattern against the tarball entries, or write the subpaths out literally. '
+      + 'Passing over the pattern would certify the entry points it covers without '
+      + 'having looked at one.',
+    );
+    return null;
+  }
+
+  return [...targets].map(target => target.replace(/^\.\//, ''));
+}
+
+function checkTarball(pkgName, relDir, manifest) {
   let entries;
   try {
     entries = listTarballEntries(pkgName);
@@ -310,6 +363,23 @@ function checkTarball(pkgName, relDir) {
       `the published tarball would contain unexpected file(s): ${strays.join(', ')}`,
       `tighten \`files\` back to ["dist"]. Anything outside package.json, ${LICENSE_FILE}, `
       + `${README_FILE} and ${DIST_PREFIX} ships source or local config to the public registry.`,
+    );
+  }
+
+  // Every path the manifest points at has to be IN the tarball. `files` and the
+  // dist/ check above only prove that something was packed; this proves the
+  // specific files consumers import were. The gap it closes is a second entry
+  // point — a stylesheet, a subpath export — that the build stopped writing.
+  for (const target of listDeclaredEntryPoints(pkgName, manifest) ?? []) {
+    if (entries.includes(target)) continue;
+    fail(
+      pkgName,
+      `the manifest points at ${target}, which the published tarball would not contain `
+      + `(it would ship: ${entries.join(', ')})`,
+      `either build the file (check this package's tsup.config.ts — a second \`entry\`, or `
+      + 'the loader that copies it, is what puts a non-JS file in dist/) or stop declaring '
+      + 'it. A published package whose `exports` names a missing file installs cleanly and '
+      + "fails at the consumer's import, which is the first place anything looks.",
     );
   }
 
@@ -383,7 +453,7 @@ for (const relDir of packageDirs) {
   }
   else {
     checkPublishable(pkgName, relDir, manifest);
-    checkTarball(pkgName, relDir);
+    checkTarball(pkgName, relDir, manifest);
     checkLicenseMatchesRoot(pkgName, relDir);
   }
 }

@@ -35,6 +35,8 @@
       "@pineappleui/text-area": ["../../packages/text-area/src/index.ts"],
       "@pineappleui/text-field/*": ["../../packages/text-field/src/*"],
       "@pineappleui/text-field": ["../../packages/text-field/src/index.ts"],
+      "@pineappleui/theme/*": ["../../packages/theme/src/*"],
+      "@pineappleui/theme": ["../../packages/theme/src/index.ts"],
       "@pineappleui/tokens/*": ["../../packages/tokens/src/*"],
       "@pineappleui/tokens": ["../../packages/tokens/src/index.ts"],
       "@pineappleui/use-local-storage/*": ["../../packages/use-local-storage/src/*"],
