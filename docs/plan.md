@@ -380,7 +380,7 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These nineteen differences are deliberate and should **not**
+Everything else is ported verbatim. These twenty differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -589,8 +589,9 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   `src/preferences.ts` owns `STORAGE_KEY`, `DEFAULT_PREFERENCES` and the `DEFAULT_ACCENT` derived
   from it; the provider and the generator both import it, and both of `getFoucScript`'s options
   now default — `storageKey` to that key, `rootElementId` to `root` — with the overrides kept for
-  a tree that is not the ordinary one. `preferences.ts` is internal: `index.ts` does not
-  re-export it, so nothing about the published surface moves. Separately, every value the
+  a tree that is not the ordinary one. `preferences.ts` is internal: `index.ts` re-exports one
+  value out of it (see the `THEME_STORAGE_KEY` entry below) and nothing else there reaches the
+  published surface. Separately, every value the
   generator interpolates is escaped for the inline-HTML context it lands in (`<` as its `\u003C` escape),
   because the HTML parser does not parse a script body — it scans it for `</script` and ends the
   element there, so a value carrying that sequence drops the rest of the snippet into the
@@ -622,6 +623,27 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   tests pin it, one per order, and both fail on the captured spread. Do not restore the value-only
   signature or the captured spread when syncing; carry both back the other way at cutover.
   *(Phase 3, changing a Phase 1 package)*
+- **`theme` exports `THEME_STORAGE_KEY`, and `ThemePreferencesProvider` takes a `storageKey`
+  prop** — the third deliberate divergence in **published API**, after `icons`' exported lists and
+  `use-local-storage`'s updater, and the first that exists for the *cutover* rather than to correct
+  something upstream got wrong. Upstream has neither: the key is a literal inside the provider, and
+  a consumer who needs to name it has to type it a second time. The value here is
+  `pineappleui.theme.v1`; what tejamate's users already carry in their browsers is
+  `tejamate.theme.v1`. So an app swapping its local theme layer for this package reads nothing at
+  the key it used to write, and every stored preference resets to "first visit" — light, bronze,
+  for everyone at once, with no error anywhere and no way back, since the old record is still sitting
+  under a key nothing reads. The prop is what lets that consumer keep persisting under the key
+  their users have; the export is what lets them name *this* package's key without copying the
+  string — to migrate a record from one to the other, or to assert the two agree. The prop's other
+  half is `getFoucScript`'s `storageKey` option, which already defaults to the same constant: they
+  are one pair, and a consumer who overrides one and not the other gets exactly the flash the entry
+  above is about. The key must be **stable** for the provider's lifetime — `useLocalStorage` reads
+  storage in its `useState` initialiser and never re-reads, so a key that changes between renders
+  keeps the old key's value and writes it to the new one. That is said in the prop's JSDoc rather
+  than fixed with machinery: no consumer has the case, and a re-reading hook is a behaviour change
+  to a Phase 1 package for nobody. Both additions are additive — a consumer who passes nothing gets
+  the same key, and the same bytes, as before. Do not drop either when syncing; carry both back the
+  other way at cutover. *(Phase 3, ahead of the cutover)*
 
 ---
 

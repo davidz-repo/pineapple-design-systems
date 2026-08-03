@@ -9,10 +9,17 @@ import type { AccentColor, ThemePreferences } from '@pineappleui/tokens';
 // which is the exact flash the boot script is inlined to prevent, and no type
 // can see it because the script's copy lives inside a string.
 //
-// So neither file writes either value out. This module is internal: `index.ts`
-// does not re-export it, so nothing here is a published API.
+// So neither file writes either value out. The module itself is not published,
+// and one value in it is: `index.ts` re-exports `STORAGE_KEY` as
+// `THEME_STORAGE_KEY`, so a consumer overriding the key on both surfaces has
+// the default to compare against rather than a string to copy.
+// `DEFAULT_PREFERENCES` and `DEFAULT_ACCENT` stay internal.
 
-/** The one `localStorage` key the theme layer reads and writes. */
+/**
+ * The `localStorage` key both surfaces read and write unless told otherwise —
+ * `ThemePreferencesProvider`'s `storageKey` prop and `getFoucScript`'s
+ * `storageKey` option both default to it. Published as `THEME_STORAGE_KEY`.
+ */
 export const STORAGE_KEY = 'pineappleui.theme.v1';
 
 /** What a first-time visitor gets, and the fallback for a record that no longer parses. */

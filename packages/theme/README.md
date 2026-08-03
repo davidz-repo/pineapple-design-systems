@@ -35,6 +35,7 @@ import '@pineappleui/theme/styles.css';
 | `useThemePreferences()` | Reads that record — `appearance`, `accentColor`, and a setter for each. Throws outside the provider. |
 | `DesignSystemProvider` | Renders Radix's `<Theme>` from the current preferences, resolving "follow the OS" against `matchMedia`. |
 | `getFoucScript()` | The first-paint script, as a string, for an inline `<script>` in `<head>`. |
+| `THEME_STORAGE_KEY` | The `localStorage` key the preference record is persisted under, as a value — for reading or migrating the record yourself, and the default both `storageKey` overrides replace. |
 | `@pineappleui/theme/styles.css` | The stylesheet. A side-effect import, not a JS export. |
 
 The accent names are `@pineappleui/tokens`' `ACCENT_COLORS`, and the appearance and preference
@@ -55,7 +56,12 @@ vocabulary, and a picker should be built from the exported list rather than a co
   not itself specify, so appearance and accent stop agreeing in ways that read as a theme bug.
 - **Preferences persist per browser, under one `localStorage` key.** A stored record that does
   not match the current schema falls back to the defaults rather than throwing, so a renamed
-  appearance value or a retired accent degrades to "first visit" instead of a blank page.
+  appearance value or a retired accent degrades to "first visit" instead of a blank page. That
+  key is `THEME_STORAGE_KEY`, and `ThemePreferencesProvider`'s `storageKey` prop replaces it —
+  for an app arriving with preferences already stored under a key of its own. Pass it and you
+  must pass the **same** string to `getFoucScript({ storageKey })`: the two read one record, and
+  a pair that disagrees is the flash the script exists to remove, reported by nothing. It also
+  has to be a stable value — the key is read once, when the provider mounts.
 - **"Follow the OS" is resolved here, not passed down.** Radix has no appearance value meaning
   "ask the OS", so `system` is resolved against `prefers-color-scheme` and re-resolves when the
   OS setting changes.

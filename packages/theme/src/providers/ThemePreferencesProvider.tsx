@@ -29,9 +29,33 @@ function isValidPreferences(value: unknown): value is ThemePreferences {
   return validAppearance && validAccent;
 }
 
-export function ThemePreferencesProvider({ children }: { children: ReactNode }) {
+interface ThemePreferencesProviderProps {
+  children: ReactNode;
+  /**
+   * The `localStorage` key the preference record is persisted under. Defaults
+   * to `THEME_STORAGE_KEY`, which is what `getFoucScript` defaults to too.
+   *
+   * Override BOTH or neither. A consumer who passes a key here must pass the
+   * SAME key to `getFoucScript`'s `storageKey` option, or first paint reads a
+   * record this provider never wrote: the script paints the default and React
+   * snaps to the stored theme one frame later, which is the exact flash the
+   * boot script is inlined to prevent. Nothing reports the mismatch — the
+   * script's copy of the key lives inside a string.
+   *
+   * Must be STABLE for the provider's lifetime. `useLocalStorage` reads storage
+   * once, in its `useState` initialiser, so a key that changes between renders
+   * keeps the value read from the old key and writes it to the new one; there
+   * is no re-read. Pass a module constant, not a value derived per render.
+   */
+  storageKey?: string;
+}
+
+export function ThemePreferencesProvider({
+  children,
+  storageKey = STORAGE_KEY,
+}: ThemePreferencesProviderProps) {
   const [stored, setStored] = useLocalStorage<ThemePreferences>(
-    STORAGE_KEY,
+    storageKey,
     DEFAULT_PREFERENCES,
   );
 
