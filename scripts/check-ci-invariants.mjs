@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// CI-invariant guard: two pairings between .github/workflows/ci.yml and the
-// root package.json that nothing in the build can fail on today.
+// CI-invariant guard: two pairings across .github/workflows/ci.yml, the root
+// package.json and scripts/ that nothing in the build can fail on today.
 //
 // Each one is held by a comment and by whoever remembers to read it, and each
 // one breaks by staying green:
@@ -14,14 +14,29 @@
 //      discard are still matched, still replay their recorded stdout, and
 //      nothing anywhere fails. The salt is inert while looking applied, which
 //      is worse than not salting at all, because the next reader sees a salt
-//      and concludes the stale entries are gone. This asserts the pairing
-//      instead of describing it: the `restore-keys` entry must be a prefix of
-//      `key`, which holds only while both carry the same salt.
+//      and concludes the stale entries are gone.
 //
-//   2. `verify` AND CI RUN THE SAME GUARDS. The root `verify` script chains
-//      `node scripts/<name>.mjs`; ci.yml runs each guard as its own step, so a
-//      failure names which invariant broke. That is one decision written as two
-//      hand-maintained lists, and every way they can disagree is silent:
+//      What is asserted is an EQUALITY, not a prefix relation: the
+//      `restore-keys` entry must BE the static portion of `key` — `key`
+//      truncated at its first `${{ hashFiles(…) }}`, which is the part that
+//      changes with the inputs and so the part no fallback can name. Equality
+//      is what makes a salt anywhere in the static portion necessarily shared
+//      by both lines. A prefix test would not: `turbo-` and the empty string
+//      are both prefixes of a salted key, and both are the inert shape above,
+//      matching every entry the previous salt wrote.
+//
+//      One residual is accepted deliberately: de-salting BOTH lines together
+//      still passes, because the pairing — the thing this exists for — is
+//      preserved. Whether the cache carries a salt at all is cache policy: an
+//      argued, one-line, visible-in-review decision. Whether two lines that
+//      must move together did move together is neither argued nor visible, and
+//      that is the half a build can hold.
+//
+//   2. scripts/, `verify` AND CI NAME THE SAME GUARDS. The root `verify` script
+//      chains `node scripts/<name>.mjs`; ci.yml runs each guard as its own step,
+//      so a failure names which invariant broke. That is one decision written as
+//      three hand-maintained lists — the files, the chain, the steps — and every
+//      way they can disagree is silent:
 //
 //        - in `verify`, not in ci.yml: the guard never runs on a PR. It runs
 //          for whoever types `npm run verify` locally, which is nobody in the
@@ -39,15 +54,28 @@
 //      the two is a guard that does not run where it matters" — and a commit
 //      message fails no build. So: assert set equality between the
 //      `scripts/check-*.mjs` files on disk, the invocations in `verify`, and
-//      the `run:` steps in ci.yml.
+//      the `run:` steps in ci.yml — and that a step naming a guard carries no
+//      `if:` or `continue-on-error:`, since a step that can be skipped or
+//      ignored is in the list and out of the run.
 //
 // The workflow is read line by line rather than parsed. The guards here take no
 // dependencies, and a guard against a wiring mistake is the last place to add
-// the first one. That reader is narrow on purpose: anything it cannot identify
-// with certainty — the cache step, either of its two fields, a `restore-keys`
-// holding more than the single entry this implements — exits non-zero instead
-// of being skipped, because a guard that silently matched nothing is the exact
-// failure this file exists to end.
+// the first one. That reader DETECTS wider than it validates — a cache step is
+// any `uses:` value mentioning `actions/cache`, in any spelling — and then
+// exits non-zero on anything it cannot read with certainty: a cache step whose
+// shape it does not implement, either of the two fields missing, a
+// `restore-keys` holding more than the single entry this implements or holding
+// nothing, a `key` with no `hashFiles` segment to truncate at, a subdirectory
+// under scripts/. Detecting as narrowly as it validates is how a guard comes to
+// print a pass over the one step it recognised while a second restores by an
+// unsalted prefix beside it, and a guard that silently matched nothing is the
+// exact failure this file exists to end.
+//
+// The one thing it cannot hold is itself. Delete this guard's own step from
+// ci.yml and invariant 2 reports it — but only where the guard still runs,
+// which is a local `npm run verify` and not the PR. That residual is not
+// closable from inside this file, and it is left named rather than papered over
+// with an assertion that cannot fire.
 //
 // Reads configs only, so it runs before `turbo run build` in both places — and
 // invariant 2 is what makes "in both places" a checkable claim rather than a
@@ -69,11 +97,34 @@ const VERIFY_SCRIPT = 'verify';
 // The step whose two fields must agree, found by the action it uses rather than
 // by its `name:` — a step name is prose, and free to be reworded by someone who
 // has no idea a guard is keyed on it.
-const USES_CACHE = /^\s*uses:\s*actions\/cache(?:@\S+)?\s*$/;
+//
+// DETECTION is the permissive half, and deliberately so: any `uses:` value that
+// so much as mentions `actions/cache` counts, whatever the spelling — pinned to
+// a SHA with the version in a trailing comment, quoted, or a subpath like
+// `actions/cache/restore`. Everything this file asserts about the cache rests
+// on having seen EVERY cache step, so the detector must not be the same shape
+// as the reader below; a step it fails to notice is a step whose `restore-keys`
+// nothing looked at, under a printed pass.
+const USES_LINE = /^\s*(?:-\s+)?uses:\s*(\S.*?)\s*$/;
+const MENTIONS_CACHE = /actions\/cache/;
+
+// VALIDATION is the narrow half: the single spelling the fields below are read
+// out of. Anything else detected is refused, not guessed at.
+const USES_CACHE_IMPLEMENTED = /^actions\/cache(?:@[^\s#]+)?$/;
+
 const STEP_NAME = /^\s*-\s*name:\s*(.*)$/;
 
 const KEY_FIELD = 'key';
 const RESTORE_KEYS_FIELD = 'restore-keys';
+
+// The end of `key`'s static portion. Everything before this interpolation is
+// text `restore-keys` can be written against; the interpolation itself is what
+// makes `key` change when the inputs change, and is exactly what a prefix match
+// is meant to stop short of.
+const HASH_FILES = /\$\{\{\s*hashFiles\s*\(/;
+
+// A key that stops a step from running, or from failing the job when it does.
+const CONDITIONAL_KEY = /^(if|continue-on-error):/;
 
 // What counts as a guard on disk. `workspace-globs.mjs` is deliberately outside
 // the pattern: it is a shared module that exports an assertion its importers
@@ -138,7 +189,7 @@ function stripQuotes(value) {
  * a `- ` sequence, which read identically here, one entry per non-blank line.
  *
  * A trailing `# comment` on an inline scalar is NOT stripped, and that is the
- * safe direction: it can only lengthen a value, so it can make the prefix
+ * safe direction: it can only lengthen a value, so it can make the equality
  * assertion below fail loudly, never pass wrongly.
  *
  * @param {string[]} lines
@@ -186,7 +237,31 @@ function readField(lines, from, to, field) {
 }
 
 /**
+ * The line after the block that `lines[start]` opens: the first non-blank line
+ * indented no deeper than it. The next sibling step, or the end of the file.
+ *
+ * @param {string[]} lines
+ * @param {number} start
+ * @returns {number}
+ */
+function blockEnd(lines, start) {
+  const startIndent = indentOf(lines[start]);
+
+  for (let i = start + 1; i < lines.length; i++) {
+    if (lines[i].trim() === '') continue;
+    if (indentOf(lines[i]) <= startIndent) return i;
+  }
+
+  return lines.length;
+}
+
+/**
  * The one `actions/cache` step, as a line range.
+ *
+ * Detected permissively and read narrowly. A step using `actions/cache` in a
+ * spelling this cannot read is refused rather than passed over, because passing
+ * over it is indistinguishable from there being no such step — and the two
+ * refusals below are the ones that would then not fire.
  *
  * Exactly one, or this refuses. Zero is the step renamed, moved or removed —
  * every assertion below would then be about a step that is not there. More than
@@ -198,7 +273,28 @@ function readField(lines, from, to, field) {
  * @returns {{ start: number, end: number, name: string }}
  */
 function findCacheStep(lines) {
-  const usesAt = lines.flatMap((line, index) => (USES_CACHE.test(line) ? [index] : []));
+  const cacheUses = lines.flatMap((line, index) => {
+    const value = USES_LINE.exec(line)?.[1];
+    return value !== undefined && MENTIONS_CACHE.test(value) ? [{ index, value }] : [];
+  });
+
+  const unreadable = cacheUses.filter(({ value }) => !USES_CACHE_IMPLEMENTED.test(value));
+
+  if (unreadable.length > 0) {
+    refuse(
+      `${WORKFLOW} uses \`actions/cache\` in ${unreadable.length} spelling(s) this guard does not\n`
+      + 'implement, and it reads the two keys out of exactly one:\n'
+      + `${unreadable.map(({ index, value }) => `         :${index + 1} uses: ${value}\n`).join('')}`
+      + `  fix: write it as \`uses: actions/cache@<ref>\` — unquoted, no trailing comment, no\n`
+      + `       subpath — or teach \`findCacheStep()\` in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs the spelling\n`
+      + '       used here. Detection is wider than validation on purpose: a step this can see\n'
+      + '       but not read is refused, because the alternative is asserting the salt pairing\n'
+      + '       of whichever step happened to be recognised and printing a pass, while the one\n'
+      + '       beside it restores every pre-salt entry by an unsalted prefix, unexamined.',
+    );
+  }
+
+  const usesAt = cacheUses.map(({ index }) => index);
 
   if (usesAt.length !== 1) {
     refuse(
@@ -217,7 +313,10 @@ function findCacheStep(lines) {
   const usesIndent = indentOf(lines[usesAt[0]]);
   let start = -1;
   for (let i = usesAt[0]; i >= 0; i--) {
-    if (/^\s*-\s/.test(lines[i]) && indentOf(lines[i]) < usesIndent) {
+    if (!/^\s*-\s/.test(lines[i])) continue;
+    // The `uses:` line is itself the list item when the step is written
+    // `- uses: …` with no `name:` above it.
+    if (i === usesAt[0] || indentOf(lines[i]) < usesIndent) {
       start = i;
       break;
     }
@@ -233,30 +332,31 @@ function findCacheStep(lines) {
     );
   }
 
-  const stepIndent = indentOf(lines[start]);
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (lines[i].trim() === '') continue;
-    if (indentOf(lines[i]) <= stepIndent) {
-      end = i;
-      break;
-    }
-  }
-
-  return { start, end, name: STEP_NAME.exec(lines[start])?.[1] ?? '(unnamed step)' };
+  return {
+    start,
+    end: blockEnd(lines, start),
+    name: STEP_NAME.exec(lines[start])?.[1] ?? '(unnamed step)',
+  };
 }
 
 /**
- * Every `run:` value in the workflow, inline or block, as text to scan.
+ * Every `run:` value within `lines[from, to)`, inline or block, as text to scan.
+ *
+ * Lines inside a block scalar whose first non-space character is `#` are shell
+ * COMMENTS, and skipped. `# node scripts/check-x.mjs (disabled)` is the note
+ * someone leaves behind when they take the real step out, and counting it would
+ * make the guard list agree precisely when a guard had stopped running.
  *
  * @param {string[]} lines
+ * @param {number} from
+ * @param {number} to
  * @returns {string[]}
  */
-function readRunCommands(lines) {
+function runCommandsIn(lines, from, to) {
   /** @type {string[]} */
   const commands = [];
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = from; i < to; i++) {
     const match = /^(\s*)run:(?:\s+(.*))?\s*$/.exec(lines[i]);
     if (!match) continue;
 
@@ -268,14 +368,77 @@ function readRunCommands(lines) {
       continue;
     }
 
-    for (let j = i + 1; j < lines.length; j++) {
+    for (let j = i + 1; j < to; j++) {
       if (lines[j].trim() === '') continue;
       if (indentOf(lines[j]) <= runIndent) break;
-      commands.push(lines[j].trim());
+      const body = lines[j].trim();
+      if (body.startsWith('#')) continue;
+      commands.push(body);
     }
   }
 
   return commands;
+}
+
+/**
+ * Every step under a `steps:` key, with the guards its `run:` invokes and any
+ * key that can stop it from running.
+ *
+ * Per step rather than over the whole file, because "is this guard wired into
+ * CI?" is a question about the step the invocation sits in: a step carrying
+ * `if:` or `continue-on-error:` puts the text of an invocation in the workflow
+ * and takes the run out of it.
+ *
+ * @param {string[]} lines
+ * @returns {{ lineNumber: number, name: string, invocations: string[],
+ *   conditionalKeys: { key: string, lineNumber: number }[] }[]}
+ */
+function readSteps(lines) {
+  /** @type {number[]} */
+  const starts = [];
+  let stepsIndent = -1;
+  let itemIndent = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '') continue;
+
+    if (stepsIndent !== -1 && indentOf(lines[i]) <= stepsIndent) {
+      stepsIndent = -1;
+      itemIndent = -1;
+    }
+
+    if (stepsIndent === -1) {
+      const opens = /^(\s*)steps:\s*$/.exec(lines[i]);
+      if (opens) stepsIndent = opens[1].length;
+      continue;
+    }
+
+    if (!/^\s*-\s+/.test(lines[i])) continue;
+    if (itemIndent === -1) itemIndent = indentOf(lines[i]);
+    if (indentOf(lines[i]) === itemIndent) starts.push(i);
+  }
+
+  return starts.map((start) => {
+    const end = blockEnd(lines, start);
+    // Where the step's own keys begin: past the `- `, which is where the first
+    // one sits and where every later one lines up.
+    const keyIndent = /^\s*-\s+/.exec(lines[start])[0].length;
+
+    /** @type {{ key: string, lineNumber: number }[]} */
+    const conditionalKeys = [];
+    for (let i = start; i < end; i++) {
+      if (i !== start && indentOf(lines[i]) !== keyIndent) continue;
+      const key = CONDITIONAL_KEY.exec(lines[i].slice(keyIndent))?.[1];
+      if (key !== undefined) conditionalKeys.push({ key, lineNumber: i + 1 });
+    }
+
+    return {
+      lineNumber: start + 1,
+      name: STEP_NAME.exec(lines[start])?.[1] ?? '(unnamed step)',
+      invocations: runCommandsIn(lines, start, end).flatMap(invocationsIn),
+      conditionalKeys,
+    };
+  });
 }
 
 /** @param {string} text @returns {string[]} the guard file names it invokes. */
@@ -337,7 +500,7 @@ for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restore
     `${WORKFLOW}:${read.lineNumber} \`${field}\` holds ${read.values.length} entries, and this guard\n`
     + 'implements exactly one.\n'
     + `  fix: state a single ${field} entry, or teach ${SCRIPTS_DIR}/${GUARD_NAME}.mjs which of\n`
-    + '       several to assert the prefix against. Checking one entry out of several and\n'
+    + '       several to assert the equality against. Checking one entry out of several and\n'
     + '       printing a pass would leave the rest free to be the unsalted prefix that\n'
     + '       matches every stale entry — which is the whole failure being guarded.',
   );
@@ -346,19 +509,56 @@ for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restore
 const keyValue = keyField.values[0];
 const restoreValue = restoreField.values[0];
 
-if (!keyValue.startsWith(restoreValue)) {
+const hashFilesAt = HASH_FILES.exec(keyValue);
+
+if (hashFilesAt === null) {
+  refuse(
+    `${WORKFLOW}:${keyField.lineNumber} \`${KEY_FIELD}\` holds no \`\${{ hashFiles(…) }}\` segment, so it has no\n`
+    + `static portion for \`${RESTORE_KEYS_FIELD}\` to be compared against.\n`
+    + `         ${KEY_FIELD}: ${keyValue}\n`
+    + `  fix: restore the \`hashFiles(…)\` interpolation in \`${KEY_FIELD}\`, or teach\n`
+    + `       ${SCRIPTS_DIR}/${GUARD_NAME}.mjs how the key is composed now. A key with nothing\n`
+    + '       hashed into it never changes when the inputs change — every run after the first\n'
+    + '       is a hit on the one entry it can write — and with nothing to truncate at, this\n'
+    + `       guard would be comparing \`${RESTORE_KEYS_FIELD}\` against the whole key, which is a\n`
+    + '       different assertion than the one it documents.',
+  );
+}
+
+// Everything before the first `${{ hashFiles(…) }}`: the part of `key` that a
+// prefix match can be written against, salt included.
+const keyStatic = keyValue.slice(0, hashFilesAt.index);
+
+if (restoreValue === '') {
+  refuse(
+    `${WORKFLOW}:${restoreField.lineNumber} \`${RESTORE_KEYS_FIELD}\` is empty, which is the inert-salt shape\n`
+    + 'this guard exists for, taken as far as it goes: an empty prefix matches EVERY entry\n'
+    + 'ever written under this path, including every entry the salt above was added to\n'
+    + 'discard.\n'
+    + `  fix: state the static portion of \`${KEY_FIELD}\` — \`${keyStatic}\` — as the single\n`
+    + `       ${RESTORE_KEYS_FIELD} entry. Empty is not "no fallback": a cache step meant never to\n`
+    + `       restore across key changes drops \`${RESTORE_KEYS_FIELD}\` and this guard with it. An\n`
+    + '       empty string reads as a declared fallback and behaves as "restore anything".',
+  );
+}
+
+if (restoreValue !== keyStatic) {
   fail(
     `${WORKFLOW}:${keyField.lineNumber} \`${KEY_FIELD}\` and :${restoreField.lineNumber} \`${RESTORE_KEYS_FIELD}\``,
-    `\`${RESTORE_KEYS_FIELD}\` is not a prefix of \`${KEY_FIELD}\`\n`
+    `\`${RESTORE_KEYS_FIELD}\` is not exactly the static portion of \`${KEY_FIELD}\`\n`
     + `           ${KEY_FIELD}: ${keyValue}\n`
+    + `           its static portion: ${keyStatic}\n`
     + `           ${RESTORE_KEYS_FIELD}: ${restoreValue}`,
-    `re-salt BOTH lines, or neither. \`${RESTORE_KEYS_FIELD}\` is a prefix match, so a prefix `
-    + `that ${KEY_FIELD} no longer starts with is either a prefix matching entries this `
-    + 'key will never write — a cache that only ever misses — or, in the case this guard '
-    + 'exists for, the OLD unsalted prefix still matching every entry the previous salt '
-    + 'wrote. That second one restores exactly as it did before the re-salt: the stale '
-    + 'entries keep replaying their recorded stdout, nothing fails, and the salt above '
-    + 'reads as applied. The two lines are one decision written twice.',
+    `re-salt BOTH lines, or neither: state \`${keyStatic}\` as the single ${RESTORE_KEYS_FIELD} `
+    + `entry. \`${RESTORE_KEYS_FIELD}\` is a prefix match, so anything SHORTER than that — an old `
+    + 'unsalted prefix, a truncation — is the case this guard exists for: it goes on matching '
+    + 'every entry the previous salt wrote, so the cache restores exactly as it did before the '
+    + 're-salt, the stale entries keep replaying their recorded stdout, nothing fails, and the '
+    + 'salt above reads as applied. Anything the static portion does not match at all is the '
+    + 'opposite failure and also wrong: a prefix matching entries this key will never write, a '
+    + 'cache that only ever misses. Equality is asserted rather than a prefix relation because '
+    + 'every value in that first case — truncated, unsalted, empty — passes a prefix test. The '
+    + 'two lines are one decision written twice.',
   );
 }
 
@@ -366,7 +566,23 @@ if (!keyValue.startsWith(restoreValue)) {
 // Invariant 2 — `verify` and CI run the same guards.
 // ---------------------------------------------------------------------------
 
-const guardsOnDisk = readdirSync(path.join(repoRoot, SCRIPTS_DIR))
+const scriptsEntries = readdirSync(path.join(repoRoot, SCRIPTS_DIR), { withFileTypes: true });
+const scriptsSubdirs = scriptsEntries.filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+
+if (scriptsSubdirs.length > 0) {
+  refuse(
+    `${SCRIPTS_DIR}/ holds ${scriptsSubdirs.length} subdirectory(ies) — ${scriptsSubdirs.join(', ')} — and this\n`
+    + 'guard reads only the files directly in it.\n'
+    + `  fix: keep the guards directly in ${SCRIPTS_DIR}/, or teach both this directory read and\n`
+    + `       GUARD_INVOCATION in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs to walk subdirectories. A guard\n`
+    + `       moved into ${SCRIPTS_DIR}/ci/ leaves all three lists at once — off this listing, and\n`
+    + '       out of both invocation scans, whose path pattern stops at the first `/` — so the\n'
+    + '       three would go on agreeing, over a set the moved guard had quietly left.',
+  );
+}
+
+const guardsOnDisk = scriptsEntries
+  .map(entry => entry.name)
   .filter(name => GUARD_FILE.test(name))
   .sort();
 
@@ -384,7 +600,7 @@ const verifyScript = rootManifest.scripts?.[VERIFY_SCRIPT];
 
 if (typeof verifyScript !== 'string') {
   refuse(
-    `${MANIFEST} declares no \`${VERIFY_SCRIPT}\` script, which is one of the two lists this\n`
+    `${MANIFEST} declares no \`${VERIFY_SCRIPT}\` script, which is one of the three lists this\n`
     + 'guard compares.\n'
     + `  fix: restore \`${VERIFY_SCRIPT}\` in the root ${MANIFEST}. It is the command the README\n`
     + '       names as the local verification entry point; with it gone, every guard below\n'
@@ -393,8 +609,31 @@ if (typeof verifyScript !== 'string') {
   );
 }
 
+const workflowSteps = readSteps(workflowLines);
+
 const inVerify = new Set(invocationsIn(verifyScript));
-const inWorkflow = new Set(readRunCommands(workflowLines).flatMap(invocationsIn));
+const inWorkflow = new Set(workflowSteps.flatMap(step => step.invocations));
+
+// A step that exists and may not run is wired into the workflow's TEXT and out
+// of its runs — and the set comparison below, which reads the text, would count
+// it either way. Both keys are legitimate elsewhere: the changeset step carries
+// an `if:` and invokes no guard, which is why this is per step.
+for (const step of workflowSteps) {
+  const guards = step.invocations.filter(name => GUARD_FILE.test(name));
+  if (guards.length === 0 || step.conditionalKeys.length === 0) continue;
+
+  fail(
+    `${WORKFLOW}:${step.lineNumber} "${step.name}"`,
+    `runs ${guards.map(name => `\`${SCRIPTS_DIR}/${name}\``).join(' and ')} under `
+    + `${step.conditionalKeys.map(({ key, lineNumber }) => `\`${key}:\` (:${lineNumber})`).join(' and ')}`,
+    `drop that key from this step, or move the guard to a step that always runs and fails. `
+    + `A conditional guard step is present in the text and absent from the PR that breaks it: `
+    + `\`if: false\` and \`continue-on-error: true\` both leave the invocation sitting in `
+    + `${WORKFLOW}, where the guard-set check below reads it and counts the guard as wired into `
+    + 'CI, while the job goes green having skipped it or having ignored its exit code. The '
+    + 'steps that may legitimately not run are the ones that invoke no guard.',
+  );
+}
 
 for (const [list, names] of [[IN_VERIFY, inVerify], [IN_WORKFLOW, inWorkflow]]) {
   if (names.size > 0) continue;
@@ -416,7 +655,9 @@ const WHY_EACH_LIST = {
 };
 
 const FIX_PER_LIST = {
-  [ON_DISK]: `create ${SCRIPTS_DIR}/<guard>.mjs`,
+  [ON_DISK]: `create ${SCRIPTS_DIR}/<guard>.mjs — or, if the file is meant to be a guard under a `
+    + `different name, rename it to ${SCRIPTS_DIR}/check-*.mjs, which is the pattern this list `
+    + 'matches',
   [IN_VERIFY]: `add \`&& node ${SCRIPTS_DIR}/<guard>.mjs\` to \`${VERIFY_SCRIPT}\` in ${MANIFEST}`,
   [IN_WORKFLOW]: `add a step to ${WORKFLOW} running \`node ${SCRIPTS_DIR}/<guard>.mjs\``,
 };
@@ -456,7 +697,7 @@ if (failures.length > 0) {
 console.log(
   `${GUARD_NAME}: both CI invariants hold\n`
   + `  cache salt — ${WORKFLOW} "${cacheStep.name}": ${RESTORE_KEYS_FIELD} \`${restoreValue}\` `
-  + `is a prefix of ${KEY_FIELD} \`${keyValue}\`\n`
+  + `is exactly the static portion of ${KEY_FIELD} \`${keyValue}\`\n`
   + `  guard set — ${everyGuard.length} guard(s) named by ${ON_DISK}, by ${IN_VERIFY} and by `
   + `${IN_WORKFLOW}: ${everyGuard.map(name => name.replace(/\.mjs$/, '')).join(', ')}`,
 );
