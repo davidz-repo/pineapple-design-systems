@@ -50,6 +50,14 @@
 //     `<Icon ref={…}>` gets a real `<svg>` back. Nothing in the package's own
 //     source spells `ref` anywhere, which is exactly how `icons` came to carry a
 //     `refTestNotApplicable` that was false.
+//   - a `ref` prop written out by hand, or any of React's ref TYPES —
+//     `ref?: Ref<HTMLElement>`, `RefObject<…>`, `ElementRef<…>`,
+//     `RefAttributes<…>`, `MutableRefObject<…>`. Nothing here matches this today,
+//     and that is the point: it is the same blind spot `icons` sat in, reached
+//     from the other side. A package that declares its own props (so no
+//     `extends` to inherit through) and then adds a `ref` to them by hand would
+//     match none of the four above. `live-region` is one edit away from being
+//     exactly that shape.
 //
 // Markers are matched against comment-stripped source, because the comment
 // `// React 19: ref is a regular prop, no forwardRef needed` sits in five of
@@ -93,6 +101,16 @@
 // it, so widening REF_MARKERS is how this check gets stronger, and there is no
 // version of it that is done.
 //
+// The `interface …Props extends …` marker also over-matches, and that direction
+// has NO escape hatch by design. `interface FooProps extends SomeRefFreeBase`
+// lands in the required set on the strength of the `extends` alone — this reads
+// headings, not type graphs — and the opt-out cannot rescue it: a declared
+// `refTestNotApplicable` next to a matched marker is the contradictory REFUSAL
+// two paragraphs up. The intended exit is to edit the marker set, in a commit
+// that says which shape stopped meaning what it meant. That is deliberately the
+// loud, rare move: an over-match costs one argued commit, and the under-match it
+// replaced cost a package a false opt-out that nobody re-read.
+//
 // One limit, named rather than papered over: the "looks like a component
 // package" gate is the presence of a `.tsx`, so a component written without JSX
 // — `createElement` in a `.ts` — is gated out and, if it also carries no marker,
@@ -127,7 +145,7 @@
 // the ref rides in — and matching `ref={` against a comment ABOUT `ref={` is the
 // same defect as classifying a package by its `// React 19:` note.
 //
-// Two things remain out of reach, both narrower than what they replaced:
+// Three things remain out of reach, all narrower than what they replaced:
 //
 //   - whether the assertion names the RIGHT element. `HTMLElement` passes here
 //     and is the weaker assertion `docs/plan.md` records a delta for. A wrong
@@ -139,6 +157,13 @@
 //     variable of the same name would still satisfy this. Writing that takes
 //     deliberate effort in a ten-line test; writing the no-op body above took
 //     none, which is the difference that decided where to stop.
+//   - the quantifier is SOME, not every. One conforming ref-titled test satisfies
+//     the package, so a second ref-titled test that is hollow rides along
+//     untouched. That is the same quantifier every other check in this file uses,
+//     and the subject here is a package with NO proof of forwarding rather than a
+//     package with one proof and one dud — but it does mean a green line from
+//     this guard says "at least one ref test holds", never "every test titled
+//     like one does".
 //
 // Reads source and test files only, no `dist/`, so it runs BEFORE
 // `turbo run build` in both `verify` and CI.
@@ -166,7 +191,7 @@ const NOT_A_SOURCE = /\.(?:test|stories)\.[cm]?[jt]sx?$/;
 
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
-// The four ways a package here declares that its public props carry a ref.
+// The five ways a package here declares that its public props carry a ref.
 // Matched against comment-stripped source — see the header on why.
 const REF_MARKERS = [
   {
@@ -189,6 +214,16 @@ const REF_MARKERS = [
     // take, so there is no imported `ref` to inherit.
     label: 'interface …Props extends …',
     pattern: /\binterface\s+\w*Props\b[^{]*\bextends\b/,
+  },
+  {
+    // The hand-written route: a package that spells the prop out itself
+    // (`ref?: Ref<HTMLElement>`) inherits nothing, extends nothing, and would
+    // otherwise match none of the four above — the same blind spot `icons` sat
+    // in, reached from the opposite direction. `live-region` is one edit away
+    // from being exactly this shape, which is why it is worth matching before
+    // anyone writes it. The type names are the ones React exports for the job.
+    label: '`ref` prop or a React ref type',
+    pattern: /\bref\s*\??\s*:|\b(?:Ref|RefObject|ElementRef|RefAttributes|MutableRefObject)\s*</,
   },
 ];
 
