@@ -38,13 +38,14 @@ scripts/
   check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
   check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
   check-alias-fences.mjs                                        the gallery's three alias lists agree
+  check-ci-invariants.mjs                                       both cache keys salted, and verify and CI agree
 ```
 
 ## Working on it
 
 ```bash
 npm install
-npm run verify        # hoist guard, then build + lint + test + typecheck, then the rest
+npm run verify        # the pre-build guards, then build + lint + test + typecheck, then the rest
 npm run ladle -w @pineappleui/gallery   # the story gallery on http://localhost:6006
 ```
 
@@ -53,22 +54,25 @@ The gallery resolves every `@pineappleui/*` import to that package's `src/`, not
 (`ladle build`, behind a wrapper that fails the task when the build does — ladle exits 0 either
 way) is what proves in CI that every story still compiles.
 
-`verify` runs five guards around the four turbo tasks. Each is also a script of its own, and
+`verify` runs six guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
 
 | Script | Guards against |
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
+| `npm run check:ci` | a turbo cache salt written into `key` but not `restore-keys`, where it restores everything it was meant to discard, and a guard wired into `verify` or into CI but not both |
 | `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling workspace shipping to consumers, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, an undeclared one that did not, and a dependency only a stylesheet's `@import` names |
 
-`check:hoist` and `check:aliases` run *before* the build and need no build output: the first
-reads `package-lock.json`, so it answers "is the toolchain the one we declared?" before
-anything runs on that toolchain, and the second reads the gallery's configs, where a missing
+`check:hoist`, `check:aliases` and `check:ci` run *before* the build and need no build output:
+the first reads `package-lock.json`, so it answers "is the toolchain the one we declared?" before
+anything runs on that toolchain; the second reads the gallery's configs, where a missing
 devDependency is what would let the build below replay from cache without compiling the change
-that prompted it. The other three read `dist/` and run after.
+that prompted it; and the third reads `.github/workflows/ci.yml` and this `verify` chain itself,
+so a guard that runs in only one of the two is a failure rather than a quietly shorter run. The
+other three read `dist/` and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'
