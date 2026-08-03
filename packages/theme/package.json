@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/theme",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Theme providers for @pineappleui — appearance + accent preferences, the Radix Themes wrapper they drive, a global stylesheet, and the first-paint snippet that pre-empts both.",
   "license": "MIT",
   "type": "module",
