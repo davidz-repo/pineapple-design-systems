@@ -194,7 +194,10 @@ Two things to do per package that no template can carry for you:
 - **Read every ported test body, not its name.** Four of the eleven shipped an assertion that its
   own name did not describe, and each one was green. All four are recorded as standing deltas
   below — as is the fifth thing reading the bodies turned up, which is an absent ref test:
-  `text-field` gains the one it never had, and `stack` and `inline` still have none.
+  `text-field`, `stack` and `inline` each gained one they never had. All eleven now have theirs,
+  and `scripts/check-ref-tests.mjs` is what keeps the next one from arriving without one — reading
+  a test body is the step a checklist cannot make anyone take, which is why the finding became a
+  guard as well as the standing delta below.
 - **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
   or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion
   the component cannot fail. `@radix-ui/themes`' prop defs are the reference:
@@ -390,7 +393,7 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 
 ## Deltas from the source monorepo
 
-Everything else is ported verbatim. These twenty differences are deliberate and should **not**
+Everything else is ported verbatim. These twenty-one differences are deliberate and should **not**
 be "corrected" back — each one is a bug here if reverted, and each is invisible until it fails.
 
 - **`eslint-config`** declares `@antfu/eslint-config`, `@eslint-react/eslint-plugin` and
@@ -533,8 +536,9 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   that the text sits on a `.rt-TextFieldSlot` and that a `.rt-TextFieldRoot` is its ancestor, which
   is what the name claims. Verified by mutation, swapping `<TextField.Slot>` for a bare `<span>`:
   the upstream shape stays green, the rewrite fails on `expected '' to match /rt-TextFieldSlot/`.
-  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline` still
-  have, and this delta closes only `text-field`'s — and the ref is the interesting half of a
+  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline` had
+  too, closed for them by the entry below rather than by this one — and the ref is
+  the interesting half of a
   compound component: Radix types `TextField.Root`'s ref `ElementRef<'input'>` and composes it onto
   the inner `<input>`, not onto the `<div>` the root renders for the slots — so "the ref reaches
   the node you focus" is exactly the thing a pass-through package should pin. The new test asserts
@@ -654,6 +658,30 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   to a Phase 1 package for nobody. Both additions are additive — a consumer who passes nothing gets
   the same key, and the same bytes, as before. Do not drop either when syncing; carry both back the
   other way at cutover. *(Phase 3, ahead of the cutover)*
+- **`stack`, `inline` and `icons` ship the ref tests none of them has upstream, and a guard that
+  keeps them** — the seventh test-content delta, of the same class as `text-field`'s and `theme`'s
+  second halves: an absent test rather than a name its body failed to describe. Upstream ships no
+  ref test for any of the three, and neither did this repo until now — for `stack` and `inline`,
+  nine sibling packages had one, these two did not, and nothing reported it. A missing test is not
+  a red line; it is one fewer green line in a count nobody knows by heart, and `turbo run test`
+  says the same word about a package with the test and a package without it. `stack`'s and
+  `inline`'s tests follow the nine existing ones exactly — a title starting
+  `forwards refs to the underlying`, a `ref={…}` callback on the render, and `toBeInstanceOf` on
+  what came back, naming **`HTMLDivElement`** per the `text` delta's standing rule rather than
+  `HTMLElement`. What they pin is the half of the pass-through nothing else does: the ref rides in
+  `...rest`, past the destructured `direction` (and `wrap`), onto the `<div>` Radix's `Flex` renders
+  — verified by mutation, stop spreading `rest` and both components still render, still lay out, and
+  still pass every class-name assertion above, while dropping every consumer's ref. This is also the
+  **first delta anything mechanically enforces**: `scripts/check-ref-tests.mjs` derives from source
+  which packages forward a ref and fails the build for one that has no test, so the gap cannot
+  reopen the way it opened. `icons` is the third package, and the one nobody would have found by
+  eye: `IconProps extends Omit<LucideProps, …>` inherits `RefAttributes<SVGSVGElement>` through
+  that `Omit` — the package's own source never spells `ref` — so `<Icon ref={…}>` hands back a real
+  `<svg>`, and its test asserts `SVGSVGElement`, the concrete element again. The guard **does not
+  exist upstream**, so it enforces none of this there: all three tests still have to be carried
+  back by hand at cutover, exactly like the `text-field`, `text-area` and `theme` tests above. Do
+  not drop any of them when syncing.
+  *(Phase 2, reaching back into a Phase 1 package)*
 
 ---
 
@@ -710,7 +738,7 @@ the first three being missing. The fourth is convention:
 2. chain it into `verify` in the root `package.json`
 3. give it its own step in `.github/workflows/ci.yml`, **unconditional** — a step under `if:` or
    `continue-on-error:` is in the file and out of the run
-4. add a `check:<alias>` script, so it is runnable on its own the way the other six are
+4. add a `check:<alias>` script, so it is runnable on its own the way the others are
 
 Steps 1–3 are one decision written three times, which is why a guard named by fewer than all
 three fails rather than merely running less. Its own step, not a line appended to another, so a

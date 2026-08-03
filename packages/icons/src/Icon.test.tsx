@@ -36,6 +36,27 @@ describe('@pineappleui/icons', () => {
     expect(svg.getAttribute('aria-hidden')).toBeNull();
   });
 
+  it('forwards refs to the underlying svg element', () => {
+    // Nothing in Icon.tsx spells `ref`, and it forwards one anyway: `IconProps`
+    // extends `Omit<LucideProps, 'size' | 'aria-hidden' | 'aria-label' | 'role'>`,
+    // and what that Omit does NOT remove is the `RefAttributes<SVGSVGElement>`
+    // Lucide's props already carry. So `ref` rides in `...rest` onto the glyph,
+    // which is a forwardRef component, and lands on the <svg> it renders.
+    // Widening the destructure — or naming the props explicitly instead of
+    // spreading `rest` — drops it while every assertion above stays green.
+    // SVGSVGElement rather than Element, per the `text` delta's rule.
+    let received: SVGSVGElement | null = null;
+    render(
+      <Icon
+        name="close"
+        ref={(el) => {
+          received = el;
+        }}
+      />,
+    );
+    expect(received).toBeInstanceOf(SVGSVGElement);
+  });
+
   it('renders a glyph for every name in ICON_NAMES', () => {
     for (const name of ICON_NAMES) {
       const { container, unmount } = render(<Icon name={name} />);
