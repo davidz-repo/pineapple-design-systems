@@ -23,4 +23,23 @@ describe('@pineappleui/inline', () => {
     const { container } = render(<Inline gap="3">x</Inline>);
     expect((container.firstChild as HTMLElement).className).toMatch(/rt-r-gap-3/);
   });
+
+  it('forwards refs to the underlying element', () => {
+    // The ref rides in `...rest`, past the destructured `direction` and `wrap`,
+    // onto the <div> Radix's Flex renders. That is the half of the pass-through
+    // nothing else here pins: a refactor that stopped spreading `rest` would
+    // still render, still wrap, and silently drop every consumer's ref.
+    // HTMLDivElement rather than HTMLElement, per the `text` delta's rule —
+    // HTMLElement would hold for whatever the layout turned into next.
+    let received: HTMLDivElement | null = null;
+    render(
+      <Inline ref={(el) => {
+        received = el;
+      }}
+      >
+        ref
+      </Inline>,
+    );
+    expect(received).toBeInstanceOf(HTMLDivElement);
+  });
 });

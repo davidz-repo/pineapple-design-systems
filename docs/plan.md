@@ -194,7 +194,10 @@ Two things to do per package that no template can carry for you:
 - **Read every ported test body, not its name.** Four of the eleven shipped an assertion that its
   own name did not describe, and each one was green. All four are recorded as standing deltas
   below — as is the fifth thing reading the bodies turned up, which is an absent ref test:
-  `text-field` gains the one it never had, and `stack` and `inline` still have none.
+  `text-field`, `stack` and `inline` each gained one they never had. All eleven now have theirs,
+  and `scripts/check-ref-tests.mjs` is what keeps the twelfth from arriving without one — reading
+  a test body is the step a checklist cannot make anyone take, which is why the finding became a
+  guard rather than a bullet.
 - **Check each assertion against the Radix default it is asserting past.** A `size`, `direction`
   or `as` prop whose asserted value happens to equal the prop def's own `default` is an assertion
   the component cannot fail. `@radix-ui/themes`' prop defs are the reference:
@@ -533,8 +536,9 @@ be "corrected" back — each one is a bug here if reverted, and each is invisibl
   that the text sits on a `.rt-TextFieldSlot` and that a `.rt-TextFieldRoot` is its ancestor, which
   is what the name claims. Verified by mutation, swapping `<TextField.Slot>` for a bare `<span>`:
   the upstream shape stays green, the rewrite fails on `expected '' to match /rt-TextFieldSlot/`.
-  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline` still
-  have, and this delta closes only `text-field`'s — and the ref is the interesting half of a
+  Separately, upstream `text-field` ships **no ref test at all** — a gap `stack` and `inline` had
+  too, closed for them by `scripts/check-ref-tests.mjs` rather than by this delta — and the ref is
+  the interesting half of a
   compound component: Radix types `TextField.Root`'s ref `ElementRef<'input'>` and composes it onto
   the inner `<input>`, not onto the `<div>` the root renders for the slots — so "the ref reaches
   the node you focus" is exactly the thing a pass-through package should pin. The new test asserts
@@ -710,7 +714,7 @@ the first three being missing. The fourth is convention:
 2. chain it into `verify` in the root `package.json`
 3. give it its own step in `.github/workflows/ci.yml`, **unconditional** — a step under `if:` or
    `continue-on-error:` is in the file and out of the run
-4. add a `check:<alias>` script, so it is runnable on its own the way the other six are
+4. add a `check:<alias>` script, so it is runnable on its own the way the others are
 
 Steps 1–3 are one decision written three times, which is why a guard named by fewer than all
 three fails rather than merely running less. Its own step, not a line appended to another, so a

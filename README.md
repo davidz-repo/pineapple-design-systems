@@ -39,6 +39,7 @@ scripts/
   check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
   check-alias-fences.mjs                                        the gallery's three alias lists agree
   check-ci-invariants.mjs                                       the cache's two keys pair, and scripts/, verify and CI agree
+  check-ref-tests.mjs                                           a package that forwards a ref proves the ref arrives
 ```
 
 ## Working on it
@@ -54,7 +55,7 @@ The gallery resolves every `@pineappleui/*` import to that package's `src/`, not
 (`ladle build`, behind a wrapper that fails the task when the build does — ladle exits 0 either
 way) is what proves in CI that every story still compiles.
 
-`verify` runs six guards around the four turbo tasks. Each is also a script of its own, and
+`verify` runs seven guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
 
 | Script | Guards against |
@@ -62,17 +63,20 @@ each fails with the fix in the message:
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
 | `npm run check:ci` | a turbo cache `restore-keys` that is not exactly the static portion of `key` — a salt written into one line and not the other restores everything it was meant to discard — and a guard that `scripts/`, `verify` and CI do not all three name, or whose CI step can be skipped |
+| `npm run check:refs` | a package whose props carry a `ref` and whose tests never check that the ref arrives — an implementation that accepts the prop and drops it renders, lays out and passes every class-name assertion above it |
 | `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling workspace shipping to consumers, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, an undeclared one that did not, and a dependency only a stylesheet's `@import` names |
 
-`check:hoist`, `check:aliases` and `check:ci` run *before* the build and need no build output:
-the first reads `package-lock.json`, so it answers "is the toolchain the one we declared?" before
-anything runs on that toolchain; the second reads the gallery's configs, where a missing
-devDependency is what would let the build below replay from cache without compiling the change
-that prompted it; and the third reads `.github/workflows/ci.yml`, this `verify` chain itself and
+`check:hoist`, `check:aliases`, `check:ci` and `check:refs` run *before* the build and need no
+build output: the first reads `package-lock.json`, so it answers "is the toolchain the one we
+declared?" before anything runs on that toolchain; the second reads the gallery's configs, where a
+missing devDependency is what would let the build below replay from cache without compiling the
+change that prompted it; the third reads `.github/workflows/ci.yml`, this `verify` chain itself and
 the `scripts/` listing, so a guard that any one of those three does not name is a failure rather
-than a quietly shorter run. The other three read `dist/` and run after.
+than a quietly shorter run; and the fourth reads component sources and test files, which is what
+qualifies the `test` task below — a package with no ref test is green there in exactly the words a
+package with one is. The other three read `dist/` and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'
@@ -100,6 +104,31 @@ and why in its own `package.json`:
 `check-publish-contract.mjs` fails on any workspace that does neither, private ones included,
 and prints the fix. Declare a real gap rather than adding a script that runs and checks
 nothing — see `docs/plan.md` §"Adding a workspace later".
+
+### Every component that forwards a ref proves it
+
+A forwarded ref is the part of a pass-through wrapper that renders correctly while being broken.
+The components here are two lines — destructure a default, spread the rest into a Radix primitive
+— and the ref travels inside that spread. Stop spreading it and the component still renders,
+still lays out, and still passes every class-name assertion in its test file, while every
+consumer's `ref` is silently `null`. React 19 puts `ref` in `ComponentPropsWithRef`, so a
+component that accepts the prop and drops it type-checks exactly as well as one that passes it on.
+
+`check-ref-tests.mjs` derives the packages that owe a ref test from their own sources — anything
+declaring `ComponentPropsWithRef`, `forwardRef`, or re-exporting a `@radix-ui/themes` component
+whole — and requires of each a test titled `forwards refs to the underlying …` that attaches a
+`ref={…}` and asserts `toBeInstanceOf(HTML…Element)` on what came back. Copy
+`packages/box/src/Box.test.tsx`.
+
+A workspace that renders JSX outside a test and matches none of those forms is **refused**, not
+skipped, because "takes no ref" and "takes a ref this guard did not recognise" are the same
+silence. Say which it is in its own `package.json`:
+
+```jsonc
+"pineapple": {
+  "refTestNotApplicable": "LiveRegionProps is a hand-written list of seven props and `ref` is not one of them, so nothing reaches the element `as` names."
+}
+```
 
 ### Expected build output
 

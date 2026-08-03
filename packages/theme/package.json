@@ -34,6 +34,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "pineapple": {
+    "refTestNotApplicable": "Both exports are providers: ThemePreferencesProvider renders context and no DOM at all, and DesignSystemProvider renders Radix's <Theme> around its children. Neither takes props of its own beyond `children`, so there is no element a consumer could hold a ref to."
+  },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
     "@pineappleui/tokens": "^0.1.1",

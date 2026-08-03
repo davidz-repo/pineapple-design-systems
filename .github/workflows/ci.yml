@@ -140,6 +140,17 @@ jobs:
       - name: Check the CI invariants hold
         run: node scripts/check-ci-invariants.mjs
 
+      # Before the build because of what it reads: component sources, test files
+      # and manifests, and no `dist/` at all — there is nothing for the build to
+      # produce that this needs. Running it here also puts it ahead of the step
+      # whose green line it qualifies: `turbo run test` reports a pass for a
+      # package with no ref test exactly as loudly as for one with, because a
+      # missing test is not a red line, it is one fewer green line in a count
+      # nobody knows by heart. `stack` and `inline` shipped that way next to nine
+      # siblings that did have one, and nothing said so.
+      - name: Check every ref-forwarding package tests its ref
+        run: node scripts/check-ref-tests.mjs
+
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.
       #

@@ -31,6 +31,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "pineapple": {
+    "refTestNotApplicable": "Icon owns its whole prop list -- name, size, label -- rather than passing a DOM element's props through, and `IconProps` declares no `ref`. There is no forwarded ref for a consumer to hold, so a ref test here would assert lucide-react's behaviour rather than this package's. Widening the public API to carry a ref is the change that would make one meaningful."
+  },
   "dependencies": {
     "lucide-react": "^1.23.0"
   },

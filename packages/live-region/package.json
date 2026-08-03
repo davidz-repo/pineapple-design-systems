@@ -31,6 +31,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "pineapple": {
+    "refTestNotApplicable": "LiveRegionProps is a hand-written list of seven props and `ref` is not one of them, so nothing reaches the element `as` names. That is deliberate: the contract this package enforces is that the region stays MOUNTED while its children change, and a consumer holding the node is not part of it."
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

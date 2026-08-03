@@ -31,8 +31,13 @@
 //
 // Who imports what, and why it differs:
 //
-//   - `check-peer-externals` and `check-publish-contract` walk a workspace list:
-//     they take `listWorkspaceDirs()`, which calls the assertion for them.
+//   - `check-peer-externals`, `check-publish-contract` and `check-ref-tests` walk
+//     a workspace list: they take `listWorkspaceDirs()`, which calls the
+//     assertion for them. `check-ref-tests` is the one of the three whose subject
+//     is a SUBSET of that list — the packages whose sources forward a ref — and
+//     it takes the whole list for exactly that reason: the subset has to be
+//     derived from every workspace npm installs, or the guard's required set
+//     shrinks with the discovery and reports the same pass over less.
 //   - `check-toolchain-hoist` reads the ROOT manifest's declarations, so it has
 //     no list to walk — it takes the assertion alone, because a new workspace
 //     root is exactly the event that widens what it does not cover.
