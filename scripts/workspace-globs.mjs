@@ -41,11 +41,14 @@
 //     assertion anyway, so that "which layouts does this repo's tooling
 //     understand?" has exactly one answer and every guard reads it from here.
 //   - `check-ci-invariants` is the one guard that takes NEITHER, and the reason
-//     is the first line above: it makes no repo-wide claim. Its subject is
-//     three named things — the CI workflow, the root `verify` chain, and the
-//     `scripts/` directory — so there is no set of workspaces for a new glob to
-//     quietly remove from what it covers, and importing the assertion would
-//     only give it a second, unrelated way to fail.
+//     is the first line above: it makes no claim over the workspace SET. Its
+//     subject is three named things — the CI workflow, the root `verify` chain,
+//     and the `scripts/` directory — none of which a new glob can shrink, and
+//     importing the assertion would only give it a second, unrelated way to
+//     fail. It does read a cache `key` that literally lists workspace globs,
+//     but says nothing about which globs belong there: whether that list covers
+//     a new tree is turbo's own re-hash concern, argued where the key is
+//     written.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

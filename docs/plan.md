@@ -106,10 +106,15 @@ Consequence for reviewers and for CI: never verify by running a package-local
 `npm test` / `npm run typecheck`. Run `npm run verify` at the root, or `npx turbo run <task>`.
 CI runs one unfiltered `npx turbo run build lint test typecheck` for the same reason.
 
-The guards around that run are the one place the two entry points are written out twice — the
-root `verify` chain and CI's per-guard steps — so `scripts/check-ci-invariants.mjs` asserts the
-two lists name the same `scripts/check-*.mjs`: a guard wired into only one of them is a guard
-that does not run where it matters, and nothing else in the build has an opinion about that.
+The guards around that run are written out three times — the files in `scripts/`, the root
+`verify` chain, and CI's per-guard steps — so `scripts/check-ci-invariants.mjs` asserts that all
+three name the same `scripts/check-*.mjs`, and that each CI step naming one is unconditional. A
+guard wired into fewer than all three is a guard that does not run somewhere it reads as covered
+— on disk in neither list it runs nowhere at all — and nothing else in the build has an opinion
+about that. The same guard machine-enforces the turbo cache salt rule that pairs with it: the
+cache step's `restore-keys` entry must be exactly the static portion of its `key`, so a re-salt
+that touches one line and not the other fails instead of silently restoring everything it was
+meant to discard.
 
 ### 7. The doubled `sourceMappingURL` is expected output
 
@@ -672,3 +677,19 @@ What a declaration must not be is a way to dodge work. Do not add a script that 
 verifies nothing just to fill a slot — a hollow task is worse than a declared gap, because it
 reports green. A declaration is auditable: the guard rejects one that is empty, that names a
 task the package actually defines, or that names a task that does not exist.
+
+## Adding a guard later
+
+A new guard is a file plus two wirings, and `scripts/check-ci-invariants.mjs` fails on any of
+the first three being missing. The fourth is convention:
+
+1. name it `scripts/check-<thing>.mjs`, directly in `scripts/` — the equality check matches that
+   pattern, so a guard under another name, or in a subdirectory, is invisible to it
+2. chain it into `verify` in the root `package.json`
+3. give it its own step in `.github/workflows/ci.yml`, **unconditional** — a step under `if:` or
+   `continue-on-error:` is in the file and out of the run
+4. add a `check:<alias>` script, so it is runnable on its own the way the other six are
+
+Steps 1–3 are one decision written three times, which is why a guard named by fewer than all
+three fails rather than merely running less. Its own step, not a line appended to another, so a
+failure names which invariant broke.
