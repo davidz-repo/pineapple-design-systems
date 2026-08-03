@@ -117,6 +117,22 @@ jobs:
       - name: Check the gallery's alias fences agree
         run: node scripts/check-alias-fences.mjs
 
+      # Before the build for the same reason as the two above — it reads this
+      # file and the root package.json, nothing else — and it is the guard that
+      # asserts the two things holding those two steps in place.
+      #
+      # First: that the cache salt above sits in `key` AND in `restore-keys`.
+      # Salting only `key` restores exactly as before, because the unsalted
+      # prefix still matches every pre-salt entry, so the re-salt looks applied
+      # and changes nothing.
+      #
+      # Second: that this job and the root `verify` script run the same set of
+      # guards. The two lists are hand-maintained, and a guard wired into only
+      # one of them does not run in the other — silently, since adding a file to
+      # scripts/ is not an error anywhere else.
+      - name: Check the CI invariants hold
+        run: node scripts/check-ci-invariants.mjs
+
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.
       #

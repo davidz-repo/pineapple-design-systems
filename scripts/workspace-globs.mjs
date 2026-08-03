@@ -40,6 +40,12 @@
 //     therefore cannot shrink when a workspace root is added. It takes the
 //     assertion anyway, so that "which layouts does this repo's tooling
 //     understand?" has exactly one answer and every guard reads it from here.
+//   - `check-ci-invariants` is the one guard that takes NEITHER, and the reason
+//     is the first line above: it makes no repo-wide claim. Its subject is
+//     three named things — the CI workflow, the root `verify` chain, and the
+//     `scripts/` directory — so there is no set of workspaces for a new glob to
+//     quietly remove from what it covers, and importing the assertion would
+//     only give it a second, unrelated way to fail.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

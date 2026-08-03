@@ -106,6 +106,11 @@ Consequence for reviewers and for CI: never verify by running a package-local
 `npm test` / `npm run typecheck`. Run `npm run verify` at the root, or `npx turbo run <task>`.
 CI runs one unfiltered `npx turbo run build lint test typecheck` for the same reason.
 
+The guards around that run are the one place the two entry points are written out twice — the
+root `verify` chain and CI's per-guard steps — so `scripts/check-ci-invariants.mjs` asserts the
+two lists name the same `scripts/check-*.mjs`: a guard wired into only one of them is a guard
+that does not run where it matters, and nothing else in the build has an opinion about that.
+
 ### 7. The doubled `sourceMappingURL` is expected output
 
 `treeshake: true` + `sourcemap: true` makes tsup emit two `//# sourceMappingURL=` comments in
