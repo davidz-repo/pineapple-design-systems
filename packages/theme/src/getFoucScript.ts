@@ -8,14 +8,18 @@ import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 // loads, so the page paints the stored theme instead of painting the default
 // and snapping to it.
 //
-// Both options default, and the defaults are the only values that work: the key
-// is the one ThemePreferencesProvider reads, imported from `./preferences`
-// rather than asked for, and the element is the one the provider tree mounts
-// into. Requiring the caller to pass a key they cannot import made a matching
-// pair the caller's job to get right — and a key that does not match is not an
-// error anywhere: the script reads nothing, paints the default, and React snaps
-// to the stored theme one frame later, which is the flash this function exists
-// to remove. The overrides stay for the consumer whose root is not `#root`.
+// Both options default, and the defaults are the only values that work unless
+// the consumer changes both surfaces: the key is the one
+// ThemePreferencesProvider reads, imported from `./preferences` rather than
+// asked for, and the element is the one the provider tree mounts into.
+// Requiring the caller to pass the key made a matching pair the caller's job to
+// get right — and a key that does not match is not an error anywhere: the
+// script reads nothing, paints the default, and React snaps to the stored theme
+// one frame later, which is the flash this function exists to remove. The
+// overrides stay for the consumer whose root is not `#root`, and for the one
+// persisting under a key of their own — that consumer sets the SAME string
+// here and on `ThemePreferencesProvider`'s `storageKey` prop, with
+// `THEME_STORAGE_KEY` exported as what they are replacing.
 //
 // The snippet mirrors ThemePreferencesProvider's storage schema +
 // DesignSystemProvider's Radix <Theme> attribute output. Both surfaces MUST
@@ -41,7 +45,11 @@ import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 // allowlist kept up to date — add the attribute to both surfaces.
 
 interface GetFoucScriptOptions {
-  /** Defaults to the key `ThemePreferencesProvider` persists under. */
+  /**
+   * Defaults to the key `ThemePreferencesProvider` persists under
+   * (`THEME_STORAGE_KEY`). Overriding it means overriding the provider's
+   * `storageKey` prop with the same string.
+   */
   storageKey?: string;
   /** Defaults to `root`, the element the provider tree is mounted into. */
   rootElementId?: string;

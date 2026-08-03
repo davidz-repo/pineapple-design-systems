@@ -4,6 +4,7 @@ import { ACCENT_COLORS } from '@pineappleui/tokens';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { THEME_STORAGE_KEY } from '../index';
 import { STORAGE_KEY } from '../preferences';
 import { ThemePreferencesProvider, useThemePreferences } from './ThemePreferencesProvider';
 
@@ -20,8 +21,16 @@ const [STORED_ACCENT, PICKED_ACCENT] = ACCENT_COLORS.filter(
   accentColor => accentColor !== DEFAULT_ACCENT,
 );
 
+// The key a consumer passes when they persist under their own — a key this
+// package has never written, so nothing else in the file can make these pass.
+const CUSTOM_KEY = 'custom.key';
+
 function wrapper({ children }: { children: ReactNode }) {
   return <ThemePreferencesProvider>{children}</ThemePreferencesProvider>;
+}
+
+function customKeyWrapper({ children }: { children: ReactNode }) {
+  return <ThemePreferencesProvider storageKey={CUSTOM_KEY}>{children}</ThemePreferencesProvider>;
 }
 
 beforeEach(() => {
@@ -177,5 +186,75 @@ describe('useThemePreferences', () => {
     expect(() => renderHook(() => useThemePreferences())).toThrow(
       'useThemePreferences must be called inside <ThemePreferencesProvider>.',
     );
+  });
+});
+
+// The key as a published value, imported from `../index` rather than from
+// `../preferences`: what is under test is the PACKAGE's surface, and an import
+// of the internal module would still pass with the re-export deleted.
+describe('exported THEME_STORAGE_KEY', () => {
+  // Written out rather than compared against `STORAGE_KEY`, for the reason
+  // DEFAULT_ACCENT above is: an assertion against the constant it is asserting
+  // holds no matter what that constant says. This is the string already in
+  // every existing user's `localStorage`, so changing it is a preference reset
+  // and the literal is what makes that a failing test rather than a silent one.
+  it('is exported from the package index, at the value both surfaces default to', () => {
+    expect(THEME_STORAGE_KEY).toBe('pineappleui.theme.v1');
+  });
+
+  it('is the key the provider persists under when no storageKey is passed', () => {
+    const { result } = renderHook(() => useThemePreferences(), { wrapper });
+    act(() => {
+      result.current.setAccentColor(PICKED_ACCENT);
+    });
+
+    expect(JSON.parse(localStorage.getItem(THEME_STORAGE_KEY) ?? '{}')).toEqual({
+      appearance: 'system',
+      accentColor: PICKED_ACCENT,
+    });
+  });
+});
+
+// The `storageKey` override, which is what a consumer arriving with preferences
+// already stored under a key of their own passes. Its other half is
+// `getFoucScript({ storageKey })`; a consumer who sets one and not the other
+// gets the flash the boot script exists to remove, which is why the prop's
+// JSDoc says override both or neither.
+describe('storageKey, on ThemePreferencesProvider', () => {
+  // BOTH keys are seeded, with different records: a provider that ignored the
+  // prop reads the decoy under the default key, and one that read neither falls
+  // through to the defaults, so this fails on either.
+  it('reads the record stored under the key it was given', () => {
+    localStorage.setItem(
+      CUSTOM_KEY,
+      JSON.stringify({ appearance: 'dark', accentColor: STORED_ACCENT }),
+    );
+    localStorage.setItem(
+      THEME_STORAGE_KEY,
+      JSON.stringify({ appearance: 'light', accentColor: PICKED_ACCENT }),
+    );
+
+    const { result } = renderHook(() => useThemePreferences(), { wrapper: customKeyWrapper });
+
+    expect(result.current.appearance).toBe('dark');
+    expect(result.current.accentColor).toBe(STORED_ACCENT);
+  });
+
+  it('writes updates back to that key, and leaves the default key untouched', () => {
+    localStorage.setItem(
+      CUSTOM_KEY,
+      JSON.stringify({ appearance: 'dark', accentColor: STORED_ACCENT }),
+    );
+
+    const { result } = renderHook(() => useThemePreferences(), { wrapper: customKeyWrapper });
+    act(() => {
+      result.current.setAccentColor(PICKED_ACCENT);
+    });
+
+    expect(JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? '{}')).toEqual({
+      appearance: 'dark',
+      accentColor: PICKED_ACCENT,
+    });
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
   });
 });
