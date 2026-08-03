@@ -1,5 +1,22 @@
 # @pineappleui/inline
 
+## 0.1.1
+
+### Patch Changes
+
+- [#31](https://github.com/davidz-repo/pineapple-design-systems/pull/31) [`2c13057`](https://github.com/davidz-repo/pineapple-design-systems/commit/2c130572ec02742ff29a3150ad27eef64c5f3f67) Thanks [@davidz-repo](https://github.com/davidz-repo)! - Both packages gain the ref-forwarding test they shipped without.
+
+  Nothing about either component changes — the published `dist/` is byte-identical, and test
+  files never travel in the tarball. What changes is that the forwarding is now pinned: the ref
+  rides in `...rest`, past the destructured `direction` (and `wrap`), onto the `<div>` Radix's
+  `Flex` renders, and a refactor that stopped spreading `rest` would still render, still lay out,
+  and pass every class-name assertion these files already had while dropping every consumer's
+  `ref` on the floor.
+
+  `scripts/check-ref-tests.mjs` now fails the build for any package whose props carry a `ref` and
+  whose tests do not check that the ref arrives, so this gap cannot reopen quietly in a twelfth
+  package.
+
 ## 0.1.0
 
 ### Minor Changes
