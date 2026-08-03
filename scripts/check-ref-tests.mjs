@@ -42,10 +42,26 @@
 //   - `export { … } from '@radix-ui/themes'` — a Radix component re-exported
 //     whole rather than wrapped. `text-field` is this: it ships `TextField.Root`,
 //     whose ref Radix composes onto the inner `<input>`.
+//   - a props interface that `extends` something — `interface IconProps extends
+//     Omit<LucideProps, …>`. A props type built on an imported one INHERITS that
+//     type's `ref`: `icons` picks up `RefAttributes<SVGSVGElement>` through the
+//     `Omit` (which removes `size` and the a11y props, not `ref`), the prop rides
+//     in `...rest` onto the Lucide glyph — itself a `forwardRef` component — and
+//     `<Icon ref={…}>` gets a real `<svg>` back. Nothing in the package's own
+//     source spells `ref` anywhere, which is exactly how `icons` came to carry a
+//     `refTestNotApplicable` that was false.
 //
 // Markers are matched against comment-stripped source, because the comment
-// `// React 19: ref is a regular prop, no forwardRef needed` sits in four of
-// these packages and would otherwise classify a package by its prose.
+// `// React 19: ref is a regular prop, no forwardRef needed` sits in five of
+// these packages (`card`, `button`, `heading`, `icon-button`, `text`) and would
+// otherwise classify a package by its prose.
+//
+// All of this reads `src/` and nothing else, which is a gate as much as a scope:
+// `apps/gallery`'s only `.tsx` is `.ladle/components.tsx`, outside `src/`, so
+// that workspace is never scanned for a marker and never asked to declare
+// anything. That is the right answer for a gallery app — it publishes no
+// component — but it is a gate, not a finding: a workspace that keeps components
+// outside `src/` is invisible here, exactly as one written without JSX is.
 //
 // AND WHAT REFUSES RATHER THAN PASSES
 //
@@ -65,6 +81,18 @@
 // and so is a marker set that matches zero packages (a guard that scanned
 // nothing reports green over everything).
 //
+// Read that contradiction check for exactly what it is: it catches a FALSE
+// opt-out only as far as REF_MARKERS reaches. `check-publish-contract`'s
+// equivalent is total — it asks whether the declared-missing script exists, and
+// the answer is in the manifest — so a reader who has met that one will overrate
+// this one. This is the weaker shape: a package whose ref contract no marker
+// recognises can declare `refTestNotApplicable` and be believed. `icons` was
+// that package, for one commit, with `<Icon ref={…}>` returning an
+// `SVGSVGElement` the whole time. The marker above is what makes that shape
+// visible; the next one of its kind is visible only once a marker is written for
+// it, so widening REF_MARKERS is how this check gets stronger, and there is no
+// version of it that is done.
+//
 // One limit, named rather than papered over: the "looks like a component
 // package" gate is the presence of a `.tsx`, so a component written without JSX
 // — `createElement` in a `.ts` — is gated out and, if it also carries no marker,
@@ -75,16 +103,42 @@
 //
 // WHAT COUNTS AS THE TEST
 //
-// The convention is the one the nine existing tests already share — a title
-// starting `forwards refs to the underlying`, a `ref={…}` on the rendered
-// component, and a `toBeInstanceOf(HTML…Element)` on what came back. All three
-// are read out of the SAME `it(…)` call, extracted by matching its parentheses,
-// so a title in one test and an assertion in another does not satisfy it.
+// The convention is the one every existing ref test already shares — a title
+// starting `forwards refs to the underlying`, a ref CALLBACK that assigns what
+// arrived to a local, and a `toBeInstanceOf(HTML…Element)` on THAT local:
 //
-// What this cannot judge is whether the assertion names the RIGHT element:
-// `HTMLElement` passes here and is the weaker assertion `docs/plan.md` records a
-// delta for. That is a review question — a wrong assertion is visible in a diff.
-// An absent test is not, which is the whole subject of this file.
+//     let received: HTMLDivElement | null = null;
+//     render(<Box ref={(el) => { received = el; }}>ref</Box>);
+//     expect(received).toBeInstanceOf(HTMLDivElement);
+//
+// All of it is read out of the SAME `it(…)` call, extracted by matching its
+// parentheses, so a title in one test and an assertion in another does not
+// satisfy it — and the identifier the callback assigns is read out of the
+// callback and required to be the identifier `expect(…)` is given. The three
+// pieces have to be one chain, because each pair of them without the third is a
+// green test asserting nothing: a `ref={() => {}}` next to
+// `expect(container.firstChild).toBeInstanceOf(HTMLDivElement)` attaches a ref,
+// asserts an element, and would pass a component that drops every ref on the
+// floor. That body is what this file is here to fail, so a ref-titled test whose
+// shape this cannot read is a FAILURE naming the convention, never a skip.
+//
+// The body is comment-stripped before any of it is matched. A test body is prose
+// as much as source — `stack`'s and `inline`'s carry five lines explaining what
+// the ref rides in — and matching `ref={` against a comment ABOUT `ref={` is the
+// same defect as classifying a package by its `// React 19:` note.
+//
+// Two things remain out of reach, both narrower than what they replaced:
+//
+//   - whether the assertion names the RIGHT element. `HTMLElement` passes here
+//     and is the weaker assertion `docs/plan.md` records a delta for. A wrong
+//     assertion is visible in a diff; an absent test is not, which is the whole
+//     subject of this file.
+//   - the linkage is by NAME. `received` in the callback and `received` in the
+//     `expect(…)` are matched as identifiers, not resolved as bindings, so a body
+//     that assigned the ref to one `received` and asserted a different, unrelated
+//     variable of the same name would still satisfy this. Writing that takes
+//     deliberate effort in a ten-line test; writing the no-op body above took
+//     none, which is the difference that decided where to stop.
 //
 // Reads source and test files only, no `dist/`, so it runs BEFORE
 // `turbo run build` in both `verify` and CI.
@@ -112,7 +166,7 @@ const NOT_A_SOURCE = /\.(?:test|stories)\.[cm]?[jt]sx?$/;
 
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 
-// The three ways a package here declares that its public props carry a ref.
+// The four ways a package here declares that its public props carry a ref.
 // Matched against comment-stripped source — see the header on why.
 const REF_MARKERS = [
   {
@@ -126,6 +180,15 @@ const REF_MARKERS = [
   {
     label: 'export … from \'@radix-ui/themes\'',
     pattern: /\bexport\s*\{[^}]*\}\s*from\s*['"]@radix-ui\/themes['"]/,
+  },
+  {
+    // `[^{]*` cannot cross a `{`, so the `extends` has to belong to THIS
+    // interface's heading rather than to anything later in the file. That is
+    // what keeps it off `live-region`'s and `theme`'s own `…Props` interfaces,
+    // which declare their members and extend nothing — they own every prop they
+    // take, so there is no imported `ref` to inherit.
+    label: 'interface …Props extends …',
+    pattern: /\binterface\s+\w*Props\b[^{]*\bextends\b/,
   },
 ];
 
@@ -149,19 +212,61 @@ const MIN_REASON_LENGTH = 20;
 // The lookbehind keeps `/re/.test('…')` from reading as a test declaration, and
 // it also means `it.skip('forwards refs…')` does not match — which is the right
 // answer twice over, since a skipped ref test is not a ref test.
-const TEST_TITLE = /(?<![.\w])(?:it|test)\s*\(\s*(['"])((?:(?!\1).)*)\1/g;
+//
+// `.only` is matched, and the backtick is in the quote class, because both
+// blindnesses fail in the UNSAFE direction. A title this pattern cannot see is
+// not merely unread: in the `declaredExempt` scan below, whose whole job is to
+// find a ref test in a package that swore it has none, an unseen title is a
+// silent PASS over exactly the evidence being looked for. `it.only` is also how
+// a half-finished debugging session gets committed, which is when a repo most
+// needs the scan to still work.
+const TEST_TITLE = /(?<![.\w])(?:it|test)(?:\.only)?\s*\(\s*(['"`])((?:(?!\1).)*)\1/g;
 
-// The shared opening of all nine existing ref-test titles. A prefix rather than
+// A backtick title carrying `${…}` is not a title this file can read — the text
+// depends on a value only the test run has. Dropped rather than half-matched, so
+// nothing downstream compares a prefix against a fragment. (None exist here; the
+// alternative is deciding a title's meaning from the literal parts of it.)
+const TITLE_INTERPOLATION = /\$\{/;
+
+// The shared opening of all twelve existing ref-test titles. A prefix rather than
 // a full spelling: `box` writes "…the underlying element", `badge` "…the
 // underlying span element", `text-field` "…the underlying input element", and
 // naming the element is the useful half of the convention, not a deviation from
 // it. Lower-case, so `test/prefer-lowercase-title` is satisfied by construction.
 const REF_TEST_TITLE_PREFIX = 'forwards refs to the underlying';
 
-// The two things the test body has to do. A title alone is a claim; these are
-// the assertion that the claim was executed.
+// What the test body has to do, in three linked pieces. A title alone is a
+// claim; a ref attached to nothing and an assertion about something else are two
+// green lines that survive a component dropping every ref.
+//
+// The callback's shape is the convention all twelve existing tests are written
+// in — `ref={(el) => { received = el; }}`, on one line or three — and the
+// identifier it assigns TO is what the assertion then has to name. Matched
+// against the comment-stripped body.
 const REF_ATTACHED = /\bref=\{/;
-const REF_ASSERTED = /\btoBeInstanceOf\(\s*HTML[A-Za-z]*Element\s*\)/;
+const REF_CALLBACK_TARGET
+  = /\bref=\{\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*=>\s*\{\s*([A-Za-z_$][\w$]*)\s*=\s*\1\s*;?\s*\}/;
+
+// `SVG…Element` alongside `HTML…Element`: `icons` forwards its ref to a Lucide
+// glyph, so the node that arrives is an `SVGSVGElement` and no `HTML…` name is
+// the right one for it. Still the concrete element, never `Element` — per
+// `docs/plan.md` §Deltas, the loose name holds for whatever the component turns
+// into next.
+const REF_ELEMENT = '(?:HTML|SVG)[A-Za-z]*Element';
+
+/**
+ * `expect(<the identifier the ref callback assigned>).toBeInstanceOf(HTML…)`.
+ * The name is a `\w`-only capture from `REF_CALLBACK_TARGET`, so it carries
+ * nothing to escape into this pattern.
+ *
+ * @param {string} identifier
+ * @returns {RegExp}
+ */
+function refAssertedOn(identifier) {
+  return new RegExp(
+    `\\bexpect\\(\\s*${identifier}\\s*!?\\s*\\)\\s*\\.toBeInstanceOf\\(\\s*${REF_ELEMENT}\\s*\\)`,
+  );
+}
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -190,22 +295,74 @@ function fail(subject, problem, fix) {
 }
 
 /**
- * Comments are prose, and prose about a ref is not a ref. Four packages here
- * carry `// React 19: ref is a regular prop, no forwardRef needed`, which would
- * otherwise classify them by their explanation rather than by their code.
+ * Comments are prose, and prose about a ref is not a ref. Five packages here
+ * carry `// React 19: ref is a regular prop, no forwardRef needed`, and
+ * `stack`'s and `inline`'s ref tests explain in comments what `ref={` rides in —
+ * either would otherwise be read as the code it describes.
  *
- * JS/TS only — this guard reads no CSS or HTML — and deliberately local rather
- * than shared: `scripts/workspace-globs.mjs` is the module for what a workspace
- * IS, and a second shared module for four lines of regex would couple more than
- * it removes.
+ * Scans rather than substitutes, because a substitution cannot tell a comment
+ * from a `//` inside a string. The regex this replaced spared one shape
+ * (`[^:]`, i.e. a URL's `https://`) and truncated every other line holding one:
+ * `const path = 'a//b';` lost everything from the quote onwards, taking any
+ * marker on that line with it. Quotes and template literals are therefore
+ * skipped whole, by the same `skipStringLiteral()` `readCallArguments()` uses —
+ * one reader for "where does this literal end", not two.
+ *
+ * REGEX LITERALS ARE NOT LEXED, which is the accepted gap: a quote inside one
+ * (`/'/g`) reads as opening a string. An unterminated literal therefore keeps
+ * the remainder of the file VERBATIM rather than swallowing it — comments after
+ * that point survive into the output, which can only over-report a marker (a
+ * loud, wrong "add a ref test") and never silently shrink the required set.
+ * `scripts/check-peer-externals.mjs`'s `stripNonCode()` is the higher-fidelity
+ * sibling: it does lex regex literals, tracks expression position, and reports
+ * unterminated constructs to its caller. Reconciling the two into one shared
+ * lexer is worth doing and is not done here — the gap is named so that the next
+ * reader finds one accepted duplicate rather than two implementations that each
+ * look authoritative.
  *
  * @param {string} source
- * @returns {string}
+ * @returns {string} same line structure, comment text removed
  */
 function stripComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  let stripped = '';
+
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+
+    if (char === '\'' || char === '"' || char === '`') {
+      const closing = skipStringLiteral(source, i);
+      if (closing === -1) {
+        stripped += source.slice(i);
+        break;
+      }
+      stripped += source.slice(i, closing + 1);
+      i = closing;
+      continue;
+    }
+
+    if (char === '/' && source[i + 1] === '/') {
+      const newline = source.indexOf('\n', i);
+      if (newline === -1) break;
+      stripped += '\n'; // Line structure survives; the prose does not.
+      i = newline;
+      continue;
+    }
+
+    if (char === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2);
+      if (end === -1) {
+        stripped += source.slice(i);
+        break;
+      }
+      stripped += ' ';
+      i = end + 1;
+      continue;
+    }
+
+    stripped += char;
+  }
+
+  return stripped;
 }
 
 /**
@@ -314,10 +471,12 @@ function skipStringLiteral(source, openQuote) {
  * @returns {{ title: string, openParen: number }[]}
  */
 function listTests(source) {
-  return [...source.matchAll(TEST_TITLE)].map(match => ({
-    title: match[2],
-    openParen: source.indexOf('(', match.index),
-  }));
+  return [...source.matchAll(TEST_TITLE)]
+    .filter(match => !TITLE_INTERPOLATION.test(match[2]))
+    .map(match => ({
+      title: match[2],
+      openParen: source.indexOf('(', match.index),
+    }));
 }
 
 /**
@@ -330,6 +489,11 @@ function listTests(source) {
  * is a regex literal holding a quote — legitimate code this reader cannot lex,
  * and refusing on it would have failed a clean repo over a test that has nothing
  * to do with refs.
+ *
+ * Returned comment-stripped, because every match against a body is a match for
+ * code: a body whose only `ref={` and `toBeInstanceOf(HTMLDivElement)` sit
+ * inside comments describes a ref test rather than being one, and it passed here
+ * until this call was added.
  *
  * @param {string} relPath for the refusal message
  * @param {string} source
@@ -352,7 +516,7 @@ function readTestBody(relPath, source, test) {
     );
   }
 
-  return body;
+  return stripComments(body);
 }
 
 /**
@@ -436,6 +600,18 @@ const unclassified = workspaces.filter(
 );
 const contradictory = workspaces.filter(
   workspace => workspace.markers.length > 0 && workspace.optOut !== undefined,
+);
+// The fourth bucket, and the only one nothing is asked of: no marker, no
+// opt-out, and no JSX outside a test or a story. Named in the summary rather
+// than left implicit, because "20 workspaces scanned, 12 required" invites the
+// reader to assume the other eight were judged and cleared. These were not
+// judged at all — they are the tooling and token packages, plus the gallery app
+// whose components live outside `src/`. Seeing the list is how a reader notices
+// a workspace that should NOT be on it.
+const outOfScope = workspaces.filter(
+  workspace => workspace.markers.length === 0
+    && workspace.optOut === undefined
+    && !workspace.looksLikeComponents,
 );
 
 if (required.length === 0) {
@@ -569,14 +745,39 @@ for (const workspace of required) {
     continue;
   }
 
-  if (!attached.some(test => REF_ASSERTED.test(test.body))) {
+  // What the ref callback assigns to. A `ref={…}` this cannot read is a failure
+  // naming the convention, never a skip: the unreadable shapes are `ref={ref}`
+  // and `ref={() => {}}`, and both are how a hollow ref test gets written.
+  const linkable = attached
+    .map(test => ({ ...test, target: REF_CALLBACK_TARGET.exec(test.body)?.[2] }))
+    .filter(test => test.target !== undefined);
+
+  if (linkable.length === 0) {
     fail(
       workspace.name,
       `has a \`${REF_TEST_TITLE_PREFIX}…\` test in `
-      + `${attached.map(t => t.relPath).join(', ')} that attaches a ref and never asserts `
-      + 'what arrived',
-      'assert `expect(received).toBeInstanceOf(HTMLDivElement)` — or whichever element the '
-      + 'component renders — inside that test. Name the concrete element rather than '
+      + `${attached.map(t => t.relPath).join(', ')} whose \`ref={…}\` is not the shape this `
+      + 'guard can follow to an assertion',
+      'write the ref as the callback every other package here uses — '
+      + '`ref={(el) => { received = el; }}` — and assert on `received`. The chain from the '
+      + 'ref to the assertion is the whole check: without it, `ref={() => {}}` beside '
+      + '`expect(container.firstChild).toBeInstanceOf(HTMLDivElement)` is a green test that '
+      + 'passes a component dropping every ref. Refused rather than waved through, because '
+      + 'a shape this cannot read is a shape it cannot vouch for.',
+    );
+    continue;
+  }
+
+  if (!linkable.some(test => refAssertedOn(test.target).test(test.body))) {
+    fail(
+      workspace.name,
+      `has a \`${REF_TEST_TITLE_PREFIX}…\` test in `
+      + `${linkable.map(t => t.relPath).join(', ')} that attaches a ref to `
+      + `\`${linkable.map(t => t.target).join('`, `')}\` and never asserts what arrived there`,
+      `assert \`expect(${linkable[0].target}).toBeInstanceOf(HTMLDivElement)\` — or whichever `
+      + 'element the component renders — inside that test, on the same variable the ref '
+      + 'callback assigned. Asserting anything else (`container.firstChild`, a query result) '
+      + 'passes without the ref ever arriving. Name the concrete element rather than '
       + '`HTMLElement`: per `docs/plan.md` §Deltas, `HTMLElement` holds for whatever the '
       + 'component turns into next, so it would not catch the element changing underneath '
       + 'the package.',
@@ -592,12 +793,12 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-const exemptSummary = declaredExempt.length > 0
-  ? declaredExempt.map(workspace => workspace.name).join(', ')
-  : 'none';
+/** @param {{ name: string }[]} group */
+const names = group => (group.length > 0 ? group.map(workspace => workspace.name).join(', ') : 'none');
 
 console.log(
   `${GUARD_NAME}: ${required.length} ref-forwarding package(s), each with its ref test\n`
   + `  ${scannedSourceFiles} source file(s) scanned across ${workspaceDirs.length} workspace(s)\n`
-  + `  declared ${OPT_OUT_PATH}: ${exemptSummary}`,
+  + `  declared ${OPT_OUT_PATH}: ${names(declaredExempt)}\n`
+  + `  no marker, no JSX outside a test, nothing asked of them: ${names(outOfScope)}`,
 );

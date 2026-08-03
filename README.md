@@ -115,10 +115,13 @@ consumer's `ref` is silently `null`. React 19 puts `ref` in `ComponentPropsWithR
 component that accepts the prop and drops it type-checks exactly as well as one that passes it on.
 
 `check-ref-tests.mjs` derives the packages that owe a ref test from their own sources — anything
-declaring `ComponentPropsWithRef`, `forwardRef`, or re-exporting a `@radix-ui/themes` component
-whole — and requires of each a test titled `forwards refs to the underlying …` that attaches a
-`ref={…}` and asserts `toBeInstanceOf(HTML…Element)` on what came back. Copy
-`packages/box/src/Box.test.tsx`.
+declaring `ComponentPropsWithRef`, `forwardRef`, re-exporting a `@radix-ui/themes` component
+whole, or declaring a props interface that `extends` another type and inherits that type's `ref`
+with it (`icons` does, through `Omit<LucideProps, …>`) — and requires of each a test titled
+`forwards refs to the underlying …` that attaches a `ref={(el) => { received = el; }}` and
+asserts `toBeInstanceOf(HTML…Element)` **on that same variable**. The chain matters: a ref
+attached to nothing beside an assertion about `container.firstChild` is green under a component
+that drops every ref. Copy `packages/box/src/Box.test.tsx`.
 
 A workspace that renders JSX outside a test and matches none of those forms is **refused**, not
 skipped, because "takes no ref" and "takes a ref this guard did not recognise" are the same
