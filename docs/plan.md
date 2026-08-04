@@ -391,7 +391,7 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 
 `apps/site` — private, `0.0.0`, ESM — is the public face of the system: a docs site in the
 Radix/Chakra shape (landing page, sidebar, per-package pages with overview / examples /
-playground / versions tabs), deployed to GitHub Pages at `/pineapple-design-systems/` by
+playground / versions tabs), deployed to GitHub Pages at **https://designpineapple.com** by
 `.github/workflows/deploy-site.yml` on every push to `main`. It is deliberately **derived
 almost entirely from content that already exists**: overviews are the packages' own READMEs,
 versions are their changesets CHANGELOGs, examples and the playground render the packages' own
@@ -433,8 +433,14 @@ Decisions worth recording, in the same spirit as the gallery section above:
 - **The deploy workflow is `--filter`ed, and that is safe only because CI is not.**
   `deploy-site.yml` builds `--filter=@pineappleui/site` (with `^build` pulling the 16
   packages first) and ships `apps/site/dist`. Verification stays ci.yml's unfiltered run;
-  the deploy workflow assumes it. **One-time manual step:** repo Settings → Pages →
-  Source: "GitHub Actions" — a workflow cannot flip that switch itself.
+  the deploy workflow assumes it. **One-time manual steps** a workflow cannot do for
+  itself: repo Settings → Pages → Source: "GitHub Actions", then Custom domain:
+  `designpineapple.com` (DNS lives at Cloudflare — apex A/AAAA records to the Pages
+  IPs, `www` CNAME to `davidz-repo.github.io`, all DNS-only — with the domain
+  verified account-wide first so nobody else can attach it), then Enforce HTTPS once
+  the certificate is issued. The site's vite `base` is `'/'` because the custom
+  domain serves from the root; without the domain, Pages falls back to
+  `/pineapple-design-systems/` and the base must change with it.
 
 ### Deferred
 

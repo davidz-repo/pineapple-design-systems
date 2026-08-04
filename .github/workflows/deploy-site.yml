@@ -1,11 +1,16 @@
 name: Deploy reference site
 
-# Builds apps/site and publishes its dist/ to GitHub Pages.
+# Builds apps/site and publishes its dist/ to GitHub Pages, which serves it at
+# https://designpineapple.com (the repo's configured custom domain).
 #
-# One-time manual step this workflow cannot do for itself: in the repo's
-# Settings → Pages, set Source to "GitHub Actions". Until that is flipped the
-# deploy job fails with "Not Found" — the Pages site has to exist before the
-# API will accept a deployment.
+# One-time manual steps this workflow cannot do for itself, in the repo's
+# Settings → Pages: set Source to "GitHub Actions" — until that is flipped the
+# deploy job fails with "Not Found", because the Pages site has to exist before
+# the API will accept a deployment — and set Custom domain to
+# designpineapple.com. The site's vite `base` is '/' on the assumption the
+# custom domain is attached; without it Pages serves from
+# /pineapple-design-systems/ and every asset URL in the build points one path
+# segment too high.
 #
 # Deploys from main only. CI (ci.yml) has already verified every commit that
 # lands here with an unfiltered turbo run, so this workflow does not re-run

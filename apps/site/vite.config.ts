@@ -48,9 +48,11 @@ function spaFallbackPlugin(): Plugin {
 }
 
 export default defineConfig({
-  // The GitHub Pages project path (repo name). Used in dev too, so path
-  // handling never differs between environments.
-  base: '/pineapple-design-systems/',
+  // The site is served from the root of its custom domain
+  // (https://designpineapple.com — repo Settings → Pages → Custom domain), so
+  // the base is '/'. If the custom domain ever comes off, Pages falls back to
+  // the project path and this must become '/pineapple-design-systems/'.
+  base: '/',
   plugins: [react(), foucScriptPlugin(), spaFallbackPlugin()],
   server: {
     // Ports are allocated per app: Ladle owns 6006 (apps/gallery).
