@@ -171,8 +171,25 @@
   padding: 0;
 }
 
+/* A heading, not a quiet link. It used to differ from the links below it by
+   two pixels of type size and a shade of gray, which is not a category — it is
+   a link that happens not to work. Four cues separate them now: it is LARGER
+   than a link rather than smaller, bold rather than medium, uppercase with
+   tracking (a case no link in this nav uses), and the darkest step on the
+   canvas rather than the muted one. `cursor: default` and no hover finish the
+   claim — nothing here responds to a pointer, because there is nothing to
+   click. The uppercase is CSS, never the strings in registry.ts: those are the
+   groups' accessible names, and a screen reader should read "Feedback", not
+   "F-E-E-D-B-A-C-K". */
 .site-nav-group-label {
   padding: 0 var(--space-2);
+  /* Binds the label to the group under it rather than floating it between two
+     groups — the Stack's own gap is the only other space in the column. */
+  margin-block-start: var(--space-2);
+  color: var(--amber-12);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: default;
 }
 
 .site-sidebar-link {
@@ -291,6 +308,13 @@
   /* Thumb-sized rows: the panel is how every page is reached on a phone. */
   .site-sidebar .site-sidebar-link {
     padding-block: var(--space-2);
+  }
+
+  /* The rows above grew, so the space that binds a header to its group has to
+     grow with them — at the desktop figure the header reads as floating
+     between two groups rather than belonging to the one below it. */
+  .site-sidebar .site-nav-group-label {
+    margin-block-start: var(--space-3);
   }
 
   .site-main {
