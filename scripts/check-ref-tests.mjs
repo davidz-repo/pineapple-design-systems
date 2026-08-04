@@ -171,8 +171,10 @@
 //   node scripts/check-ref-tests.mjs
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
 import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const GUARD_NAME = 'check-ref-tests';
@@ -295,7 +297,7 @@ const REF_ELEMENT = '(?:HTML|SVG)[A-Za-z]*Element';
  * nothing to escape into this pattern.
  *
  * @param {string} identifier
- * @returns {RegExp}
+ * @returns {RegExp} the assertion pattern for that one name
  */
 function refAssertedOn(identifier) {
   return new RegExp(
@@ -313,7 +315,7 @@ const failures = [];
  * immediately rather than printing a pass over what it could not classify.
  *
  * @param {string} message problem and fix, already formatted
- * @returns {never}
+ * @returns {never} the process is gone before a caller resumes
  */
 function refuse(message) {
   console.error(`\n${GUARD_NAME}: ${message}\n`);
@@ -377,7 +379,8 @@ function stripComments(source) {
 
     if (char === '/' && source[i + 1] === '/') {
       const newline = source.indexOf('\n', i);
-      if (newline === -1) break;
+      if (newline === -1)
+        break;
       stripped += '\n'; // Line structure survives; the prose does not.
       i = newline;
       continue;
@@ -421,8 +424,10 @@ function listFilesUnder(relDir) {
     }
     for (const entry of entries) {
       const relPath = `${current}/${entry.name}`;
-      if (entry.isDirectory()) walk(relPath);
-      else if (entry.isFile()) found.push(relPath);
+      if (entry.isDirectory())
+        walk(relPath);
+      else if (entry.isFile())
+        found.push(relPath);
     }
   }
 
@@ -443,7 +448,8 @@ function listFilesUnder(relDir) {
  *
  * @param {string} source
  * @param {number} openParen index of the `(`
- * @returns {string|null}
+ * @returns {string|null} the text between the parentheses, or null when they do
+ * not balance
  */
 function readCallArguments(source, openParen) {
   let depth = 0;
@@ -453,27 +459,33 @@ function readCallArguments(source, openParen) {
 
     if (char === '\'' || char === '"' || char === '`') {
       const closing = skipStringLiteral(source, i);
-      if (closing === -1) return null;
+      if (closing === -1)
+        return null;
       i = closing;
       continue;
     }
     if (char === '/' && source[i + 1] === '/') {
       const newline = source.indexOf('\n', i);
-      if (newline === -1) return null;
+      if (newline === -1)
+        return null;
       i = newline;
       continue;
     }
     if (char === '/' && source[i + 1] === '*') {
       const end = source.indexOf('*/', i + 2);
-      if (end === -1) return null;
+      if (end === -1)
+        return null;
       i = end + 1;
       continue;
     }
 
-    if (char === '(') depth++;
+    if (char === '(') {
+      depth++;
+    }
     else if (char === ')') {
       depth--;
-      if (depth === 0) return source.slice(openParen + 1, i);
+      if (depth === 0)
+        return source.slice(openParen + 1, i);
     }
   }
 
@@ -492,7 +504,8 @@ function skipStringLiteral(source, openQuote) {
       i++;
       continue;
     }
-    if (source[i] === quote) return i;
+    if (source[i] === quote)
+      return i;
   }
   return -1;
 }
@@ -503,7 +516,8 @@ function skipStringLiteral(source, openQuote) {
  * for the one test this guard is about.
  *
  * @param {string} source
- * @returns {{ title: string, openParen: number }[]}
+ * @returns {{ title: string, openParen: number }[]} one entry per test, in file
+ * order
  */
 function listTests(source) {
   return [...source.matchAll(TEST_TITLE)]
@@ -533,7 +547,7 @@ function listTests(source) {
  * @param {string} relPath for the refusal message
  * @param {string} source
  * @param {{ title: string, openParen: number }} test
- * @returns {string}
+ * @returns {string} the body text, comments stripped
  */
 function readTestBody(relPath, source, test) {
   const body = readCallArguments(source, test.openParen);
@@ -579,7 +593,8 @@ for (const relDir of workspaceDirs) {
   const srcDir = `${relDir}/${SOURCE_DIR}`;
   let hasSrc = true;
   try {
-    if (!statSync(path.join(repoRoot, srcDir)).isDirectory()) hasSrc = false;
+    if (!statSync(path.join(repoRoot, srcDir)).isDirectory())
+      hasSrc = false;
   }
   catch {
     hasSrc = false;
@@ -597,7 +612,8 @@ for (const relDir of workspaceDirs) {
   for (const relPath of sourceFiles) {
     const source = stripComments(readFileSync(path.join(repoRoot, relPath), 'utf8'));
     for (const marker of REF_MARKERS) {
-      if (marker.pattern.test(source)) markers.add(marker.label);
+      if (marker.pattern.test(source))
+        markers.add(marker.label);
     }
   }
 
@@ -752,8 +768,10 @@ for (const workspace of required) {
       workspace.name,
       `forwards a ref (${workspace.markers.join(', ')}) and no test says so — `
       + `${titlesSeen.length} test(s) in ${workspace.testFiles.join(', ')}, none of them `
-      + `titled \`${REF_TEST_TITLE_PREFIX}…\``
-      + (titlesSeen.length > 0 ? `\n    what is asserted instead: ${titlesSeen.map(t => `"${t}"`).join(', ')}` : ''),
+      + `titled \`${REF_TEST_TITLE_PREFIX}…\`${
+        titlesSeen.length > 0
+          ? `\n    what is asserted instead: ${titlesSeen.map(t => `"${t}"`).join(', ')}`
+          : ''}`,
       `add a test titled \`${REF_TEST_TITLE_PREFIX} element\` (name the element when it is `
       + 'not a div, as `badge` and `text-field` do), rendering the component with a '
       + '`ref={…}` callback and asserting `toBeInstanceOf(HTML…Element)` on what came back. '

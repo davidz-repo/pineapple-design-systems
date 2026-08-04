@@ -28,6 +28,7 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "lint:scripts": "eslint scripts eslint.config.mjs",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "verify": "node scripts/check-toolchain-hoist.mjs && node scripts/check-alias-fences.mjs && node scripts/check-ci-invariants.mjs && node scripts/check-ref-tests.mjs && turbo run build lint test typecheck && node scripts/check-publish-contract.mjs && node scripts/check-token-drift.mjs && node scripts/check-peer-externals.mjs",
@@ -45,6 +46,8 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.0",
     "@changesets/cli": "^2.27.0",
+    "@pineappleui/eslint-config": "*",
+    "eslint": "^10.1.0",
     "turbo": "^2.3.0",
     "vite": "^8.1.5"
   }

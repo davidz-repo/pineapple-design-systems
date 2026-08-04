@@ -56,8 +56,9 @@
 //     written.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 /** The workspace globs the discovery below actually implements. */
 const UNDERSTOOD_GLOBS = ['packages/*', 'apps/*'];
@@ -96,8 +97,10 @@ if (malformedGlobs.length > 0) {
  * and this reader does not.
  */
 function readGlobs(workspaces) {
-  if (Array.isArray(workspaces)) return workspaces;
-  if (workspaces && Array.isArray(workspaces.packages)) return workspaces.packages;
+  if (Array.isArray(workspaces))
+    return workspaces;
+  if (workspaces && Array.isArray(workspaces.packages))
+    return workspaces.packages;
   return null;
 }
 
@@ -184,7 +187,8 @@ function listWorkspaceDirsOnDisk() {
       continue;
     }
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+      if (!entry.isDirectory())
+        continue;
       const relDir = `${root}/${entry.name}`;
       try {
         statSync(path.join(repoRoot, relDir, 'package.json'));
@@ -238,13 +242,15 @@ export function listWorkspaceDirs(guardName) {
   if (missingFromLock.length > 0 || missingFromDisk.length > 0) {
     console.error(
       `\n${guardName}: package-lock.json and the working tree disagree about which\n`
-      + 'workspaces exist.\n'
-      + (missingFromLock.length > 0
-        ? `  on disk with a package.json, absent from the lockfile: ${missingFromLock.join(', ')}\n`
-        : '')
-      + (missingFromDisk.length > 0
-        ? `  in the lockfile, absent from disk: ${missingFromDisk.join(', ')}\n`
-        : '')
+      + `workspaces exist.\n${
+        missingFromLock.length > 0
+          ? `  on disk with a package.json, absent from the lockfile: ${missingFromLock.join(', ')}\n`
+          : ''
+      }${
+        missingFromDisk.length > 0
+          ? `  in the lockfile, absent from disk: ${missingFromDisk.join(', ')}\n`
+          : ''
+      }`
       + '  fix: run `npm install` and commit package-lock.json.\n'
       + '       Every guard discovers workspaces from the lockfile, because that is what\n'
       + '       `npm ci` installs in CI. A workspace the lockfile has never heard of is\n'

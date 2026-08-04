@@ -86,6 +86,13 @@ precisely so this cannot happen. Use `npm run verify` from the repo root, or
 
 Individual tasks: `npm run build`, `npm run lint`, `npm run test`, `npm run typecheck`.
 
+`turbo run lint` also lints `scripts/` and the root `eslint.config.mjs`, through the root task
+`//#lint:scripts` that the `lint` task declares in `dependsOn`. The root is not a workspace, so
+it has no `lint` script for `turbo run lint` to find on its own — depending on the root task is
+what puts the guards inside the single `turbo run build lint test typecheck` that `verify` and
+CI already run, with nothing added to either. It uses the same `@pineappleui/eslint-config`
+factory as every package, with `react` and `typescript` off: plain Node ESM, no tsconfig here.
+
 ### Every workspace accounts for all four tasks
 
 `turbo run <task>` skips a package that does not define the task **and still reports success**,
@@ -204,9 +211,10 @@ root's range. The list is the root's own declared `dependencies` and `devDepende
 that is only the latter), so a new one joins the guard by being declared.
 
 What that guard proves is that the root's **declared** slots hold — not that the toolchain set is
-complete. `typescript`, `vitest`, `tsup` and `eslint` are pinned per-package rather than at the
-root, so they own no root-declared slot and nothing here would report two workspaces building on
-different majors of them. That is a different problem (workspaces disagreeing) from the one this
+complete. `typescript`, `vitest` and `tsup` are pinned per-package rather than at the root, so
+they own no root-declared slot and nothing here would report two workspaces building on
+different majors of them. (`eslint` was in that list until the root declared it for
+`//#lint:scripts`; the shared slot is now asserted like any other.) That is a different problem (workspaces disagreeing) from the one this
 guard exists for (one shared slot silently changing hands); asserting cross-workspace agreement
 is a possible extension, not something the green line already covers.
 

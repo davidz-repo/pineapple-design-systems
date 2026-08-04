@@ -6,8 +6,25 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    // The root is not a workspace, so `scripts/` has no package to define a
+    // `lint` script for it. It is linted by this root task instead, and `lint`
+    // depends on it — so the one unfiltered `turbo run build lint test
+    // typecheck` that CI and `verify` already run covers scripts/ with nothing
+    // added to either list. Root tasks default to hashing the WHOLE repo, so
+    // the inputs are stated: the sources, the config that lints them, the
+    // shared factory that config imports, the root manifest holding the script
+    // and its devDependencies, and the lockfile that pins the linter itself.
+    "//#lint:scripts": {
+      "inputs": [
+        "scripts/**",
+        "eslint.config.mjs",
+        "package.json",
+        "package-lock.json",
+        "packages/eslint-config/**"
+      ]
+    },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "//#lint:scripts"]
     },
     "test": {
       "dependsOn": ["^build"],

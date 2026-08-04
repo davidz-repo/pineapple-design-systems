@@ -84,8 +84,9 @@
 //   node scripts/check-ci-invariants.mjs
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const GUARD_NAME = 'check-ci-invariants';
 
@@ -164,7 +165,12 @@ function fail(subject, problem, fix) {
   failures.push(`${subject}: ${problem}\n    fix: ${fix}`);
 }
 
-/** Exits non-zero: nothing below is meaningful once a field cannot be read. */
+/**
+ * Exits non-zero: nothing below is meaningful once a field cannot be read.
+ *
+ * @param {string} message problem and fix, already formatted
+ * @returns {never} the process is gone before a caller resumes
+ */
 function refuse(message) {
   console.error(`\n${GUARD_NAME}: ${message}\n`);
   process.exit(1);
@@ -196,14 +202,16 @@ function stripQuotes(value) {
  * @param {number} from
  * @param {number} to
  * @param {string} field
- * @returns {{ lineNumber: number, values: string[] }|null}
+ * @returns {{ lineNumber: number, values: string[] }|null} null when the range
+ * holds no such field
  */
 function readField(lines, from, to, field) {
   const pattern = new RegExp(`^(\\s*)${field}:(?:\\s+(.*))?\\s*$`);
 
   for (let i = from; i < to; i++) {
     const match = pattern.exec(lines[i]);
-    if (!match) continue;
+    if (!match)
+      continue;
 
     const fieldIndent = match[1].length;
     const inline = (match[2] ?? '').trim();
@@ -226,8 +234,10 @@ function readField(lines, from, to, field) {
     /** @type {string[]} */
     const values = [];
     for (let j = i + 1; j < to; j++) {
-      if (lines[j].trim() === '') continue;
-      if (indentOf(lines[j]) <= fieldIndent) break;
+      if (lines[j].trim() === '')
+        continue;
+      if (indentOf(lines[j]) <= fieldIndent)
+        break;
       values.push(stripQuotes(lines[j].trim().replace(/^-\s+/, '')));
     }
     return { lineNumber: i + 1, values };
@@ -242,14 +252,16 @@ function readField(lines, from, to, field) {
  *
  * @param {string[]} lines
  * @param {number} start
- * @returns {number}
+ * @returns {number} that line's index, or `lines.length`
  */
 function blockEnd(lines, start) {
   const startIndent = indentOf(lines[start]);
 
   for (let i = start + 1; i < lines.length; i++) {
-    if (lines[i].trim() === '') continue;
-    if (indentOf(lines[i]) <= startIndent) return i;
+    if (lines[i].trim() === '')
+      continue;
+    if (indentOf(lines[i]) <= startIndent)
+      return i;
   }
 
   return lines.length;
@@ -270,7 +282,8 @@ function blockEnd(lines, start) {
  * `restore-keys` went on restoring everything.
  *
  * @param {string[]} lines
- * @returns {{ start: number, end: number, name: string }}
+ * @returns {{ start: number, end: number, name: string }} the step's first line,
+ * the line after it, and its `name:` where it has one
  */
 function findCacheStep(lines) {
   const cacheUses = lines.flatMap((line, index) => {
@@ -305,15 +318,16 @@ function findCacheStep(lines) {
         + '       pairing it asserts is about a step that is no longer there, and a guard\n'
         + '       whose subject is missing must not go on printing a pass.'
         : `teach \`findCacheStep()\` in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs which caches to check.\n`
-        + '       Checking the first and reporting "the cache keys OK" would leave the\n'
-        + '       other one free to restore every pre-salt entry, unexamined.'}`,
+          + '       Checking the first and reporting "the cache keys OK" would leave the\n'
+          + '       other one free to restore every pre-salt entry, unexamined.'}`,
     );
   }
 
   const usesIndent = indentOf(lines[usesAt[0]]);
   let start = -1;
   for (let i = usesAt[0]; i >= 0; i--) {
-    if (!/^\s*-\s/.test(lines[i])) continue;
+    if (!/^\s*-\s/.test(lines[i]))
+      continue;
     // The `uses:` line is itself the list item when the step is written
     // `- uses: …` with no `name:` above it.
     if (i === usesAt[0] || indentOf(lines[i]) < usesIndent) {
@@ -350,7 +364,7 @@ function findCacheStep(lines) {
  * @param {string[]} lines
  * @param {number} from
  * @param {number} to
- * @returns {string[]}
+ * @returns {string[]} one entry per command line
  */
 function runCommandsIn(lines, from, to) {
   /** @type {string[]} */
@@ -358,7 +372,8 @@ function runCommandsIn(lines, from, to) {
 
   for (let i = from; i < to; i++) {
     const match = /^(\s*)run:(?:\s+(.*))?\s*$/.exec(lines[i]);
-    if (!match) continue;
+    if (!match)
+      continue;
 
     const runIndent = match[1].length;
     const inline = (match[2] ?? '').trim();
@@ -369,10 +384,13 @@ function runCommandsIn(lines, from, to) {
     }
 
     for (let j = i + 1; j < to; j++) {
-      if (lines[j].trim() === '') continue;
-      if (indentOf(lines[j]) <= runIndent) break;
+      if (lines[j].trim() === '')
+        continue;
+      if (indentOf(lines[j]) <= runIndent)
+        break;
       const body = lines[j].trim();
-      if (body.startsWith('#')) continue;
+      if (body.startsWith('#'))
+        continue;
       commands.push(body);
     }
   }
@@ -391,7 +409,8 @@ function runCommandsIn(lines, from, to) {
  *
  * @param {string[]} lines
  * @returns {{ lineNumber: number, name: string, invocations: string[],
- *   conditionalKeys: { key: string, lineNumber: number }[] }[]}
+ *   conditionalKeys: { key: string, lineNumber: number }[] }[]} one entry per
+ *   step, in file order
  */
 function readSteps(lines) {
   /** @type {number[]} */
@@ -400,7 +419,8 @@ function readSteps(lines) {
   let itemIndent = -1;
 
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim() === '') continue;
+    if (lines[i].trim() === '')
+      continue;
 
     if (stepsIndent !== -1 && indentOf(lines[i]) <= stepsIndent) {
       stepsIndent = -1;
@@ -409,13 +429,17 @@ function readSteps(lines) {
 
     if (stepsIndent === -1) {
       const opens = /^(\s*)steps:\s*$/.exec(lines[i]);
-      if (opens) stepsIndent = opens[1].length;
+      if (opens)
+        stepsIndent = opens[1].length;
       continue;
     }
 
-    if (!/^\s*-\s+/.test(lines[i])) continue;
-    if (itemIndent === -1) itemIndent = indentOf(lines[i]);
-    if (indentOf(lines[i]) === itemIndent) starts.push(i);
+    if (!/^\s*-\s+/.test(lines[i]))
+      continue;
+    if (itemIndent === -1)
+      itemIndent = indentOf(lines[i]);
+    if (indentOf(lines[i]) === itemIndent)
+      starts.push(i);
   }
 
   return starts.map((start) => {
@@ -427,9 +451,11 @@ function readSteps(lines) {
     /** @type {{ key: string, lineNumber: number }[]} */
     const conditionalKeys = [];
     for (let i = start; i < end; i++) {
-      if (i !== start && indentOf(lines[i]) !== keyIndent) continue;
+      if (i !== start && indentOf(lines[i]) !== keyIndent)
+        continue;
       const key = CONDITIONAL_KEY.exec(lines[i].slice(keyIndent))?.[1];
-      if (key !== undefined) conditionalKeys.push({ key, lineNumber: i + 1 });
+      if (key !== undefined)
+        conditionalKeys.push({ key, lineNumber: i + 1 });
     }
 
     return {
@@ -453,15 +479,18 @@ function invocationsIn(text) {
  * guard's whole subject is a workflow that stopped running what it should, and
  * "the workflow is not where the guard looks" is the largest version of that.
  *
- * @returns {string[]}
+ * @returns {string[]} the file's lines, its newlines dropped
  */
 function readWorkflowLines() {
   try {
     return readFileSync(path.join(repoRoot, WORKFLOW), 'utf8').split(/\r?\n/);
   }
   catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-    refuse(
+    if (error.code !== 'ENOENT')
+      throw error;
+    // `return` because `refuse()` is `never`: this branch does not fall out of
+    // the function, it ends the process.
+    return refuse(
       `${WORKFLOW} does not exist, so neither invariant here has a workflow to hold.\n`
       + '  fix: restore it, or point WORKFLOW in this guard at the file that runs CI now.\n'
       + '       Both assertions below are about that one file; with it gone this guard\n'
@@ -482,7 +511,8 @@ const keyField = readField(workflowLines, cacheStep.start, cacheStep.end, KEY_FI
 const restoreField = readField(workflowLines, cacheStep.start, cacheStep.end, RESTORE_KEYS_FIELD);
 
 for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restoreField]]) {
-  if (read !== null) continue;
+  if (read !== null)
+    continue;
   refuse(
     `${WORKFLOW}'s "${cacheStep.name}" step declares no \`${field}\`, so there is nothing to\n`
     + 'compare the other key against.\n'
@@ -495,7 +525,8 @@ for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restore
 }
 
 for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restoreField]]) {
-  if (read.values.length === 1) continue;
+  if (read.values.length === 1)
+    continue;
   refuse(
     `${WORKFLOW}:${read.lineNumber} \`${field}\` holds ${read.values.length} entries, and this guard\n`
     + 'implements exactly one.\n'
@@ -620,7 +651,8 @@ const inWorkflow = new Set(workflowSteps.flatMap(step => step.invocations));
 // an `if:` and invokes no guard, which is why this is per step.
 for (const step of workflowSteps) {
   const guards = step.invocations.filter(name => GUARD_FILE.test(name));
-  if (guards.length === 0 || step.conditionalKeys.length === 0) continue;
+  if (guards.length === 0 || step.conditionalKeys.length === 0)
+    continue;
 
   fail(
     `${WORKFLOW}:${step.lineNumber} "${step.name}"`,
@@ -636,7 +668,8 @@ for (const step of workflowSteps) {
 }
 
 for (const [list, names] of [[IN_VERIFY, inVerify], [IN_WORKFLOW, inWorkflow]]) {
-  if (names.size > 0) continue;
+  if (names.size > 0)
+    continue;
   refuse(
     `${list} invokes no \`node ${SCRIPTS_DIR}/*.mjs\` at all.\n`
     + `  fix: wire the guards back in, or — if they are now invoked some way this reader\n`
@@ -671,7 +704,8 @@ for (const name of everyGuard) {
     [IN_WORKFLOW, inWorkflow.has(name)],
   ];
   const absent = presence.filter(([, isPresent]) => !isPresent).map(([list]) => list);
-  if (absent.length === 0) continue;
+  if (absent.length === 0)
+    continue;
 
   const present = presence.filter(([, isPresent]) => isPresent).map(([list]) => list);
 
