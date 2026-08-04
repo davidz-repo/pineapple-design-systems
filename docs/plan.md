@@ -465,21 +465,33 @@ Decisions worth recording, in the same spirit as the gallery section above:
   `eslint-disable ts/promise-function-async` rather than the fix the rule suggests. One
   helper rather than a cache per module, because that `async` only has to creep back into a
   second hand-written copy once.
-- **"Show code" reads the story file twice: compiled, and as text.** A second
-  `import.meta.glob` over the same pattern with `query: '?raw'` gives the source string, and
-  `pages/package/storySource.ts` cuts one export out of it by regex — the compiled module the
-  examples render from cannot show what it was written as, and a TypeScript parser in the
-  bundle to recover what the compiler just discarded is not worth it. The premise is that
-  story files are written the way every story file here is written (top-level
-  `export function Name`, blank line between); its unit test asserts that against a real
-  story file, so a repo-wide reformat that broke it fails there rather than silently
-  dropping the buttons.
+- **The story file is read twice: compiled, and as text.** A second `import.meta.glob` over
+  the same pattern with `query: '?raw'` gives the source string, and
+  `pages/package/storySource.ts` reads it — the compiled module the examples render from
+  cannot show what it was written as, and a TypeScript parser in the bundle to recover what
+  the compiler just discarded is not worth it. The text answers two questions, so it is
+  fetched whether or not anyone opens a disclosure: what "Show code" shows, and what ORDER
+  the examples go in — an ES module namespace enumerates its keys sorted, so the module alone
+  would list them alphabetically. The premise is that story files are written the way every
+  story file here is written (top-level declarations, blank line between), and a story's cut
+  ends at the next top-level declaration of any kind — an unexported `interface
+  PlaygroundArgs` between two stories is where `^export` alone swept a type into the story
+  above it. The unit test asserts the cut against a real story file, and against **badge**
+  rather than button: button is the one file whose Playground is declared above its examples,
+  so nothing follows its last story and the cut is never made there.
 - **Examples open the Overview; they are not a tab.** Tabs are Overview / Playground /
   Changelog, and Overview reads examples → README → (props, when that lands). A tab is a
   place a reader has to decide to go, and the live component is what the page is opened for.
   `src/packageTabs.ts` is the single tab vocabulary — segment, strip label and title suffix
   in one row — because it used to be two lists, and a segment the router served but the title
   map had never heard of titled a working page "Page not found" with nothing to fail.
+- **Every package page has the same heading outline, whatever its README says.** h1 package
+  name → h2 Examples (h3 per story) → h2 README → h2 Props, when that lands. The `README`
+  heading is the site's, and `MarkdownView`'s `headingOffset` demotes the file's own headings
+  under it, type scale included. It is applied to the Overview's README only: on the
+  Changelog tab the file IS the page, so its version `##`s stay where changesets wrote them.
+  Without this, a README's own sections rendered as siblings of "Examples" and no two
+  packages had the same outline.
 - **Suspense sits inside the tab strip, error boundaries sit at three depths.** The strip
   itself waits on the story module (which tabs exist depends on what a package exports), but
   each tab's own content waits under a second boundary below the strip, so switching tabs
@@ -498,10 +510,14 @@ Decisions worth recording, in the same spirit as the gallery section above:
   its own document title, since the shell treats the tabs of a package as one page and stays
   quiet on purpose.
 - **An unknown tab is answered inside the page.** `/components/tokens/playground` is not a
-  typo — it is a tab most packages have and this one does not — so it renders a scoped "no
-  such tab" naming the tabs that exist, under the strip it is pointing at, instead of
-  replacing the package with the site's 404. The document title still reads "Page not found":
-  the address genuinely names no page, and only the recovery changed.
+  typo — it is a tab most packages have and this one does not — so it renders a scoped
+  message under the strip it is pointing at, instead of replacing the package with the site's
+  404: the heading names the miss ("Tokens has no “playground” tab") and the body is the
+  recovery, each tab that DOES exist as a link. The document title still reads "Page not
+  found": the address genuinely names no page, and only the recovery changed. The one old
+  address that is not a miss is `/components/:slug/versions`, the tab's name before this
+  wave — a `<Navigate replace>` route sends it to `changelog`, and it can go once the
+  referrers dry up.
 - **The playground's option args live in the URL; everything else does not.** Args with a
   fixed option list are mirrored into the query string (replace, not push, so dragging
   through six variants costs one history entry), which makes a tuned playground a link
@@ -513,9 +529,11 @@ Decisions worth recording, in the same spirit as the gallery section above:
   prepends the import line for the snippet it just built by reading the registry
   (`components/playground/snippet-imports.ts`), so the copy button hands back something that
   compiles and a new package needs no second list.
-- **Everything a package page links to comes from the package.** `src/packageLinks.ts` builds
+- **Every address a package page shows comes from the package.** `src/packageLinks.ts` builds
   the source URL from the manifest's own `repository.url` + `repository.directory` and the
-  npm URL from its `name`. That same derivation is what rewrites README cross-links to
+  npm URL from its `name` — and the install command is `manifest.name` too, not
+  `@pineappleui/${slug}` assembled from the route, because that is the one string on the page
+  a reader runs. That same derivation is what rewrites README cross-links to
   sibling packages into internal routes: the map is keyed by the URLs the site itself
   generates, so the address a README links a sibling by and the address the site would
   produce for it are the same string by construction. The one fact no manifest holds is which
