@@ -48,13 +48,15 @@ export function ThemeControls() {
       {/* Text, not a glyph: @pineappleui/icons has no sun/moon/monitor in
           ICON_NAMES, and inventing one here would be a second icon vocabulary.
           The label states where the button is and where it goes next, because
-          "system" alone does not say which of the two it means. */}
+          "system" alone does not say which of the two it means. The width is
+          pinned in site.css so cycling does not shuffle the header sideways
+          under the finger that just tapped it. */}
       <Button
         className="site-appearance-cycle"
         type="button"
         size="1"
         variant="soft"
-        aria-label={`Appearance: ${appearance}. Activate for ${next}.`}
+        aria-label={`Appearance: ${appearance}. Switch to ${next}.`}
         onClick={() => setAppearance(next)}
       >
         {appearance}

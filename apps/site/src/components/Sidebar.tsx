@@ -26,11 +26,22 @@ function sidebarLinkClass({ isActive }: { isActive: boolean }): string {
 }
 
 // Name and blurb, because the blurb is where the words people search for live
-// ("dropdown", "input") when the component is named something else.
-function entryMatches(entry: RegistryEntry, query: string): boolean {
+// ("dropdown", "input") when the package is named something else.
+function matchesQuery(entry: RegistryEntry, query: string): boolean {
   const needle = query.toLowerCase();
   return entry.name.toLowerCase().includes(needle)
     || entry.blurb.toLowerCase().includes(needle);
+}
+
+// "Package", not "component": the registry is one entry per published package,
+// and Theme, Tokens and useLocalStorage are not components.
+function matchSummaryFor(count: number, query: string): string {
+  if (count === 0) {
+    return `No package matches “${query}”.`;
+  }
+  return count === 1
+    ? `1 package matches “${query}”.`
+    : `${count} packages match “${query}”.`;
 }
 
 // Local state, not the URL: the filter is a way to find a link in this list,
@@ -43,7 +54,7 @@ export function Sidebar({ id, isOpen, onNavigate }: SidebarProps) {
   const needle = query.trim();
   const matched = needle === ''
     ? REGISTRY
-    : REGISTRY.filter(entry => entryMatches(entry, needle));
+    : REGISTRY.filter(entry => matchesQuery(entry, needle));
 
   const groups = CATEGORIES
     .map(category => ({
@@ -60,19 +71,41 @@ export function Sidebar({ id, isOpen, onNavigate }: SidebarProps) {
   return (
     <nav id={id} className="site-sidebar" aria-label="Documentation" data-open={isOpen}>
       <Stack gap="4">
-        <div>
-          <label className="site-visually-hidden" htmlFor={`${filterId}-filter`}>
-            Filter components
-          </label>
-          <TextField.Root
-            id={`${filterId}-filter`}
-            ref={filterInputRef}
-            size="1"
-            value={query}
-            placeholder="Filter components"
-            onChange={event => setQuery(event.target.value)}
-          />
-        </div>
+        <Stack gap="2">
+          <div>
+            <label className="site-visually-hidden" htmlFor={`${filterId}-filter`}>
+              Filter packages
+            </label>
+            <TextField.Root
+              id={`${filterId}-filter`}
+              ref={filterInputRef}
+              size="1"
+              value={query}
+              placeholder="Filter packages"
+              onChange={event => setQuery(event.target.value)}
+            />
+          </div>
+          {/* Mounted whether or not it has anything to say — LiveRegion's
+              contract is that the region stays put and its children change; a
+              region that appears already filled is not reliably announced.
+              It carries the count for every non-empty query, not just the
+              empty result: a filter that silently drops 15 of 16 links tells a
+              screen reader nothing until its user goes looking. */}
+          <LiveRegion role="status">
+            {needle !== '' && (
+              <Stack gap="2" align="start">
+                <Text as="p" size="1" color="gray">
+                  {matchSummaryFor(matched.length, needle)}
+                </Text>
+                {matched.length === 0 && (
+                  <Button size="1" variant="soft" type="button" onClick={clearFilter}>
+                    Clear filter
+                  </Button>
+                )}
+              </Stack>
+            )}
+          </LiveRegion>
+        </Stack>
         <ul role="list" className="site-nav-list">
           <li>
             <NavLink to="/" end className={sidebarLinkClass} onClick={onNavigate}>
@@ -118,23 +151,6 @@ export function Sidebar({ id, isOpen, onNavigate }: SidebarProps) {
             </Stack>
           );
         })}
-        {/* Mounted whether or not it has anything to say — LiveRegion's
-            contract is that the region stays put and its children change; a
-            region that appears already filled is not reliably announced. */}
-        <LiveRegion role="status">
-          {groups.length === 0 && (
-            <Stack gap="2" align="start">
-              <Text as="p" size="1" color="gray">
-                No component matches “
-                {needle}
-                ”.
-              </Text>
-              <Button size="1" variant="soft" type="button" onClick={clearFilter}>
-                Clear filter
-              </Button>
-            </Stack>
-          )}
-        </LiveRegion>
       </Stack>
     </nav>
   );

@@ -22,22 +22,42 @@ describe('pageKeyFor', () => {
       .toBe(pageKeyFor(`/components/${firstEntry.slug}`));
   });
 
-  it('passes the top-level pages through', () => {
+  it('passes the top-level pages through, trailing slash or not', () => {
     expect(pageKeyFor('/')).toBe('/');
     expect(pageKeyFor('/getting-started')).toBe('/getting-started');
+    expect(pageKeyFor('/getting-started/')).toBe('/getting-started');
   });
 });
 
 describe('pageTitleFor', () => {
   it('names the site on the home page and the page on every other', () => {
-    expect(pageTitleFor(pageKeyFor('/'))).toBe('Pineapple UI — React design system');
-    expect(pageTitleFor(pageKeyFor('/getting-started'))).toBe('Getting started — Pineapple UI');
-    expect(pageTitleFor(pageKeyFor(`/components/${firstEntry.slug}/playground`)))
+    expect(pageTitleFor('/')).toBe('Pineapple UI — React design system');
+    expect(pageTitleFor('/getting-started')).toBe('Getting started — Pineapple UI');
+    expect(pageTitleFor(`/components/${firstEntry.slug}`))
+      .toBe(`${firstEntry.name} — Pineapple UI`);
+  });
+
+  // The key deliberately collapses the tabs; the title deliberately does not.
+  // Four history entries reading "Button — Pineapple UI" are four entries
+  // nobody can tell apart.
+  it('names the tab, unlike the page key', () => {
+    expect(pageTitleFor(`/components/${firstEntry.slug}/examples`))
+      .toBe(`${firstEntry.name} examples — Pineapple UI`);
+    expect(pageTitleFor(`/components/${firstEntry.slug}/playground`))
+      .toBe(`${firstEntry.name} playground — Pineapple UI`);
+    expect(pageTitleFor(`/components/${firstEntry.slug}/versions`))
+      .toBe(`${firstEntry.name} versions — Pineapple UI`);
+    expect(pageTitleFor(`/components/${firstEntry.slug}/`))
       .toBe(`${firstEntry.name} — Pineapple UI`);
   });
 
   it('titles anything unrouted as not found', () => {
-    expect(pageTitleFor(pageKeyFor('/nope'))).toBe('Page not found — Pineapple UI');
-    expect(pageTitleFor(pageKeyFor('/components/nope'))).toBe('Page not found — Pineapple UI');
+    expect(pageTitleFor('/nope')).toBe('Page not found — Pineapple UI');
+    expect(pageTitleFor('/components/nope')).toBe('Page not found — Pineapple UI');
+    // A tab segment no route serves, and a path deeper than any route.
+    expect(pageTitleFor(`/components/${firstEntry.slug}/nope`))
+      .toBe('Page not found — Pineapple UI');
+    expect(pageTitleFor(`/components/${firstEntry.slug}/versions/nope`))
+      .toBe('Page not found — Pineapple UI');
   });
 });

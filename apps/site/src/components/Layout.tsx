@@ -13,6 +13,7 @@ import { ThemeControls } from './ThemeControls';
 
 const REPO_URL = 'https://github.com/davidz-repo/pineapple-design-systems';
 const NPM_ORG_URL = 'https://www.npmjs.com/org/pineappleui';
+const RADIX_THEMES_URL = 'https://www.radix-ui.com/themes';
 
 // The panel the header's Menu button discloses IS the sidebar: one <nav> in
 // the document, laid out as a sticky column at >=860px and as a
@@ -29,7 +30,17 @@ export function Layout() {
   // derivation rather than by an effect that fires after the new page has
   // already painted with a menu over it. `onNavigate` below covers the one
   // case this cannot see: following the link for the page you are on.
+  //
+  // The stored path is dropped the moment the location moves off it, during
+  // render (React's own "adjust state when something changes" pattern, which
+  // re-renders before anything is committed). Keeping it would leave a live
+  // claim about a page the reader has left: open the menu on /, follow a card
+  // to /components/button, press Back, and the panel would spring open on
+  // arrival because the stale path matched again.
   const [openedForPath, setOpenedForPath] = useState<string | null>(null);
+  if (openedForPath !== null && openedForPath !== pathname) {
+    setOpenedForPath(null);
+  }
   const isMenuOpen = openedForPath === pathname;
 
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -58,13 +69,17 @@ export function Layout() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [closeMenu, isMenuOpen]);
 
-  // Page changes only — see pageIdentity.ts for what that excludes. The title
-  // is set on the first render too; the scroll and the focus move are not,
-  // because arriving is not navigating. Comparing the key rather than
-  // flipping a "have I run?" flag also survives StrictMode's double-invoked
-  // effect, which would otherwise yank focus on the first load in dev.
+  // The title names the tab, so it follows the whole pathname.
   useEffect(() => {
-    document.title = pageTitleFor(pageKey);
+    document.title = pageTitleFor(pathname);
+  }, [pathname]);
+
+  // Scroll and focus follow the coarser page key — see pageIdentity.ts for
+  // what that excludes. Neither runs on the first render, because arriving is
+  // not navigating. Comparing the key rather than flipping a "have I run?"
+  // flag also survives StrictMode's double-invoked effect, which would
+  // otherwise yank focus on the first load in dev.
+  useEffect(() => {
     const previousPageKey = shownPageKeyRef.current;
     shownPageKeyRef.current = pageKey;
     if (previousPageKey === null || previousPageKey === pageKey) {
@@ -85,21 +100,26 @@ export function Layout() {
         </Link>
         <Inline gap="4" align="center">
           <ThemeControls />
+          {/* Dropped below 860px: the footer carries the same link, and the
+              room it frees is what lets the header hold one row at 390px. */}
           <a
             href={REPO_URL}
             target="_blank"
             rel="noreferrer"
-            className="site-sidebar-link"
+            className="site-header-link"
           >
             GitHub
           </a>
           {/* Last in the header so the next tab stop after the trigger is the
-              panel it opens — the panel sits later in the document. */}
+              panel it opens — the panel sits later in the document. size="2",
+              not the "1" the theme controls use: 24px is exactly WCAG 2.5.8's
+              floor, and this is the control every other page on a phone is
+              reached through. It never renders on desktop. */}
           <Button
             ref={menuTriggerRef}
             type="button"
             className="site-menu-trigger"
-            size="1"
+            size="2"
             variant="soft"
             aria-expanded={isMenuOpen}
             aria-controls={NAV_PANEL_ID}
@@ -109,29 +129,39 @@ export function Layout() {
           </Button>
         </Inline>
       </header>
+      {/* closeMenu, not a bare close: following the link for the page you are
+          already on hides the panel without changing the route, so nothing
+          else would move focus and it would fall to <body>. Focusing the
+          trigger is a no-op on desktop, where it is display:none. */}
       <Sidebar
         id={NAV_PANEL_ID}
         isOpen={isMenuOpen}
-        onNavigate={() => setOpenedForPath(null)}
+        onNavigate={closeMenu}
       />
       <main id="main" ref={mainRef} className="site-main" tabIndex={-1}>
         <div className="site-page">
           <Outlet />
         </div>
       </main>
+      {/* The separators are plain text: hiding them takes the spaces around
+          them with it, and "David ZhangGitHub" is worse than a middle dot. */}
       <footer className="site-footer">
         <Text as="p" size="1" color="gray">
-          MIT © David Zhang
-          <span aria-hidden="true"> · </span>
+          MIT © David Zhang ·
+          {' '}
           <a className="site-footer-link" href={NPM_ORG_URL} target="_blank" rel="noreferrer">
             @pineappleui on npm
           </a>
-          <span aria-hidden="true"> · </span>
+          {' · '}
           <a className="site-footer-link" href={REPO_URL} target="_blank" rel="noreferrer">
-            GitHub repo
+            GitHub
           </a>
-          <span aria-hidden="true"> · </span>
-          Built on Radix Themes
+          {' · '}
+          Built on
+          {' '}
+          <a className="site-footer-link" href={RADIX_THEMES_URL} target="_blank" rel="noreferrer">
+            Radix Themes
+          </a>
         </Text>
       </footer>
     </div>
