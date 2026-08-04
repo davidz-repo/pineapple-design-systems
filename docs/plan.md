@@ -425,13 +425,15 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 ### The reference site (`apps/site`)
 
 `apps/site` — private, `0.0.0`, ESM — is the public face of the system: a docs site in the
-Radix/Chakra shape (landing page, sidebar, per-package pages with overview / examples /
-playground / versions tabs), deployed to GitHub Pages at **https://designpineapple.com** by
+Radix/Chakra shape (landing page, sidebar, per-package pages with overview / playground /
+changelog tabs), deployed to GitHub Pages at **https://designpineapple.com** by
 `.github/workflows/deploy-site.yml` on every push to `main`. It is deliberately **derived
 almost entirely from content that already exists**: overviews are the packages' own READMEs,
-versions are their changesets CHANGELOGs, examples and the playground render the packages' own
-Ladle stories. A new package brings its docs with it; the site's registry test fails until the
-one hand-written thing — a registry entry (slug, blurb, snippet) — is added.
+the changelog tab is their changesets CHANGELOG, the examples and the playground render the
+packages' own Ladle stories, and the link row under each title is built from the package's own
+manifest. A new package brings its docs with it; the site's registry test fails until the
+hand-written parts — a registry entry (slug, blurb, snippet, and a Radix reference for a
+wrapper) — are added.
 
 Decisions worth recording, in the same spirit as the gallery section above:
 
@@ -455,6 +457,72 @@ Decisions worth recording, in the same spirit as the gallery section above:
   `StoryExport`/`StoryModule` types in `src/stories.ts`. The standing risk: a future story
   importing a **value** from `@ladle/react` would pull Ladle's runtime into the site bundle.
   If that happens, the fix is in the story, not the site.
+- **Every lazy per-package thing goes through one `cachedLoader`, and it must stay
+  synchronous.** `content.ts` exports it; `stories.ts` builds `storyModuleFor` and
+  `storySourceFor` from it. React's `use()` needs the *same promise instance* across render
+  retries, so an `async` wrapper would mint a fresh (uncached) promise per call and the
+  component would suspend forever — which is why the loaders carry an
+  `eslint-disable ts/promise-function-async` rather than the fix the rule suggests. One
+  helper rather than a cache per module, because that `async` only has to creep back into a
+  second hand-written copy once.
+- **"Show code" reads the story file twice: compiled, and as text.** A second
+  `import.meta.glob` over the same pattern with `query: '?raw'` gives the source string, and
+  `pages/package/storySource.ts` cuts one export out of it by regex — the compiled module the
+  examples render from cannot show what it was written as, and a TypeScript parser in the
+  bundle to recover what the compiler just discarded is not worth it. The premise is that
+  story files are written the way every story file here is written (top-level
+  `export function Name`, blank line between); its unit test asserts that against a real
+  story file, so a repo-wide reformat that broke it fails there rather than silently
+  dropping the buttons.
+- **Examples open the Overview; they are not a tab.** Tabs are Overview / Playground /
+  Changelog, and Overview reads examples → README → (props, when that lands). A tab is a
+  place a reader has to decide to go, and the live component is what the page is opened for.
+  `src/packageTabs.ts` is the single tab vocabulary — segment, strip label and title suffix
+  in one row — because it used to be two lists, and a segment the router served but the title
+  map had never heard of titled a working page "Page not found" with nothing to fail.
+- **Suspense sits inside the tab strip, error boundaries sit at three depths.** The strip
+  itself waits on the story module (which tabs exist depends on what a package exports), but
+  each tab's own content waits under a second boundary below the strip, so switching tabs
+  never takes the tabs off the screen. Boundaries: the app root (`App.tsx`), the package page
+  keyed by slug (`PackagePage.tsx`), and every rendered example
+  (`pages/package/ExamplesSection.tsx`) — a broken story costs its own canvas and nothing
+  else. `components/ErrorBoundary.tsx` is the one class component in the app, because
+  `getDerivedStateFromError` is a class-only lifecycle; its `fallback` takes a `retry`
+  because the root boundary has no navigation that would reset it.
+- **A tab link starts its own transition.** `pages/package/TabLink.tsx` composes `useHref` +
+  `useLinkClickHandler` (what `<Link>` does internally) inside `useTransition`, so `isPending`
+  belongs to this component. React deliberately holds ready content rather than dropping to a
+  fallback during a transition, which is right and looks exactly like a click that did
+  nothing — the flag is what says otherwise, as `aria-busy` for a screen reader and
+  `data-pending` for the stylesheet. A tab change also gets a `LiveRegion` announcement and
+  its own document title, since the shell treats the tabs of a package as one page and stays
+  quiet on purpose.
+- **An unknown tab is answered inside the page.** `/components/tokens/playground` is not a
+  typo — it is a tab most packages have and this one does not — so it renders a scoped "no
+  such tab" naming the tabs that exist, under the strip it is pointing at, instead of
+  replacing the package with the site's 404. The document title still reads "Page not found":
+  the address genuinely names no page, and only the recovery changed.
+- **The playground's option args live in the URL; everything else does not.** Args with a
+  fixed option list are mirrored into the query string (replace, not push, so dragging
+  through six variants costs one history entry), which makes a tuned playground a link
+  somebody can send. Free text and booleans stay in local state — `?label=Click+me` is noise
+  in a shared link, and the copy-link announcement says "dropdown args only" when one of them
+  is off-default rather than claiming the whole state travelled. A value the story does not
+  offer falls back to the default silently.
+- **Snippet imports are derived from the registry, not written per package.** The playground
+  prepends the import line for the snippet it just built by reading the registry
+  (`components/playground/snippet-imports.ts`), so the copy button hands back something that
+  compiles and a new package needs no second list.
+- **Everything a package page links to comes from the package.** `src/packageLinks.ts` builds
+  the source URL from the manifest's own `repository.url` + `repository.directory` and the
+  npm URL from its `name`. That same derivation is what rewrites README cross-links to
+  sibling packages into internal routes: the map is keyed by the URLs the site itself
+  generates, so the address a README links a sibling by and the address the site would
+  produce for it are the same string by construction. The one fact no manifest holds is which
+  Radix component a wrapper wraps — `@radix-ui/themes` in peerDependencies says *that* it
+  wraps one, never which (Stack and Inline are both `Flex`) — so that is one registry field
+  holding a docs *path*, and `registry.test.ts` fails in both directions if the two lists
+  disagree.
 - **First-paint theming reads `dist/`, not `src/`.** The FOUC plugin calls
   `getFoucScript` from `@pineappleui/theme` resolved through node_modules — the built copy —
   while the app graph reads source through the aliases. Stale dist is a dev-only hazard
