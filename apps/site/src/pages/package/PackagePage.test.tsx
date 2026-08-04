@@ -149,33 +149,52 @@ describe('overview tab', () => {
 });
 
 describe('package links', () => {
-  it('derives source, npm, changelog and Radix links from the package data', async () => {
+  it('derives the source, npm and Radix links from the package data', async () => {
     await renderApp('/components/button');
     const links = within(screen.getByRole('navigation', { name: 'Button links' }));
 
-    expect(links.getByRole('link', { name: 'View source' })).toHaveAttribute(
+    expect(links.getByRole('link', { name: /^View source/ })).toHaveAttribute(
       'href',
       'https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/button',
     );
-    expect(links.getByRole('link', { name: 'npm' })).toHaveAttribute(
+    expect(links.getByRole('link', { name: /^npm/ })).toHaveAttribute(
       'href',
       'https://www.npmjs.com/package/@pineappleui/button',
     );
-    expect(links.getByRole('link', { name: 'Radix Button' })).toHaveAttribute(
+    expect(links.getByRole('link', { name: /^Radix Button/ })).toHaveAttribute(
       'href',
       'https://www.radix-ui.com/themes/docs/components/button',
     );
-    // The changelog is a tab on this page, so it is an internal navigation.
-    const changelog = links.getByRole('link', { name: 'Changelog' });
-    expect(changelog).toHaveAttribute('href', '/components/button/changelog');
-    expect(changelog).not.toHaveAttribute('target');
+  });
+
+  it('says which links leave the site, in the name a screen reader reads', async () => {
+    await renderApp('/components/button');
+    const links = within(screen.getByRole('navigation', { name: 'Button links' }));
+
+    // Every link in the row is off-site, and the note is part of the name, so
+    // it is announced with the link rather than left to a tab appearing.
+    for (const link of links.getAllByRole('link')) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAccessibleName(/\(opens in a new tab\)$/);
+    }
+  });
+
+  it('leaves the changelog to its tab instead of linking it twice', async () => {
+    await renderApp('/components/button');
+    const links = within(screen.getByRole('navigation', { name: 'Button links' }));
+
+    // The row is for what is NOT on this page; the tab strip below carries the
+    // changelog, and two controls to one address were two things to weigh.
+    expect(links.queryByRole('link', { name: /Changelog/ })).not.toBeInTheDocument();
+    expect(within(await findTabStrip()).getByRole('link', { name: /Changelog/ }))
+      .toHaveAttribute('href', '/components/button/changelog');
   });
 
   it('leaves the Radix link off a package that does not wrap Radix', async () => {
     await renderApp('/components/icons');
     const links = within(screen.getByRole('navigation', { name: 'Icon links' }));
 
-    expect(links.getByRole('link', { name: 'View source' })).toBeInTheDocument();
+    expect(links.getByRole('link', { name: /^View source/ })).toBeInTheDocument();
     expect(links.queryByRole('link', { name: /^Radix/ })).not.toBeInTheDocument();
   });
 
