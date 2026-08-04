@@ -112,17 +112,18 @@ jobs:
       # after it because they read opposite ends of the same question: that one
       # reads package-lock.json, the OUTCOME, for the slots the root declares;
       # this one reads the manifests, the INTENT, for every module two or more of
-      # them declare. Neither covers the other. `typescript`, `vitest` and `tsup`
-      # are pinned per package rather than at the root, so they own no
-      # root-declared slot and the step above would not report two workspaces
-      # building on different majors of them — every task stays green on both
-      # sides of that skew, because nothing else here compares one workspace's
-      # manifest with another's.
+      # them declare — the ROOT's among them, which is why the name below says
+      # every manifest rather than every workspace. Neither covers the other.
+      # `typescript`, `vitest` and `tsup` are pinned per package rather than at
+      # the root, so they own no root-declared slot and the step above would not
+      # report two workspaces building on different majors of them — every task
+      # stays green on both sides of that skew, because nothing else here
+      # compares one workspace's manifest with another's.
       #
       # Manifests only, no dist/, so it runs before the build for the same reason
       # as the rest of this group: a split toolchain makes every step below MEAN
       # less.
-      - name: Check the workspaces agree on their toolchain ranges
+      - name: Check every manifest declares one range per shared devDependency
         run: node scripts/check-toolchain-agreement.mjs
 
       # Also before the build, and for the same kind of reason: it reads configs
@@ -136,8 +137,8 @@ jobs:
 
       # Before the build for the same reason as the three above — it reads this
       # file, the root package.json and the scripts/ listing, nothing else — and
-      # it is the guard that asserts the two things holding those steps in
-      # place.
+      # it is the guard that asserts the two things holding those three steps,
+      # and the cache step above them, in place.
       #
       # First: that the cache salt above sits in `key` AND in `restore-keys`.
       # Salting only `key` restores exactly as before, because the unsalted
