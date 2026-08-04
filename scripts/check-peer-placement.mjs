@@ -186,6 +186,31 @@ function fail(subject, problem, fix) {
 }
 
 /**
+ * `JSON.parse`, with the file named in any error it throws — a bare
+ * `SyntaxError: Unexpected token }` says nothing about which of twenty manifests
+ * produced it, and the twenty are read in a loop that names none of them.
+ *
+ * Manifests are strict JSON to npm, so no comment stripping here: this reads
+ * exactly what npm reads. Written out in this file rather than imported from
+ * `check-peer-externals`, whose version handles JSONC for tsconfigs —
+ * `workspace-globs` is the one module the guards share, and a second import
+ * edge between two guards is a coupling neither one's header claims.
+ *
+ * @param {string} filePath absolute
+ * @returns {Record<string, unknown>} the parsed manifest
+ */
+function readJson(filePath) {
+  const text = readFileSync(filePath, 'utf8');
+
+  try {
+    return JSON.parse(text);
+  }
+  catch (cause) {
+    throw new Error(`${filePath} is not valid JSON: ${cause.message}`, { cause });
+  }
+}
+
+/**
  * The module names one manifest field declares.
  *
  * An absent field is an empty list — most workspaces here declare no
@@ -241,7 +266,7 @@ if (workspaceDirs.length === 0) {
  * @type {{ relDir: string, name: string, isPublishable: boolean, peers: string[], installedFields: { field: string, names: string[] }[] }[]}
  */
 const workspaces = workspaceDirs.map((relDir) => {
-  const manifest = JSON.parse(readFileSync(path.join(repoRoot, relDir, MANIFEST), 'utf8'));
+  const manifest = readJson(path.join(repoRoot, relDir, MANIFEST));
 
   return {
     relDir,
@@ -510,9 +535,9 @@ const dependencySummary = withDependencies
   .join(', ');
 
 console.log(
-  `${GUARD_NAME}: ${peerDeclarers.size} peer module(s) across ${declaringPeers.length} `
-  + 'workspace(s), no publishable dependency misfiles one\n'
-  + `  peers: ${peerSummary}\n`
+  `${GUARD_NAME}: ${peerDeclarers.size} peer module(s) across ${declaringPeers.length} of `
+  + `${workspaces.length} workspace(s) read, no publishable dependency misfiles one\n`
+  + `  peers (names only — the ranges beside them are unexamined): ${peerSummary}\n`
   + `  ${publishable.length} publishable workspace(s), ${withDependencies.length} declaring `
   + `${DEPENDENCY_FIELDS_PHRASE}: ${dependencySummary || 'none'}\n`
   + `  private, ${DEPENDENCY_FIELDS_PHRASE} not examined: `
