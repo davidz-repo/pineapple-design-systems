@@ -144,18 +144,27 @@ export function PackagePage() {
     return <NotFoundPage />;
   }
 
-  const version = forSlug(manifests, slug)?.version;
+  // The manifest, not the slug: the install command is the one address on this
+  // page a reader copies and RUNS, and `@pineappleui/${slug}` was the only one
+  // the site made up rather than read. They agree for every package today, and
+  // the day one is published under a different name the invented one would be
+  // a command that fails, on a page that looks right.
+  const manifest = forSlug(manifests, slug);
 
   return (
     <Stack gap="4">
       <Stack gap="2">
         <Inline gap="3" align="center">
           <Heading as="h1" size="8">{entry.name}</Heading>
-          {version !== undefined && <Badge variant="soft" size="2">{`v${version}`}</Badge>}
+          {manifest !== undefined && (
+            <Badge variant="soft" size="2">{`v${manifest.version}`}</Badge>
+          )}
         </Inline>
         <Text as="p" size="3" color="gray">{entry.blurb}</Text>
         <PackageLinks entry={entry} />
-        <CodeBlock code={`npm install @pineappleui/${entry.slug}`} language="bash" />
+        {manifest !== undefined && (
+          <CodeBlock code={`npm install ${manifest.name}`} language="bash" />
+        )}
       </Stack>
       {/* Keyed by slug, so walking to another package is a fresh boundary and a
           failure cannot follow the reader around the site. The header above is

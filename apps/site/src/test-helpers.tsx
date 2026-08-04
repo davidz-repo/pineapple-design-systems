@@ -24,6 +24,8 @@ export const repoRoot = path.resolve(
 );
 
 interface PackageManifest {
+  /** What it publishes under — the name an install command has to say. */
+  name: string;
   private?: boolean;
   peerDependencies?: Record<string, string>;
 }

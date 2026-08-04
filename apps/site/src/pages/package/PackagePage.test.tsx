@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   findTabStrip,
+  readPackageManifest,
   renderApp,
   silenceCaughtErrors,
   SUSPENSE_TIMEOUT,
@@ -266,6 +267,18 @@ describe('package links', () => {
     expect(links.queryByRole('link', { name: /Changelog/ })).not.toBeInTheDocument();
     expect(within(await findTabStrip()).getByRole('link', { name: /Changelog/ }))
       .toHaveAttribute('href', '/components/button/changelog');
+  });
+
+  it('installs the name the package publishes under', async () => {
+    await renderApp('/components/icons');
+
+    // Read off the manifest, like the page does — not spelled out here and not
+    // built out of the slug. The slug is a route; the install command is run in
+    // a terminal, and the two agreeing today is a fact about today.
+    const { name } = readPackageManifest('icons');
+    const fences = Array.from(document.querySelectorAll('.code-block pre'))
+      .map(fence => fence.textContent);
+    expect(fences).toContain(`npm install ${name}`);
   });
 
   it('leaves the Radix link off a package that does not wrap Radix', async () => {
