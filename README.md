@@ -234,10 +234,13 @@ can satisfy both from a single copy: one decision written in twenty-one places i
 
 The two of them still stop short of the join. Agreement is about intent, and identical ranges do
 not make npm install one copy — a shared module no manifest declares at the *root* owns no top
-slot by anybody's decision, so a nested dependency needing another major can take it exactly as
-Ladle's `vite@^6` did, and which copy each workspace's `tsc`, `vitest` or `tsup` actually loads is
-back to being a lockfile fact nothing asserts. Declaring the module at the root is what moves that
-question into `check:hoist`'s subject.
+slot by anybody's decision, so which package ends up in `node_modules/typescript` is settled by
+whichever claimant npm hoisted, a lockfile fact nothing asserts. It is a milder gap than the one
+Ladle's `vite@^6` fell through, and the difference is the declarers: `vite` had none, so one
+hoist decided what every workspace ran, where a module nineteen manifests declare identically
+leaves each of them with a copy their own range accepts. What stays unasserted is the *shared*
+slot — which `tsc`, `vitest` or `tsup` resolves from the repo root. Declaring the module at the
+root is what moves that question into `check:hoist`'s subject.
 
 ## License
 

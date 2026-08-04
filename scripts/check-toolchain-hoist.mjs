@@ -70,11 +70,17 @@
 // What the two of them together still do not prove is the join. Agreement is
 // about intent, and twenty-one manifests stating one range does not make npm
 // install one copy: a shared module NO manifest declares at the ROOT owns no
-// top slot by anybody's decision, so a nested dependency needing another major
-// takes it exactly as `@ladle/react`'s `vite@^6` did, and which `typescript`,
-// `vitest` or `tsup` each workspace's task actually loads goes back to being a
-// lockfile fact nothing asks about. Declaring the module at the root is what
-// turns that question into the one this file answers.
+// top slot by anybody's decision, so which package ends up in
+// `node_modules/typescript` is settled by whichever claimant npm hoisted — a
+// lockfile fact nothing here asks about, which is the gap `vite` fell through.
+// It is a milder gap than `vite`'s was, and the difference is the declarers:
+// `vite` had none, so one hoist decided what every workspace ran, where a
+// module nineteen manifests declare identically leaves each of them with a copy
+// their own range accepts, nested if the shared slot went elsewhere. What is
+// unasserted is that SHARED slot — which `typescript`, `vitest` or `tsup`
+// resolves from the repo root, for everything that reads from there rather than
+// from a workspace. Declaring the module at the root is what turns that
+// question into the one this file answers.
 //
 // Reads package-lock.json rather than node_modules/ on purpose: the lockfile is
 // what `npm ci` will install on every machine and in CI, so the assertion holds
