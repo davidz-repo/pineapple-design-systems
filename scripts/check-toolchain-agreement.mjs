@@ -251,10 +251,9 @@ function readDeclaredRanges(relPath, manifest) {
   if (unreadable.length > 0) {
     fail(
       relPath,
-      `declares ${unreadable.length} \`${FIELD}\` range(s) that are not strings:\n`
-      + unreadable
+      `declares ${unreadable.length} \`${FIELD}\` range(s) that are not strings:\n${unreadable
         .map(([name, range]) => `           ${name}: ${JSON.stringify(range)}`)
-        .join('\n'),
+        .join('\n')}`,
       'state each range as the string npm reads — `"^1.2.3"`, `"~1.2.3"`, `"*"`. This guard '
       + 'compares range strings for identity, and a range of another type is reported rather '
       + 'than stringified: `5` and `"5"` would compare as a DISAGREEMENT and then print as the '
@@ -481,8 +480,8 @@ for (const [name, list] of shared) {
   // states — because `"~5.7.2 "` and `"~5.7.2"` are a disagreement it reports
   // and print as the same characters without it.
   const camps = groups
-    .map(([range, staters]) => `           ${JSON.stringify(range)} (${staters.length}): `
-      + staters.join(', '))
+    .map(([range, staters]) => `           ${JSON.stringify(range)} (${staters.length}): ${
+      staters.join(', ')}`)
     .join('\n');
 
   const majority = formatMajorityClause(groups, list.length);
