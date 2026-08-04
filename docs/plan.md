@@ -74,6 +74,28 @@ fails. What reading `dist/` buys is **visibility**: the count of stylesheets sca
 guard's pass line drops, so the loss is legible there instead of arriving as a clean scan of
 nothing.
 
+The rule has a **placement** half too, and it is the one none of those five assertions asks about.
+A module that any workspace declares in `peerDependencies` is consumer-supplied by definition, so
+it may appear in **no publishable workspace's `dependencies`**. Assertion D is satisfied by either
+field — its subject is a module declared *nowhere*, and for that question "peer or dependency" is
+the right reading — so misfiling `react` as a dependency passes all five while npm installs a
+second React into the consumer's tree: the broken-hooks failure this section opens with, landing
+in the consumer's stack trace rather than in any build here.
+
+It hides best in a **JSX-free** package. The JSX reading above is what puts `react` in front of the
+assertions for the eleven wrappers that never name it; a hooks-only package like
+`use-local-storage` emits no `jsx-runtime` import at all, so there is nothing there for that
+reading to flag and a misfiled entry passes as a satisfied declaration.
+`scripts/check-peer-placement.mjs` is the guard, and it is **list-free** the way `check-token-drift`
+is: no module names are written into it, and "is anyone's peer" is derived from the manifests on
+every run, so a module joins the rule by being declared a peer somewhere rather than by an edit
+there. It reads manifests only, so it runs before the build. A workspace dependency in
+`dependencies` stays legal exactly while nobody declares it a peer — which is why
+`@pineappleui/theme` depending on `@pineappleui/tokens` is not a finding, and why the day any
+package declares `tokens` a peer the same manifests make that entry a failure. Private workspaces'
+`dependencies` are out of scope for the same reason they may hold `react` today —
+`vitest-preset` does — since nothing of theirs reaches a consumer.
+
 ### 4. ESM only
 
 `"type": "module"`, `format: ['esm']`, output forced to `.mjs` via `outExtension` so that

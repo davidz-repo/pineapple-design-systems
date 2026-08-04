@@ -151,6 +151,18 @@ jobs:
       - name: Check every ref-forwarding package tests its ref
         run: node scripts/check-ref-tests.mjs
 
+      # The last of the pre-build guards, and the cheapest: it reads one
+      # package.json per workspace and nothing else — no dist/, no sources — so
+      # there is nothing for the build to produce that it needs. Placed here for
+      # the same reason as the four above: the drift it catches makes the steps
+      # below MEAN less. A module some package declares a peer, sitting in a
+      # publishable package's `dependencies`, ships a second React into the
+      # consumer's tree — and every step after this one is green over it, because
+      # the package builds, its tests import src/, and the peer/external guard's
+      # assertion D accepts a dependency exactly as happily as a peer.
+      - name: Check no peer module is misfiled as a dependency
+        run: node scripts/check-peer-placement.mjs
+
       # No --filter: every workspace, every task. This is the line that makes a
       # newly added package covered without touching this file.
       #
