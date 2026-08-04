@@ -100,6 +100,12 @@ import { listWorkspaceDirs } from './workspace-globs.mjs';
 const LOCKFILE = 'package-lock.json';
 const TOP_SLOT_PREFIX = 'node_modules/';
 
+// The guard on the other side of the outcome/intent line, named in the fix that
+// changes a ROOT range: the root is one of its declarers, so a range edited
+// here alone is a disagreement there for every module another manifest declares
+// too.
+const AGREEMENT_GUARD = 'check-toolchain-agreement';
+
 // Ranges this guard evaluates. Deliberately a closed set, and deliberately not
 // `semver` from node_modules: that package is a transitive here, and reaching
 // for an undeclared one inside the guard against undeclared dependencies is not
@@ -340,7 +346,12 @@ for (const [name, range] of rootDeclared) {
       + `another package's harder requirement has captured the top slot and every workspace `
       + `is now building and testing against ${name}@${entry.version} — silently, because a `
       + 'hoisted downgrade breaks no install and fails no test. Either raise that package, '
-      + `or pin the root range so npm nests the intruder's copy under it instead.`,
+      + `or pin the root range so npm nests the intruder's copy under it instead — and if any `
+      + `other manifest declares ${name} too, that second edit is not root-only: `
+      + `\`${AGREEMENT_GUARD}\` compares the range STRING across every manifest declaring a `
+      + 'module, so the range you pin has to be written into each of them. It will report the '
+      + 'range they hold today as the majority, which is the one this fix is deliberately '
+      + 'leaving.',
     );
     continue;
   }
