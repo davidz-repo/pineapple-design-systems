@@ -362,9 +362,9 @@ for (const workspace of workspaces) {
         + 'the copy this package brings is the one its own imports resolve to and the '
         + 'consumer\'s copy sits beside it — which is the duplicate the peer entry was written '
         + 'to prevent, with a line in the manifest that reads as preventing it. Delete the '
-        + `\`${field}\` entry if the consumer supplies it (and list \`${name}\` in `
-        + `${TSUP_CONFIG}'s \`${EXTERNAL_FIELD}\`); delete the peer entry, in a commit that says `
-        + 'why, if this package must own its copy.',
+        + `\`${field}\` entry if the consumer supplies it (and, if this package builds a \`dist/\`, `
+        + `list \`${name}\` in ${TSUP_CONFIG}'s \`${EXTERNAL_FIELD}\`); delete the peer entry, in a `
+        + 'commit that says why, if this package must own its copy.',
       );
     }
   }
