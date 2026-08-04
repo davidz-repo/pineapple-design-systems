@@ -501,10 +501,11 @@
 }
 
 /* Same surface as an example canvas, and for the same reason — see
-   `.example-canvas`. The preview is the one box on the page whose contents are
-   a component rather than the site's own chrome. */
+   `.example-canvas`, including why it is --gray-2 and not --color-panel-solid.
+   The preview is the one box on the page whose contents are a component rather
+   than the site's own chrome. */
 .playground-preview {
-  background: var(--color-panel-solid);
+  background: var(--gray-2);
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
   min-height: 160px;
@@ -680,11 +681,15 @@
 
 /* A canvas is a surface, not a hole in the page: solid, so a component with a
    translucent or `--color-panel` background of its own (Card, TextField) has
-   something to sit on and reads the same here as in an app. Both appearances
-   come free — --color-panel-solid is white in light and --gray-2 in dark. The
-   dashed border it replaced said "drop zone"; a surface says "this is running". */
+   something to sit on and reads the same here as in an app. The dashed border
+   it replaced said "drop zone"; a surface says "this is running".
+
+   --gray-2, not --color-panel-solid: that variable is --gray-2 in dark but
+   plain white in light, which is exactly --color-background — so in light
+   appearance the "surface" was the page, and the canvas was the hole it was
+   drawn not to be. --gray-2 is a step off the page in both. */
 .example-canvas {
-  background: var(--color-panel-solid);
+  background: var(--gray-2);
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
   overflow-x: auto;
