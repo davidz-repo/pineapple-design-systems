@@ -211,7 +211,7 @@ export function Playground({ story, entry }: PlaygroundProps) {
           </div>
         </section>
       </div>
-      <CodeBlock code={prependImports(snippet(args))} />
+      <CodeBlock code={prependImports(snippet(args))} language="tsx" />
     </Stack>
   );
 }

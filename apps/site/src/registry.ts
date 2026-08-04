@@ -31,6 +31,24 @@ export const CATEGORIES: readonly Category[] = [
   'Hooks',
 ];
 
+/**
+ * The Radix Themes documentation for the component a package wraps — the one
+ * fact about a wrapper that nothing else in the repo records. `@radix-ui/themes`
+ * in peerDependencies says a package wraps SOMETHING; only this says what, and
+ * the mapping is not the slug (Stack and Inline are both Flex, and Theme is
+ * documented as a section rather than a component).
+ *
+ * `path` is relative to Radix's docs root and is never a full URL — the URL is
+ * built in packageLinks.ts, so the host appears once in this repo.
+ * registry.test.ts fails when a package peers on Radix Themes without this.
+ */
+export interface RadixReference {
+  /** What Radix calls it, for the link's label. */
+  name: string;
+  /** Path under `https://www.radix-ui.com/themes/docs/`. */
+  path: string;
+}
+
 export interface RegistryEntry {
   /** Directory name under packages/ — also the route segment. */
   slug: string;
@@ -40,6 +58,7 @@ export interface RegistryEntry {
   /** One home-card / sidebar sentence. */
   blurb: string;
   snippet?: (args: Record<string, unknown>) => string;
+  radix?: RadixReference;
 }
 
 export const REGISTRY: readonly RegistryEntry[] = [
@@ -48,6 +67,9 @@ export const REGISTRY: readonly RegistryEntry[] = [
     name: 'Theme',
     category: 'Foundation',
     blurb: 'Theme providers, the stylesheet, and the first-paint script.',
+    // A section of Radix's docs rather than a component page: what this package
+    // wraps is the <Theme> the whole appearance/accent system is configured on.
+    radix: { name: 'Theme', path: 'theme/overview' },
   },
   {
     slug: 'tokens',
@@ -61,6 +83,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Layout',
     blurb: 'The primitive container, with padding and sizing props.',
     snippet: ({ content, ...rest }) => jsxSnippet('Box', rest, String(content ?? '')),
+    radix: { name: 'Box', path: 'components/box' },
   },
   {
     slug: 'stack',
@@ -68,6 +91,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Layout',
     blurb: 'Vertical layout: a flex column with a gap scale.',
     snippet: args => jsxSnippet('Stack', args, '{/* items */}'),
+    radix: { name: 'Flex', path: 'components/flex' },
   },
   {
     slug: 'inline',
@@ -75,6 +99,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Layout',
     blurb: 'Horizontal layout: a wrapping flex row with a gap scale.',
     snippet: args => jsxSnippet('Inline', args, '{/* items */}'),
+    radix: { name: 'Flex', path: 'components/flex' },
   },
   {
     slug: 'card',
@@ -82,6 +107,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Layout',
     blurb: 'A padded surface for grouping related content.',
     snippet: ({ content, ...rest }) => jsxSnippet('Card', rest, String(content ?? '')),
+    radix: { name: 'Card', path: 'components/card' },
   },
   {
     slug: 'heading',
@@ -89,6 +115,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Typography',
     blurb: 'Section headings, size defaulted per level.',
     snippet: ({ text, ...rest }) => jsxSnippet('Heading', rest, String(text ?? '')),
+    radix: { name: 'Heading', path: 'components/heading' },
   },
   {
     slug: 'text',
@@ -96,6 +123,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Typography',
     blurb: 'Body copy with size, weight and color props.',
     snippet: ({ text, ...rest }) => jsxSnippet('Text', rest, String(text ?? '')),
+    radix: { name: 'Text', path: 'components/text' },
   },
   {
     slug: 'button',
@@ -103,6 +131,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Forms & actions',
     blurb: 'The action trigger, in six variants.',
     snippet: ({ label, ...rest }) => jsxSnippet('Button', rest, String(label ?? '')),
+    radix: { name: 'Button', path: 'components/button' },
   },
   {
     slug: 'icon-button',
@@ -114,6 +143,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
       { 'aria-label': 'Copy', ...args },
       '<Icon name="copy" />',
     ),
+    radix: { name: 'IconButton', path: 'components/icon-button' },
   },
   {
     slug: 'text-field',
@@ -121,6 +151,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Forms & actions',
     blurb: 'Single-line input: a Root with optional Slots.',
     snippet: args => jsxSnippet('TextField.Root', args),
+    radix: { name: 'TextField', path: 'components/text-field' },
   },
   {
     slug: 'text-area',
@@ -128,6 +159,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Forms & actions',
     blurb: 'Multi-line text input.',
     snippet: args => jsxSnippet('TextArea', args),
+    radix: { name: 'TextArea', path: 'components/text-area' },
   },
   {
     slug: 'badge',
@@ -135,6 +167,7 @@ export const REGISTRY: readonly RegistryEntry[] = [
     category: 'Feedback',
     blurb: 'An inline label for statuses and counts.',
     snippet: ({ label, ...rest }) => jsxSnippet('Badge', rest, String(label ?? '')),
+    radix: { name: 'Badge', path: 'components/badge' },
   },
   {
     slug: 'live-region',

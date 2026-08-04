@@ -343,6 +343,13 @@
 .site-main {
   min-width: 0;
   padding: var(--space-6) var(--space-6) var(--space-9);
+  /* A stacking context of its own, so a z-index set INSIDE the page (the
+     package tab strip, which has to sit above the code blocks it scrolls past)
+     is settled here and never against the header or the mobile nav panel.
+     `isolation`, not `transform` or `contain`: those would also make this the
+     containing block for the sticky elements inside it, which would pin them
+     to this box instead of to the viewport. */
+  isolation: isolate;
 }
 
 .site-page {
@@ -388,6 +395,7 @@
 .site-menu-trigger:focus-visible,
 .site-sidebar-link:focus-visible,
 .site-footer-link:focus-visible,
+.package-link:focus-visible,
 .markdown a:focus-visible {
   outline: 2px solid var(--focus-8);
   outline-offset: 2px;
@@ -695,8 +703,13 @@
   min-height: var(--space-5);
 }
 
+/* Same surface as an example canvas, and for the same reason — see
+   `.example-canvas`, including why it is --gray-2 and not --color-panel-solid.
+   The preview is the one box on the page whose contents are a component rather
+   than the site's own chrome. */
 .playground-preview {
-  border: 1px dashed var(--site-border);
+  background: var(--gray-2);
+  border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
   background: var(--site-panel);
   min-height: 160px;
@@ -769,13 +782,129 @@
   outline-offset: -1px;
 }
 
+/* ---- Package page ---------------------------------------------------- */
+
+/* The row of "where to next" links under the package title. Styled like the
+   header's link — same padding, same hover — because it is the same kind of
+   thing: chrome around the page rather than prose inside it. */
+.package-link {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2);
+  color: var(--gray-11);
+  text-decoration: none;
+  font-size: var(--font-size-2);
+  line-height: var(--line-height-2);
+}
+
+.package-link:hover {
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+
+/* The tab strip follows the reader down the page. The Overview is the examples
+   AND the README now — around four screens on a component with a few stories —
+   and a strip that lives only at the top means scrolling back up to change tab
+   and back down to carry on reading. Offset by the header's own token, so it
+   parks directly under it at both breakpoints and at any Radix --scaling.
+
+   Opaque, because content scrolls beneath it. The z-index is settled inside
+   `.site-main`'s stacking context (see there): it is above the code blocks and
+   canvases it passes — which are positioned, so document order alone would put
+   them over it — and cannot reach the header or the mobile nav panel. */
+.package-tabs {
+  position: sticky;
+  top: var(--site-header-h);
+  z-index: 1;
+  background: var(--color-background);
+}
+
+/* A tab whose content is still loading. React holds the tab you are on until
+   the next one can draw (see TabLink.tsx), so without this the click has no
+   visible effect at all on a cold cache. Colour is not the signal — the cursor
+   and the fade are, and `aria-busy` on the same element is the announced half. */
+.site-tab-link[data-pending] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ---- Loading skeletons ----------------------------------------------- */
+
+/* Bars in the shape of the content that replaces them, so the page holds its
+   height while a tab loads instead of collapsing and springing back. */
+.tab-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.skeleton-line,
+.skeleton-tabs {
+  display: block;
+  border-radius: var(--radius-2);
+  background: var(--gray-a3);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-line {
+  height: var(--space-4);
+}
+
+/* Ragged, like prose: three identical bars read as a table, not a paragraph. */
+.skeleton-line:nth-child(even) {
+  width: 92%;
+}
+
+.skeleton-line:last-child {
+  width: 64%;
+}
+
+/* The tab strip's own row, on the first load of a package page — the strip
+   waits on the same import its content does. Matches the strip's height so
+   nothing shifts a row when the real tabs arrive. */
+.skeleton-tabs {
+  height: var(--space-6);
+  width: 18rem;
+  margin-bottom: var(--space-2);
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* A pulse is decoration; for a reader who asked for less motion it is a page
+   that will not sit still. The bars stay, the animation goes. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line,
+  .skeleton-tabs {
+    animation: none;
+  }
+}
+
 /* ---- Examples -------------------------------------------------------- */
 
+/* A canvas is a surface, not a hole in the page: solid, so a component with a
+   translucent or `--color-panel` background of its own (Card, TextField) has
+   something to sit on and reads the same here as in an app. The dashed border
+   it replaced said "drop zone"; a surface says "this is running".
+
+   --gray-2, not --color-panel-solid: that variable is --gray-2 in dark but
+   plain white in light, which is exactly --color-background — so in light
+   appearance the "surface" was the page, and the canvas was the hole it was
+   drawn not to be. --gray-2 is a step off the page in both. */
 .example-canvas {
-  border: 1px dashed var(--site-border);
+  background: var(--gray-2);
+  border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
   background: var(--site-panel);
   overflow-x: auto;
+}
+
+/* The per-example error boundary's fallback (ExamplesSection.tsx). It is prose,
+   not a story, so it brings the padding the stories bring themselves. */
+.example-canvas-failed {
+  padding: var(--space-4);
 }
 
 /* ---- Home ------------------------------------------------------------ */
@@ -785,11 +914,10 @@
 }
 
 /* The hero's "Browse components" CTA is an in-page href and the header is
-   sticky, so the jump has to clear it or it lands under the chrome. The offset
-   is the header token itself — the same one .site-sidebar offsets by — not the
-   57px literal that used to sit here: that figure was never the rendered
-   height (49px at --scaling 100%), and being a literal it could not follow the
-   breakpoint that makes the mobile header taller either. */
+   sticky, so the jump has to clear it or it lands under the chrome. The token
+   .site-shell defines is inherited here, which is what makes this follow the
+   breakpoint's taller header and Radix's --scaling; the 57px it replaced was
+   neither and put the heading under the header on a phone. */
 .home-components {
   scroll-margin-top: calc(var(--site-header-h) + var(--space-4));
 }

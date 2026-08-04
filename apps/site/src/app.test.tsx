@@ -1,14 +1,17 @@
-import type { ReactNode } from 'react';
-
 import { act } from 'react';
 
-import { DesignSystemProvider, ThemePreferencesProvider } from '@pineappleui/theme';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, useNavigate } from 'react-router';
+import { fireEvent, screen, within } from '@testing-library/react';
+import { useNavigate } from 'react-router';
 
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-import { App } from './App';
+import {
+  expectTitle,
+  findTabLink,
+  findTabStrip,
+  renderApp as renderAt,
+  SUSPENSE_TIMEOUT,
+} from './test-helpers';
 
 // The preset's setup file registers the jest-dom matchers at runtime; this
 // side-effect import is what puts their types on vitest's `Assertion`.
@@ -17,32 +20,9 @@ import '@testing-library/jest-dom/vitest';
 // Render-level smoke tests: the same provider tree main.tsx mounts, on a
 // memory router. These exercise the real pipeline — registry -> routes ->
 // story/README globs -> Suspense — so a page that would crash in the browser
-// fails here first.
-//
-// The render is wrapped in an awaited `act`: package pages suspend on their
-// story/markdown imports, and React 19 only retries a suspended tree once
-// the async act scope has flushed.
-
-// Every wait that depends on a lazily imported story module or README is given
-// this ceiling instead of testing-library's 1000ms default. Those are real
-// dynamic imports of modules outside this workspace, and they have missed the
-// default twice on a loaded CI runner while never missing it locally. A
-// generous ceiling costs nothing when the module resolves in milliseconds,
-// which is what every passing run does.
-const SUSPENSE_TIMEOUT = { timeout: 10_000 };
-
-// Clicking a link is not the same as arriving. React Router runs navigation
-// inside `startTransition`, so a route whose content suspends (a package tab
-// loading its stories or CHANGELOG) does not commit on the click — the old
-// location stays until the import resolves. Post-navigation assertions
-// therefore go through `waitFor`, which is also what keeps them honest on a
-// slow runner. Asserting straight after the click reads the PREVIOUS page and
-// can pass for the wrong reason.
-async function expectTitle(title: string) {
-  await waitFor(() => {
-    expect(document.title).toBe(title);
-  }, SUSPENSE_TIMEOUT);
-}
+// fails here first. What the package page does with its tabs, examples and
+// links has its own file next to it; test-helpers.tsx holds the render and the
+// waits both files use.
 
 // jsdom has no layout, so its `window.scrollTo` is an unimplemented stub that
 // logs on every call. Replacing it silences that and makes the shell's
@@ -57,21 +37,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-
-async function renderAt(path: string, extra?: ReactNode) {
-  await act(async () => {
-    render(
-      <ThemePreferencesProvider>
-        <DesignSystemProvider>
-          <MemoryRouter initialEntries={[path]}>
-            <App />
-            {extra}
-          </MemoryRouter>
-        </DesignSystemProvider>
-      </ThemePreferencesProvider>,
-    );
-  });
-}
 
 // A real history POP for the tests that need one. MemoryRouter's history is
 // synchronous, so this is a genuine back navigation without waiting on
@@ -97,17 +62,20 @@ it('renders the home page with a card per registry entry', async () => {
   expect(screen.getByText('The action trigger, in six variants.')).toBeInTheDocument();
 });
 
-it('renders a package page: header, tabs, README overview', async () => {
+it('renders a package page: header, tabs, examples then README', async () => {
   await renderAt('/components/button');
   expect(screen.getByRole('heading', { name: 'Button', level: 1 })).toBeInTheDocument();
   // Tabs appear once the story module resolves; Playground only exists
-  // because the button story exports one. Regex names: TabNav.Link renders
-  // its label a second time in a measurement span that is not aria-hidden,
-  // so the accessible name is the label doubled.
-  expect(await screen.findByRole('link', { name: /Playground/ }, SUSPENSE_TIMEOUT))
+  // because the button story exports one.
+  expect(await findTabLink(/Playground/)).toBeInTheDocument();
+  // Examples are no longer a tab: they open the Overview.
+  expect(within(await findTabStrip()).queryByRole('link', { name: /Examples/ }))
+    .not
     .toBeInTheDocument();
-  expect(screen.getByRole('link', { name: /Examples/ })).toBeInTheDocument();
-  // The README (Overview tab) renders through the markdown pipeline.
+  expect(await screen.findByRole('heading', { name: 'Examples' }, SUSPENSE_TIMEOUT))
+    .toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Variants', level: 3 })).toBeInTheDocument();
+  // The README follows, through the markdown pipeline.
   expect(await screen.findByText('What it exports', undefined, SUSPENSE_TIMEOUT))
     .toBeInTheDocument();
 });
@@ -119,16 +87,23 @@ it('renders the playground with controls and a JSX snippet', async () => {
   expect(await screen.findByLabelText('variant', undefined, SUSPENSE_TIMEOUT))
     .toBeInTheDocument();
   expect(screen.getByLabelText('label')).toBeInTheDocument();
-  // The snippet reflects the story defaults: label becomes children.
-  expect(screen.getByText(/<Button/)).toBeInTheDocument();
+  // The snippet reflects the story defaults: label becomes children. Read off
+  // the elements because they are highlighted — every token is its own span —
+  // and the install line is a code block on this page too.
+  const codeBlocks = Array.from(document.querySelectorAll('.code-block pre'))
+    .map(block => block.textContent);
+  expect(codeBlocks).toContainEqual(expect.stringContaining('<Button variant="solid"'));
+  expect(codeBlocks).toContainEqual(expect.stringContaining('Click me</Button>'));
 });
 
-it('omits Examples and Playground tabs for a package with no stories', async () => {
+it('omits the Playground tab for a package with no stories', async () => {
   await renderAt('/components/tokens');
-  expect(await screen.findByRole('link', { name: /Versions/ }, SUSPENSE_TIMEOUT))
+  expect(await findTabLink(/Changelog/)).toBeInTheDocument();
+  expect(within(await findTabStrip()).queryByRole('link', { name: /Playground/ }))
+    .not
     .toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /Playground/ })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: /Examples/ })).not.toBeInTheDocument();
+  // No stories, so the Overview is the README and nothing else.
+  expect(screen.queryByRole('heading', { name: 'Examples' })).not.toBeInTheDocument();
 });
 
 it('shows the not-found page for an unknown package', async () => {
@@ -161,15 +136,15 @@ it('retitles the document per page and per tab', async () => {
   });
   await expectTitle('Button — Pineapple UI');
 
-  // A tab is not a new page, but it is a new history entry — four of them
-  // reading "Button — Pineapple UI" is four entries nobody can tell apart.
+  // A tab is not a new page, but it is a new history entry — three of them
+  // reading "Button — Pineapple UI" is three entries nobody can tell apart.
   await act(async () => {
-    fireEvent.click(await screen.findByRole('link', { name: /Versions/ }, SUSPENSE_TIMEOUT));
+    fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button versions — Pineapple UI');
+  await expectTitle('Button changelog — Pineapple UI');
 
   await act(async () => {
-    fireEvent.click(screen.getByRole('link', { name: /Playground/ }));
+    fireEvent.click(await findTabLink(/Playground/));
   });
   await expectTitle('Button playground — Pineapple UI');
 
@@ -195,9 +170,9 @@ it('scrolls to the top and focuses the main region on a page change only', async
   // statement about a navigation that happened, not about one that did not.
   scrollTo.mockClear();
   await act(async () => {
-    fireEvent.click(await screen.findByRole('link', { name: /Examples/ }, SUSPENSE_TIMEOUT));
+    fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button examples — Pineapple UI');
+  await expectTitle('Button changelog — Pineapple UI');
   expect(scrollTo).not.toHaveBeenCalled();
 });
 
