@@ -98,6 +98,17 @@ package declares `tokens` a peer the same manifests make that entry a failure. P
 `dependencies` are out of scope for the same reason they may hold `react` today —
 `vitest-preset` does — since nothing of theirs reaches a consumer.
 
+Their `peerDependencies` are **not** out of scope, and the asymmetry is deliberate. Every peer
+entry in the repo enters the union, private declarers included, so `eslint` (a peer of the private
+`eslint-config`) and `vitest` (a peer of the private `vitest-preset`) are in it — and for those two
+the "consumer" is *this repo*, not anyone installing a package from here. The union therefore
+over-approximates: it reads some peer entries as claims about a consumer that were not written as
+one. Narrowing it would mean the guard deciding which sense each peer entry carries, and the two
+mistakes are different sizes — a wrong exclusion ships a second React into someone else's tree and
+surfaces in their stack trace, a wrong inclusion prints a failure here that a human resolves in one
+commit. So the guard prefers the loud false positive, and its failure message says so explicitly
+when every workspace declaring the module a peer is private.
+
 ### 4. ESM only
 
 `"type": "module"`, `format: ['esm']`, output forced to `.mjs` via `outExtension` so that

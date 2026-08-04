@@ -87,9 +87,19 @@
 // Three assertions, and each failure names the module, the manifest and the fix:
 //
 //   1. UNION — every name any workspace declares in `peerDependencies`, private
-//      workspaces included, together with who declares it. A private workspace's
-//      peer is as much a statement that the consumer supplies the module as a
-//      publishable one's.
+//      workspaces included, together with who declares it. Including the private
+//      ones OVER-APPROXIMATES, and deliberately so: `eslint` is a peer of the
+//      private `eslint-config` and `vitest` a peer of the private
+//      `vitest-preset`, and the "consumer" supplying those two is this repo, not
+//      anybody installing a package from it. Reading every peer entry as a claim
+//      about a consumer is therefore false for some of them. Narrowing the union
+//      to publishable declarers would mean this file deciding which sense each
+//      peer entry was written in, and the two mistakes are not the same size: a
+//      wrong exclusion ships a second React into someone else's tree and
+//      surfaces in their stack trace, a wrong inclusion prints a failure here
+//      that a human reads and resolves in one commit. The guard takes the loud
+//      false positive, and assertion 2's fix names that case when every declarer
+//      is private.
 //   2. MISFILED — no publishable workspace lists a name from that union in
 //      either field npm installs, `dependencies` or `optionalDependencies`. The
 //      failure names WHICH of the two it was found in, because that is the line
@@ -350,6 +360,35 @@ for (const workspace of workspaces) {
   }
 }
 
+/**
+ * The third remedy, offered only when EVERY workspace declaring the module a
+ * peer is private — the case where the union's over-approximation is the likely
+ * cause of the failure rather than the misfiling is.
+ *
+ * A private package's peer can mean "this repo supplies it" rather than "a
+ * consumer does": `eslint` is a peer of `@pineappleui/eslint-config` and
+ * `vitest` of `@pineappleui/vitest-preset` in exactly that sense. This guard
+ * cannot tell the two senses apart from a manifest, so it includes them and says
+ * so here rather than guessing quietly in the other direction.
+ *
+ * @param {string} name the module
+ * @param {{ isPublishable: boolean }[]} declarers the workspaces declaring it a peer
+ * @returns {string} empty when any declarer is publishable
+ */
+function privatePeerCaveat(name, declarers) {
+  if (declarers.some(declarer => declarer.isPublishable))
+    return '';
+
+  return ' Third possibility, and this failure is in it: every workspace naming '
+    + `\`${name}\` a peer above is PRIVATE, and a private package's peer can mean "this repo `
+    + 'supplies it" rather than "a consumer does" — `eslint` and `vitest` are peers in that '
+    + 'sense. If that is what is happening here, this entry is legitimate and no manifest is the '
+    + `thing to edit: the guard printing this is, at scripts/${GUARD_NAME}.mjs, where the union `
+    + 'is built from every declarer on purpose — guessing the other way ships a second copy into '
+    + 'a consumer\'s tree — so change it in a commit that says which sense those peer entries '
+    + 'were written in.';
+}
+
 // ---------------------------------------------------------------------------
 // Assertion 2 — a peer of anyone, in a field anything published installs.
 // ---------------------------------------------------------------------------
@@ -375,7 +414,8 @@ for (const workspace of publishable) {
         + 'their tree beside the one they already have. For `react` that is two module registries '
         + 'and two sets of hook state — an "invalid hook call" in the consumer\'s app, in their '
         + 'stack trace, nowhere near this commit. If this package genuinely must own its own '
-        + 'copy, the peer declarations above are what to change, in a commit that argues it.',
+        + 'copy, the peer declarations above are what to change, in a commit that argues it.'
+        + `${privatePeerCaveat(name, declarers)}`,
       );
     }
   }
