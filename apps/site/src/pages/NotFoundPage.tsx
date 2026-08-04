@@ -11,7 +11,7 @@ export function NotFoundPage() {
       <Text as="p" size="3">
         Nothing lives at this address. Head back to the
         {' '}
-        <Link to="/">component overview</Link>
+        <Link to="/">home page</Link>
         .
       </Text>
     </Stack>

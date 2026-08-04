@@ -5,18 +5,63 @@
 /* ---- App shell ------------------------------------------------------- */
 
 .site-shell {
+  /* The header's own box, expressed in the scale it is actually built from:
+     two --space-3 paddings, one --space-5 line box and the bottom border.
+     The 57px this replaced was never the rendered height (~49px at the
+     default scaling) and it could not follow Radix's --scaling at all, so the
+     sticky sidebar sat in the wrong place at every scale including 100%. */
+  --site-header-h: calc(var(--space-3) * 2 + var(--space-5) + 1px);
+
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
-  grid-template-rows: auto 1fr;
-  min-height: 100vh;
+  /* header / content / footer. minmax(0, 1fr) rather than 1fr so a wide code
+     block in the main column cannot stretch the row past the viewport. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100dvh;
+}
+
+/* Off-screen until focused, then the first thing a keyboard visitor sees. */
+.site-skip-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.site-skip-link:focus {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 3;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow: visible;
+  clip-path: none;
+  border-radius: var(--radius-2);
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+  font-size: var(--font-size-2);
+  text-decoration: none;
 }
 
 .site-header {
   grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  /* min-height, not height: a viewport narrow enough to wrap the brand off
+     the controls' row makes the header taller, and a fixed height would clip
+     that row rather than show it. The sticky offsets below stay exact for the
+     one-row case, which is every case the breakpoint rules leave. */
+  min-height: var(--site-header-h);
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--gray-a5);
   position: sticky;
@@ -33,13 +78,49 @@
   color: inherit;
 }
 
+/* The menu disclosure is a mobile affordance only; ≥860px the sidebar is
+   always on screen and the trigger would control nothing. Likewise the
+   appearance cycler: desktop keeps the three-way segmented control. Both are
+   turned back on inside the breakpoint below, so they stay declared before
+   it — a later rule of equal specificity would win. */
+.site-menu-trigger,
+.site-appearance-cycle {
+  display: none;
+}
+
+/* For labels that a sighted reader gets from context (the filter's
+   placeholder) but that still need a real <label> in the a11y tree. */
+.site-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .site-sidebar {
   border-right: 1px solid var(--gray-a5);
   padding: var(--space-4);
   overflow-y: auto;
   position: sticky;
-  top: 57px;
-  max-height: calc(100vh - 57px);
+  top: var(--site-header-h);
+  max-height: calc(100dvh - var(--site-header-h));
+}
+
+.site-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-nav-group-label {
+  padding: 0 var(--space-2);
 }
 
 .site-sidebar-link {
@@ -57,9 +138,15 @@
   color: var(--gray-12);
 }
 
+/* --accent-12, not --accent-11: over `--accent-a3` on `--color-background`,
+   step 11 measures 4.11:1 (teal) and 3.99:1 (orange) in light appearance —
+   under 4.5:1 for the one link on the page that has to read as *where you
+   are*. Step 12 clears it for every accent in both appearances (worst case
+   10.28:1). Radix's step-11 contrast promise is against steps 1-2, and this
+   link paints a step-3 surface behind it. */
 .site-sidebar-link.active {
   background: var(--accent-a3);
-  color: var(--accent-11);
+  color: var(--accent-12);
   font-weight: var(--font-weight-medium);
 }
 
@@ -73,16 +160,80 @@
   margin: 0 auto;
 }
 
+.site-footer {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--gray-a5);
+  padding: var(--space-4) var(--space-5);
+}
+
+.site-footer-link {
+  color: inherit;
+  text-decoration-color: var(--gray-a8);
+  text-underline-offset: 2px;
+}
+
+.site-footer-link:hover,
+.site-footer-link:focus-visible {
+  color: var(--gray-12);
+  text-decoration-color: currentcolor;
+}
+
+/* One focus ring for the shell's own interactive classes. Radix's components
+   bring their own; these are the plain elements this file styles. */
+.site-skip-link:focus-visible,
+.site-header-brand:focus-visible,
+.site-menu-trigger:focus-visible,
+.site-sidebar-link:focus-visible,
+.site-footer-link:focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 2px;
+}
+
 @media (max-width: 860px) {
   .site-shell {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .site-menu-trigger {
+    display: inline-flex;
+  }
+
+  /* The sidebar becomes the disclosure panel the header's Menu button opens:
+     out of flow (so `.site-main` keeps the 1fr row instead of being pushed
+     into an implicit one) and anchored under the sticky header. */
   .site-sidebar {
-    position: static;
-    max-height: none;
+    position: fixed;
+    top: var(--site-header-h);
+    left: 0;
+    right: 0;
+    z-index: 1;
+    max-height: calc(100dvh - var(--site-header-h));
+    background: var(--color-background);
     border-right: none;
     border-bottom: 1px solid var(--gray-a5);
+    box-shadow: var(--shadow-4);
+  }
+
+  .site-sidebar[data-open='false'] {
+    display: none;
+  }
+
+  .site-main {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  /* Header chrome that does not survive a 390px viewport: the badge is
+     decoration, the appearance segments become one cycling button, and the
+     accent trigger keeps its swatch (and its label) without the color name. */
+  .site-docs-badge,
+  .site-appearance-segments,
+  .site-accent-name {
+    display: none;
+  }
+
+  .site-appearance-cycle {
+    display: inline-flex;
   }
 }
 
@@ -92,9 +243,18 @@
   overflow-wrap: break-word;
 }
 
+/* --accent-a6 is a border alpha: as an underline it renders as a hairline
+   nobody can see, which is the same as prose links having no affordance
+   beyond color. a8 is the visible end of the same ramp. */
 .markdown a {
   color: var(--accent-11);
-  text-decoration-color: var(--accent-a6);
+  text-decoration-color: var(--accent-a8);
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover,
+.markdown a:focus-visible {
+  text-decoration-color: currentcolor;
 }
 
 .markdown code {
