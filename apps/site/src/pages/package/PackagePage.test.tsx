@@ -274,6 +274,18 @@ describe('tabs', () => {
     expect(tab).toHaveClass('site-tab-link');
   });
 
+  it('keeps the strip reachable from anywhere down the page', async () => {
+    await renderApp('/components/button');
+
+    // The Overview is examples AND README — several screens — so the strip
+    // sticks under the site header instead of living only at the top. jsdom has
+    // no layout to measure that with; what a test can hold is that the strip is
+    // inside the box the sticky rule addresses. Radix puts a className on
+    // TabNav.Root's inner LIST, so the box is a wrapper — and a wrapper is
+    // exactly the kind of thing a later edit dissolves without noticing.
+    expect((await findTabStrip()).closest('.package-tabs')).not.toBeNull();
+  });
+
   it('calls the changelog tab Changelog, and routes it there', async () => {
     await renderApp('/components/button/changelog');
     const tabs = within(await findTabStrip());

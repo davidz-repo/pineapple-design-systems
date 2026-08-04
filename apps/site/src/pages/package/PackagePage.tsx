@@ -55,20 +55,29 @@ function PackageContent({ entry }: { entry: RegistryEntry }) {
 
   return (
     <Stack gap="4">
-      {/* Named, because it is the third <nav> on this page (the sidebar and the
-          link row are the others) and "Main" — what Radix's NavigationMenu
-          labels itself by default — describes none of them. */}
-      <TabNav.Root aria-label="Package tabs">
-        {tabs.map(tab => (
-          <TabLink
-            key={tab.segment}
-            to={tabPath(entry.slug, tab.segment)}
-            isActive={tail === tab.segment}
-          >
-            {tab.label}
-          </TabLink>
-        ))}
-      </TabNav.Root>
+      {/* The strip's own box, and the one that sticks (site.css): the merged
+          Overview runs about four screens, and a tab row that exists only at
+          the top of it is a scroll up to reach and a scroll back to carry on.
+          A wrapper rather than a className on TabNav.Root, because Radix puts
+          that className on the LIST inside the <nav> — a sticky box there could
+          only stick within a container its own height, i.e. not at all.
+
+          The <nav> is named because it is the third on this page (the sidebar
+          and the link row are the others) and "Main" — what Radix's
+          NavigationMenu labels itself by default — describes none of them. */}
+      <div className="package-tabs">
+        <TabNav.Root aria-label="Package tabs">
+          {tabs.map(tab => (
+            <TabLink
+              key={tab.segment}
+              to={tabPath(entry.slug, tab.segment)}
+              isActive={tail === tab.segment}
+            >
+              {tab.label}
+            </TabLink>
+          ))}
+        </TabNav.Root>
+      </div>
       <Suspense fallback={<TabSkeleton />}>
         <Routes>
           <Route index element={<OverviewTab slug={entry.slug} examples={examples} />} />
