@@ -35,11 +35,19 @@
 //     `check-alias-fences`, `check-peer-placement` and
 //     `check-toolchain-agreement` walk a workspace list: they take
 //     `listWorkspaceDirs()`, which calls the assertion for them.
-//     Three of the six have a subject that is a SUBSET of that list and take
-//     the whole list for exactly that reason. `check-ref-tests`' subject is
-//     the packages whose sources forward a ref: the subset has to be derived
-//     from every workspace npm installs, or the guard's required set shrinks
-//     with the discovery and reports the same pass over less.
+//     FOUR of the six have a subject that is a SUBSET of that list and take
+//     the whole list for exactly that reason. `check-peer-externals`' subject
+//     is the workspaces that build a `dist/`, which it selects by keeping the
+//     ones holding a `tsup.config.ts` — sixteen of today's twenty, the gallery
+//     and the three tooling packages skipped by name on its own pass line. That
+//     subset is derived from the full list on every run, so a workspace the
+//     discovery misses leaves BOTH halves of that line at once: it is not
+//     checked, and it is not among the skipped either, so "N bundled
+//     package(s) OK" counts one lower with nothing naming what went.
+//     `check-ref-tests`' subject is the packages whose sources forward a ref:
+//     the subset has to be derived from every workspace npm installs, or the
+//     guard's required set shrinks with the discovery and reports the same pass
+//     over less.
 //     `check-alias-fences`' subject is the aliased packages the gallery maps:
 //     it resolves each aliased name to its directory through this list rather
 //     than by assuming the layout, so a workspace the discovery misses is an
@@ -49,7 +57,7 @@
 //     missing from the discovery takes its peer declarations out of that union,
 //     and a module nobody is left declaring a peer is a module the guard stops
 //     forbidding anywhere, under the same green pass line.
-//     `check-toolchain-agreement` is the SIXTH walker and is none of the three:
+//     `check-toolchain-agreement` is the SIXTH walker and is none of the four:
 //     its subject is not a subset of this list but a set of MODULE names
 //     derived from all of it — every workspace's `devDependencies`, plus the
 //     root manifest's, which this list does not contain at all — and the
@@ -99,10 +107,13 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 // Checked at MODULE scope, not inside `listWorkspaceDirs()`: a malformed entry
 // in the constant above is a defect in this file, and it is just as wrong for
-// the two guards that import only the assertion — they would otherwise be
-// certified against a glob list that cannot be parsed, which is the same
-// silently-smaller check by a different route. Named for the module rather than
-// the caller for the same reason: no guard did this, and every guard gets it.
+// `check-token-drift`, the one importer that takes the assertion ALONE — it
+// would otherwise be certified against a glob list that cannot be parsed, which
+// is the same silently-smaller check by a different route.
+// `check-toolchain-hoist` takes the list too — for a membership test rather
+// than a walk — so the assertion reaches it the way it reaches every walker.
+// Named for the module rather than the caller for the same reason: no guard did
+// this, and every guard gets it.
 const malformedGlobs = UNDERSTOOD_GLOBS.filter(glob => !GLOB_SHAPE.test(glob));
 if (malformedGlobs.length > 0) {
   console.error(
