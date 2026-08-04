@@ -108,6 +108,23 @@ jobs:
       - name: Check the toolchain owns its hoist slots
         run: node scripts/check-toolchain-hoist.mjs
 
+      # Beside the step above because they are the two toolchain guards, and
+      # after it because they read opposite ends of the same question: that one
+      # reads package-lock.json, the OUTCOME, for the slots the root declares;
+      # this one reads the manifests, the INTENT, for every module two or more of
+      # them declare. Neither covers the other. `typescript`, `vitest` and `tsup`
+      # are pinned per package rather than at the root, so they own no
+      # root-declared slot and the step above would not report two workspaces
+      # building on different majors of them — every task stays green on both
+      # sides of that skew, because nothing else here compares one workspace's
+      # manifest with another's.
+      #
+      # Manifests only, no dist/, so it runs before the build for the same reason
+      # as the rest of this group: a split toolchain makes every step below MEAN
+      # less.
+      - name: Check the workspaces agree on their toolchain ranges
+        run: node scripts/check-toolchain-agreement.mjs
+
       # Also before the build, and for the same kind of reason: it reads configs
       # only, and the drift it catches is one that makes the build below MEAN
       # less. A package missing from the gallery's devDependencies has no turbo
@@ -117,9 +134,9 @@ jobs:
       - name: Check the gallery's alias fences agree
         run: node scripts/check-alias-fences.mjs
 
-      # Before the build for the same reason as the two above — it reads this
+      # Before the build for the same reason as the three above — it reads this
       # file, the root package.json and the scripts/ listing, nothing else — and
-      # it is the guard that asserts the two things holding those two steps in
+      # it is the guard that asserts the two things holding those steps in
       # place.
       #
       # First: that the cache salt above sits in `key` AND in `restore-keys`.
@@ -154,7 +171,7 @@ jobs:
       # The last of the pre-build guards, and the cheapest: it reads one
       # package.json per workspace and nothing else — no dist/, no sources — so
       # there is nothing for the build to produce that it needs. Placed here for
-      # the same reason as the four above: the drift it catches makes the steps
+      # the same reason as the five above: the drift it catches makes the steps
       # below MEAN less. A module some package declares a peer, sitting in a
       # publishable package's `dependencies`, ships a second React into the
       # consumer's tree — and every step after this one is green over it, because

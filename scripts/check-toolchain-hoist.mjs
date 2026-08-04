@@ -62,9 +62,19 @@
 // notice two workspaces building on different majors of them — `eslint` was one
 // of them until the root declared it for its own lint task. That is a
 // different failure (workspaces disagreeing) from the one this file exists for
-// (one shared slot silently changing hands), and asserting cross-workspace
-// agreement is a possible extension rather than something to read into the
-// green line this prints.
+// (one shared slot silently changing hands), and it belongs to
+// `check-toolchain-agreement`: that guard reads the MANIFESTS rather than the
+// lockfile, and requires every module two or more of them declare — the root's
+// own `devDependencies` included — to be declared with the same range string.
+//
+// What the two of them together still do not prove is the join. Agreement is
+// about intent, and twenty-one manifests stating one range does not make npm
+// install one copy: a shared module NO manifest declares at the ROOT owns no
+// top slot by anybody's decision, so a nested dependency needing another major
+// takes it exactly as `@ladle/react`'s `vite@^6` did, and which `typescript`,
+// `vitest` or `tsup` each workspace's task actually loads goes back to being a
+// lockfile fact nothing asks about. Declaring the module at the root is what
+// turns that question into the one this file answers.
 //
 // Reads package-lock.json rather than node_modules/ on purpose: the lockfile is
 // what `npm ci` will install on every machine and in CI, so the assertion holds
