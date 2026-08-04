@@ -9,7 +9,7 @@ import { LiveRegion } from '@pineappleui/live-region';
 import { Stack } from '@pineappleui/stack';
 import { Text } from '@pineappleui/text';
 import { TabNav } from '@radix-ui/themes';
-import { Route, Routes, useParams } from 'react-router';
+import { Route, Routes, useHref, useParams } from 'react-router';
 
 import { CodeBlock } from '../../components/CodeBlock';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -136,6 +136,9 @@ function TabAnnouncement({
 
 export function PackagePage() {
   const { slug = '' } = useParams();
+  // Called before the early return can be reached, because hooks are: the
+  // address of the site's own root, for the fallback's way out.
+  const home = useHref('/');
   const entry = bySlug.get(slug);
   if (entry === undefined) {
     return <NotFoundPage />;
@@ -158,16 +161,31 @@ export function PackagePage() {
           failure cannot follow the reader around the site. The header above is
           outside it on purpose: the package still has a name and a version when
           its docs will not draw. */}
+      {/* The two actions are the app-root fallback's (App.tsx), for the reason
+          that one has two: retrying re-runs the same render, so a failure that
+          is deterministic — a story that throws on every render — is a button
+          that visibly does nothing, and a reader who has pressed it twice needs
+          the other way out. That one is a real document load, which discards
+          every cache and every piece of state this app is holding. */}
       <ErrorBoundary
         key={slug}
         fallback={(error, retry) => (
           <Stack gap="2" align="start">
-            <Heading as="h2" size="4">These docs could not be shown</Heading>
+            {/* Names the surface that failed, not the failure: this boundary
+                covers one package's docs, and the rest of the site — the
+                header, the sidebar, this package's own name and version — is
+                still on the screen around it. */}
+            <Heading as="h2" size="4">{`${entry.name}'s docs failed to render`}</Heading>
             <Text as="p" size="3" color="gray">
-              {`Something in ${entry.name}'s examples, README or changelog failed to render.`}
+              {`Something in ${entry.name}'s examples, README or changelog stopped the page. Trying again is worth a shot — if it keeps happening, reloading the site clears whatever state caused it.`}
             </Text>
             <Text as="p" size="2" color="gray">{error.message}</Text>
-            <Button size="2" variant="soft" onClick={retry}>Try again</Button>
+            <Inline gap="3" align="center">
+              <Button size="2" variant="solid" onClick={retry}>Try again</Button>
+              <Button size="2" variant="soft" asChild>
+                <a href={home}>Reload the site</a>
+              </Button>
+            </Inline>
           </Stack>
         )}
       >

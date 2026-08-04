@@ -15,23 +15,32 @@ import {
 import '@testing-library/jest-dom/vitest';
 
 // What the package page does with a package, on the real pipeline: the story
-// globs, the READMEs and the manifests are all the ones on disk. Two packages'
-// story MODULES are stood in for, and each stands in for something this
-// environment cannot produce:
+// globs, the READMEs and the manifests are all the ones on disk. Three
+// packages' story MODULES are stood in for, and each stands in for something
+// this environment cannot produce:
 //
 //   - a story that throws, because no package ships one, and a boundary nobody
 //     has seen catch anything is a boundary nobody knows is wired up;
 //   - a module whose exports enumerate SORTED, which is what a browser's ES
 //     module namespace does and what the ordering exists to undo. vite-node
 //     hands a real module's exports back in declaration order, so against the
-//     real module the ordering is unobservable and its removal would pass.
+//     real module the ordering is unobservable and its removal would pass;
+//   - a module that fails to load at all, which is what takes out a whole
+//     package's docs rather than one canvas.
 //
-// Both keep their real story FILE (`storySourceFor` is untouched), which is
+// All keep their real story FILE (`storySourceFor` is untouched), which is
 // where the declaration order and the disclosed source come from.
 
 // Hoisted with the modules themselves: `vi.mock`'s factory runs before this
 // file's own top-level `const`s, and it reads the slugs.
-const { BROKEN_SLUG, SORTED_SLUG, brokenStories, sortedStories } = vi.hoisted(() => {
+const {
+  BROKEN_SLUG,
+  SORTED_SLUG,
+  UNLOADABLE_SLUG,
+  brokenStories,
+  sortedStories,
+  unloadableStories,
+} = vi.hoisted(() => {
   function Broken(): string {
     throw new Error('this story is broken');
   }
@@ -46,13 +55,21 @@ const { BROKEN_SLUG, SORTED_SLUG, brokenStories, sortedStories } = vi.hoisted(()
   function Variants(): string {
     return 'the variants example';
   }
+  // `use()` rethrows a rejected promise into the render, which is how a chunk
+  // that will not load reaches the package boundary. The bare `.catch` attaches
+  // a handler so node does not report the rejection before React asks for it;
+  // the promise React gets is still the rejected one.
+  const unloadable = Promise.reject(new Error('this package could not be loaded'));
+  unloadable.catch(() => {});
   // Stable promises, not fresh ones per call: `use()` needs the same instance
   // across render retries — the same reason content.ts caches its loaders.
   return {
     BROKEN_SLUG: 'badge',
     SORTED_SLUG: 'card',
+    UNLOADABLE_SLUG: 'inline',
     brokenStories: Promise.resolve({ Broken, Fine }),
     sortedStories: Promise.resolve({ Sizes, Variants }),
+    unloadableStories: unloadable,
   };
 });
 
@@ -61,6 +78,7 @@ vi.mock('../../stories', async (importOriginal) => {
   const stubbed = new Map<string, Promise<Record<string, unknown>>>([
     [BROKEN_SLUG, brokenStories],
     [SORTED_SLUG, sortedStories],
+    [UNLOADABLE_SLUG, unloadableStories],
   ]);
   return {
     ...actual,
@@ -181,6 +199,28 @@ describe('overview tab', () => {
     expect(screen.getByText('a working example')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Badge', level: 1 })).toBeInTheDocument();
     expect(await findTabStrip()).toBeInTheDocument();
+
+    consoleError.mockRestore();
+  });
+
+  it('names the surface and offers two ways out when a package\'s docs fail', async () => {
+    const consoleError = silenceCaughtErrors();
+    await renderApp(`/components/${UNLOADABLE_SLUG}`);
+
+    // The heading says WHICH docs failed, because the page around it is fine:
+    // the package's own name and version are still above this message.
+    expect(await screen.findByRole(
+      'heading',
+      { name: 'Inline\'s docs failed to render' },
+      SUSPENSE_TIMEOUT,
+    )).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Inline', level: 1 })).toBeInTheDocument();
+
+    // Retry re-runs the same render, so a deterministic failure leaves it a
+    // button that does nothing. The second action is a real document load,
+    // which is the only thing that clears the state that caused it.
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reload the site' })).toHaveAttribute('href', '/');
 
     consoleError.mockRestore();
   });
