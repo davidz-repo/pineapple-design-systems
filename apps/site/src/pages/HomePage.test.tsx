@@ -42,8 +42,9 @@ it('points at Getting Started and at the component grid', async () => {
 
 it('selects a button variant and reflects it in the caption', async () => {
   await renderHome();
-  // The row is a labelled group of toggles, not six loose buttons.
-  expect(screen.getByRole('group', { name: 'Button variant' })).toBeInTheDocument();
+  // The row is a group of toggles, not six loose buttons, and its name comes
+  // from the visible label rather than an aria-label only AT would ever read.
+  expect(screen.getByRole('group', { name: 'Pick a variant:' })).toBeInTheDocument();
 
   const soft = screen.getByRole('button', { name: 'soft' });
   expect(screen.getByRole('button', { name: 'solid' })).toHaveAttribute('aria-pressed', 'true');
@@ -55,5 +56,6 @@ it('selects a button variant and reflects it in the caption', async () => {
 
   expect(soft).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: 'solid' })).toHaveAttribute('aria-pressed', 'false');
-  expect(screen.getByText('<Button variant="soft">Save</Button>')).toBeInTheDocument();
+  // The caption shows what the buttons on screen actually render.
+  expect(screen.getByText('<Button variant="soft">soft</Button>')).toBeInTheDocument();
 });

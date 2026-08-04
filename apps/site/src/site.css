@@ -249,9 +249,10 @@
 }
 
 /* Which variant the hero's mini-demo has selected. Keyed off the ARIA state
-   itself so the ring cannot disagree with what a screen reader announces;
-   the ring is a plain outline, drawn the same way the selected accent swatch
-   marks itself. */
+   itself so the ring cannot disagree with what a screen reader announces.
+   An outline rather than a border or a box-shadow: it is drawn outside the
+   box, so it neither resizes the button nor overwrites the box-shadow the
+   surface/outline/classic variants use to draw themselves. */
 .home-variants button[aria-pressed='true'] {
   outline: 2px solid var(--gray-12);
   outline-offset: 2px;

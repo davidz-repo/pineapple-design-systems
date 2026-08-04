@@ -25,6 +25,9 @@ type ButtonVariant = typeof BUTTON_VARIANTS[number];
 // navigating, so the grid needs a stable id to aim at.
 const COMPONENTS_ANCHOR = 'components';
 
+// The variant row's visible label, referenced by the group's aria-labelledby.
+const VARIANT_LABEL_ID = 'home-variant-label';
+
 // What the repo actually guarantees, not what it aspires to. Each line is
 // something a check enforces: peers stay external in the published bundle
 // (scripts/check-peer-externals.mjs reads dist/, not just the manifest), and
@@ -82,24 +85,40 @@ function AccentShowcase() {
 // selection for assistive tech AND the styling hook (site.css), so the visual
 // state cannot drift from the announced one — which is also why the caption is
 // not a live region: the toggle already announces the change.
+//
+// The group is named by the visible "Pick a variant:" text via
+// aria-labelledby, not by an aria-label only a screen reader would ever get:
+// the sighted reader needs to be told this row is a control too, and one label
+// serving both cannot drift from the other.
 function VariantShowcase() {
   const [variant, setVariant] = useState<ButtonVariant>('solid');
   return (
     <Stack gap="2">
-      <Inline gap="2" className="home-variants" role="group" aria-label="Button variant">
-        {BUTTON_VARIANTS.map(name => (
-          <Button
-            key={name}
-            variant={name}
-            aria-pressed={name === variant}
-            onClick={() => setVariant(name)}
-          >
-            {name}
-          </Button>
-        ))}
+      <Inline gap="4" align="center">
+        <Text id={VARIANT_LABEL_ID} size="2" color="gray">Pick a variant:</Text>
+        <Inline
+          gap="2"
+          className="home-variants"
+          role="group"
+          aria-labelledby={VARIANT_LABEL_ID}
+        >
+          {BUTTON_VARIANTS.map(name => (
+            <Button
+              key={name}
+              variant={name}
+              aria-pressed={name === variant}
+              onClick={() => setVariant(name)}
+            >
+              {name}
+            </Button>
+          ))}
+        </Inline>
       </Inline>
       <Text as="p" size="2" color="gray">
-        <code>{jsxSnippet('Button', { variant }, 'Save')}</code>
+        {/* Children are the variant name because that is what the buttons on
+            screen actually say — a snippet showing other text would be a
+            snippet of something the reader cannot see. */}
+        <code>{jsxSnippet('Button', { variant }, variant)}</code>
       </Text>
     </Stack>
   );
@@ -121,21 +140,28 @@ export function HomePage() {
             scope.
           </Text>
 
-          <Stack gap="2">
-            {PROOF_POINTS.map(point => (
-              <Inline key={point.label} gap="2" align="center">
-                <Badge variant="soft" size="1">{point.label}</Badge>
-                <Text size="2" color="gray">{point.detail}</Text>
-              </Inline>
-            ))}
+          <Stack gap="3">
+            {/* The claims, one badge and one sentence each. `align="start"`
+                so the badge sits on the sentence's first line rather than
+                floating to its middle when the sentence wraps. */}
+            <Stack gap="2">
+              {PROOF_POINTS.map(point => (
+                <Inline key={point.label} gap="2" align="start">
+                  <Badge variant="soft" size="1">{point.label}</Badge>
+                  <Text size="2" color="gray">{point.detail}</Text>
+                </Inline>
+              ))}
+            </Stack>
+            {/* Status line: what it is, and how far along it is. One line,
+                because both halves answer the same question. */}
             <Inline gap="2" align="center">
               {PROJECT_FACTS.map(fact => (
                 <Badge key={fact} variant="soft" size="1" color="gray">{fact}</Badge>
               ))}
+              <Text size="2" color="gray">
+                Early — every package is 0.x and the API can still move.
+              </Text>
             </Inline>
-            <Text as="p" size="2" color="gray">
-              Early — every package is 0.x and the API can still move.
-            </Text>
           </Stack>
 
           <CodeBlock code="npm install @pineappleui/theme @pineappleui/button" />
@@ -162,7 +188,10 @@ export function HomePage() {
         </Stack>
       </div>
 
-      <Stack gap="6" id={COMPONENTS_ANCHOR} className="home-components">
+      {/* `tabIndex={-1}` makes the jump target focusable programmatically, so
+          the browser can move focus here on the hash jump instead of leaving
+          the next Tab at the top of the document. Not in the tab order. */}
+      <Stack gap="6" id={COMPONENTS_ANCHOR} className="home-components" tabIndex={-1}>
         {CATEGORIES.map(category => (
           <Stack key={category} gap="3">
             <Heading as="h2" size="4">{category}</Heading>
