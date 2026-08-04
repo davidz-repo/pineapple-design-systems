@@ -28,6 +28,32 @@ describe('markdownView', () => {
     expect(container.querySelector('code')).toHaveTextContent('answer = 42');
   });
 
+  it('renders a file\'s headings at its own levels by default', () => {
+    const { container } = render(<MarkdownView markdown={'## 0.1.0\n\n### Patch changes'} />);
+    expect(container.querySelector('h2')).toHaveTextContent('0.1.0');
+    expect(container.querySelector('h3')).toHaveTextContent('Patch changes');
+  });
+
+  it('demotes every heading by the offset, and the type scale with it', () => {
+    const { container } = render(
+      <MarkdownView markdown={'## What it exports\n\n### Props'} headingOffset={1} />,
+    );
+    // A section of a page, not the top of one: `## What it exports` sits under
+    // the site's own `## README`, so it is an h3 and reads like one.
+    const [demoted] = container.querySelectorAll('h3');
+    expect(demoted).toHaveTextContent('What it exports');
+    // Drawn at the level it landed on, not the one it was written at: an
+    // outline a reader hears and a type scale they see must agree.
+    expect(demoted.className).toMatch(/rt-r-size-4/);
+    expect(container.querySelector('h4')).toHaveTextContent('Props');
+    expect(container.querySelector('h2')).toBeNull();
+  });
+
+  it('stops demoting at h6, the deepest level HTML has', () => {
+    const { container } = render(<MarkdownView markdown="###### Deep" headingOffset={2} />);
+    expect(container.querySelector('h6')).toHaveTextContent('Deep');
+  });
+
   it('wraps a table in a horizontal scroll container', () => {
     const { container, getByText } = render(
       <MarkdownView markdown={'| Prop | Description |\n| --- | --- |\n| `size` | How big. |'} />,

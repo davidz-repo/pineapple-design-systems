@@ -93,6 +93,22 @@ describe('overview tab', () => {
       .toEqual(['Variants', 'Sizes']);
   });
 
+  it('has one outline: the package, its Examples, its README', async () => {
+    await renderApp('/components/button');
+    await screen.findByText('What it exports', undefined, SUSPENSE_TIMEOUT);
+
+    // The same shape on every package page, whatever its README is written
+    // like — which is what lets a reader move by heading and know where they
+    // are. Props joins the h2s when that table lands.
+    expect(screen.getAllByRole('heading', { level: 1 }).map(h => h.textContent))
+      .toEqual(['Button']);
+    expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent))
+      .toEqual(['Examples', 'README']);
+    // The README's own `##` sections belong to that h2 rather than standing
+    // beside it: demoted, so the outline says whose sections they are.
+    expect(screen.getByRole('heading', { name: 'What it exports' }).tagName).toBe('H3');
+  });
+
   it('discloses each example\'s own source on demand', async () => {
     await renderApp('/components/button');
 
@@ -242,8 +258,10 @@ describe('tabs', () => {
 
     expect(tabs.getByRole('link', { name: /Changelog/ })).toBeInTheDocument();
     expect(tabs.queryByRole('link', { name: /Versions/ })).not.toBeInTheDocument();
-    // The CHANGELOG's own version headings are the content of the tab.
-    expect(await screen.findByRole('heading', { name: '0.1.0' }, SUSPENSE_TIMEOUT))
+    // The CHANGELOG's own version headings are the content of the tab, at the
+    // level the file writes them: here the file IS the page, so nothing demotes
+    // them the way the Overview demotes the README's.
+    expect(await screen.findByRole('heading', { name: '0.1.0', level: 2 }, SUSPENSE_TIMEOUT))
       .toBeInTheDocument();
   });
 

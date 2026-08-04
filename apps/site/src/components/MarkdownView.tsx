@@ -23,6 +23,14 @@ interface MarkdownViewProps {
   markdown: string;
   /** Drop a leading `# Title` line — the page header already shows the name. */
   stripLeadingH1?: boolean;
+  /**
+   * Demote every heading by this many levels. A file rendered as a SECTION of a
+   * page is not the top of one: the README sits under the page's own `##
+   * README`, so its `##` sections are that heading's children and have to say
+   * so. Left at 0, the file's levels are the page's — which is right for the
+   * Changelog tab, where the file IS the page.
+   */
+  headingOffset?: number;
 }
 
 interface Fence {
@@ -50,11 +58,38 @@ function fenceOf(node: ReactNode): Fence | undefined {
   return { code: children.replace(/\n$/, ''), language };
 }
 
+// What a heading looks like at each level. Demotion reads this by the level it
+// lands ON, so a heading that says "h3" in the outline is drawn as one: an
+// outline a reader can hear and a type scale they can see must not disagree.
+const HEADING_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
+
+const HEADING_STYLE = {
+  h1: { size: '7', mt: '6', mb: '3' },
+  h2: { size: '5', mt: '6', mb: '3' },
+  h3: { size: '4', mt: '5', mb: '2' },
+  h4: { size: '3', mt: '4', mb: '2' },
+  h5: { size: '2', mt: '4', mb: '2' },
+  h6: { size: '2', mt: '4', mb: '2' },
+} as const;
+
+function MarkdownHeading({
+  level,
+  offset,
+  children,
+}: {
+  level: number;
+  offset: number;
+  children: ReactNode;
+}) {
+  // h6 is the floor HTML gives: a document deep enough to hit it has a
+  // structural problem no rendering can fix, and inventing an `h7` would only
+  // hide it.
+  const tag = HEADING_TAGS[Math.min(level + offset, HEADING_TAGS.length) - 1] ?? 'h6';
+  const { size, mt, mb } = HEADING_STYLE[tag];
+  return <Heading as={tag} size={size} mt={mt} mb={mb}>{children}</Heading>;
+}
+
 const components: Components = {
-  h1: ({ children }) => <Heading as="h1" size="7" mt="6" mb="3">{children}</Heading>,
-  h2: ({ children }) => <Heading as="h2" size="5" mt="6" mb="3">{children}</Heading>,
-  h3: ({ children }) => <Heading as="h3" size="4" mt="5" mb="2">{children}</Heading>,
-  h4: ({ children }) => <Heading as="h4" size="3" mt="4" mb="2">{children}</Heading>,
   p: ({ children }) => <Text as="p" size="3" mb="3">{children}</Text>,
   // A README is written to be read on npm and on GitHub, so a link to a sibling
   // package has to be that package's URL on GitHub. Read here, that link leaves
@@ -86,11 +121,38 @@ const components: Components = {
   ),
 };
 
-export function MarkdownView({ markdown, stripLeadingH1 = false }: MarkdownViewProps) {
+// One components map per offset, built once and kept. react-markdown re-renders
+// every node when this object's identity changes, and a map rebuilt in the
+// component body would hand it a new one on every render — for a value that
+// depends on nothing but a number.
+const componentsByOffset = new Map<number, Components>();
+
+function componentsFor(headingOffset: number): Components {
+  let byOffset = componentsByOffset.get(headingOffset);
+  if (byOffset === undefined) {
+    byOffset = {
+      ...components,
+      h1: ({ children }) => <MarkdownHeading level={1} offset={headingOffset}>{children}</MarkdownHeading>,
+      h2: ({ children }) => <MarkdownHeading level={2} offset={headingOffset}>{children}</MarkdownHeading>,
+      h3: ({ children }) => <MarkdownHeading level={3} offset={headingOffset}>{children}</MarkdownHeading>,
+      h4: ({ children }) => <MarkdownHeading level={4} offset={headingOffset}>{children}</MarkdownHeading>,
+      h5: ({ children }) => <MarkdownHeading level={5} offset={headingOffset}>{children}</MarkdownHeading>,
+      h6: ({ children }) => <MarkdownHeading level={6} offset={headingOffset}>{children}</MarkdownHeading>,
+    };
+    componentsByOffset.set(headingOffset, byOffset);
+  }
+  return byOffset;
+}
+
+export function MarkdownView({
+  markdown,
+  stripLeadingH1 = false,
+  headingOffset = 0,
+}: MarkdownViewProps) {
   const body = stripLeadingH1 ? markdown.replace(/^#\s.*\n+/, '') : markdown;
   return (
     <div className="markdown">
-      <Markdown remarkPlugins={[remarkGfm]} components={components}>
+      <Markdown remarkPlugins={[remarkGfm]} components={componentsFor(headingOffset)}>
         {body}
       </Markdown>
     </div>
