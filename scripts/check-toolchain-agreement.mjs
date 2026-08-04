@@ -91,7 +91,14 @@
 // asserting nothing: no workspace discovered at all; no module declared by two
 // or more manifests, which is an assertion set with nothing in it; and a
 // `devDependencies` field that is not the map of name to range npm reads,
-// naming the manifest. A range that is not a string is refused with it — two
+// naming the manifest. Each of those is a missing SUBJECT, and there is nothing
+// left to report but the refusal.
+//
+// A single range that is not a string is narrower than any of them — one entry,
+// with the rest of the field still readable — so it is a FAILURE and the run
+// goes on to the comparison: a defect in one manifest and a disagreement
+// between two others report in the SAME run rather than one per fix. The entry
+// leaves the comparison rather than being coerced into it, because two
 // manifests holding `5` and `"5"` compare unequal and print as the same
 // character, which is a failure message that cannot be acted on.
 //
@@ -136,7 +143,8 @@ function refuse(message) {
 }
 
 /**
- * @param {string} subject the module the problem is about
+ * @param {string} subject the module the problem is about, or the manifest
+ * where the problem is one manifest's own
  * @param {string} problem
  * @param {string} fix
  */
@@ -173,12 +181,17 @@ function readJson(filePath) {
  * One manifest's `devDependencies`, as name/range pairs.
  *
  * An absent field is an empty list — a workspace is free to declare none. A
- * field of any other shape, or one holding a range that is not a string, is
- * REFUSED rather than coerced: every entry in it is an entry this guard would
- * otherwise have compared, and a manifest shape nothing here understands is the
- * last place to guess.
+ * field of any other shape is REFUSED rather than coerced: every entry in it is
+ * an entry this guard would otherwise have compared, and a manifest shape
+ * nothing here understands is the last place to guess.
  *
- * @param {string} relPath the manifest, repo-root-relative, for the refusal
+ * A single range that is not a string is narrower than that — one entry of one
+ * manifest, with the rest of the field still readable — so it is a FAILURE and
+ * the run goes on: every disagreement in the repo reports in one run rather
+ * than one per fix. The entry itself leaves the comparison, because a range
+ * this guard cannot compare as text is not one it guesses at.
+ *
+ * @param {string} relPath the manifest, repo-root-relative, for the message
  * @param {Record<string, unknown>} manifest
  * @returns {[string, string][]} sorted by name, so output reads the same on
  * every machine
@@ -203,19 +216,25 @@ function readDeclaredRanges(relPath, manifest) {
   const unreadable = Object.entries(declared).filter(([, range]) => typeof range !== 'string');
 
   if (unreadable.length > 0) {
-    refuse(
-      `${relPath} declares ${unreadable.length} \`${FIELD}\` range(s) that are not strings:\n`
-      + `${unreadable.map(([name, range]) => `         ${name}: ${JSON.stringify(range)}\n`).join('')}`
-      + '  fix: state each range as the string npm reads — `"^1.2.3"`, `"~1.2.3"`, `"*"`. This\n'
-      + '       guard compares range strings for identity, and a range of another type is\n'
-      + `       refused rather than stringified: \`5\` and \`"5"\` would compare as a\n`
-      + '       DISAGREEMENT and then print as the same character, which is a failure nobody\n'
-      + '       can act on.',
+    fail(
+      relPath,
+      `declares ${unreadable.length} \`${FIELD}\` range(s) that are not strings:\n`
+      + unreadable
+        .map(([name, range]) => `           ${name}: ${JSON.stringify(range)}`)
+        .join('\n'),
+      'state each range as the string npm reads — `"^1.2.3"`, `"~1.2.3"`, `"*"`. This guard '
+      + 'compares range strings for identity, and a range of another type is reported rather '
+      + 'than stringified: `5` and `"5"` would compare as a DISAGREEMENT and then print as the '
+      + 'same character, which is a failure nobody can act on. Until it is a string the entry '
+      + 'stays out of the comparison, so this manifest is not counted a declarer of that '
+      + 'module and the run continues without it.',
     );
   }
 
   return /** @type {[string, string][]} */ (
-    Object.entries(declared).sort(([a], [b]) => a.localeCompare(b))
+    Object.entries(declared)
+      .filter(([, range]) => typeof range === 'string')
+      .sort(([a], [b]) => a.localeCompare(b))
   );
 }
 
@@ -240,13 +259,34 @@ if (workspaceDirs.length === 0) {
  * own lint, and skipping it would leave the repo's most-shared module with one
  * declarer outside the comparison — then one per workspace.
  *
- * @type {{ relPath: string, declared: [string, string][] }[]}
+ * @type {{ relPath: string, name: unknown, declared: [string, string][] }[]}
  */
 const manifests = [MANIFEST, ...workspaceDirs.map(relDir => `${relDir}/${MANIFEST}`)]
-  .map(relPath => ({
-    relPath,
-    declared: readDeclaredRanges(relPath, readJson(path.join(repoRoot, relPath))),
-  }));
+  .map((relPath) => {
+    const manifest = readJson(path.join(repoRoot, relPath));
+    return {
+      relPath,
+      name: manifest.name,
+      declared: readDeclaredRanges(relPath, manifest),
+    };
+  });
+
+/**
+ * The module names npm resolves to a DIRECTORY in this repo rather than to the
+ * registry — every workspace's own `name`, taken from the manifests already
+ * read so the two answers cannot differ. The root is not one: nothing links to
+ * it.
+ *
+ * A disagreement about one of these names is a different failure from a
+ * disagreement about a registry module, and the fix has to say which it is.
+ *
+ * @type {Set<string>}
+ */
+const workspaceNames = new Set(
+  manifests
+    .filter(({ relPath, name }) => relPath !== MANIFEST && typeof name === 'string')
+    .map(({ name }) => /** @type {string} */ (name)),
+);
 
 /**
  * Module name -> every manifest declaring it, with the range each one states.
@@ -315,6 +355,19 @@ function groupByRange(list) {
 }
 
 /**
+ * The most-held range, together with anything level with it. One entry is a
+ * majority; more than one is a tie, and the two are different both in what the
+ * fix can recommend and in what npm is about to do with the camps.
+ *
+ * @param {[string, string[]][]} groups from `groupByRange`, ordered
+ * @returns {[string, string[]][]} the leading group and its ties, in that order
+ */
+function findTopRanges(groups) {
+  const [[, topStaters]] = groups;
+  return groups.filter(([, staters]) => staters.length === topStaters.length);
+}
+
+/**
  * Which range to state everywhere, where the counts answer that — and where
  * they do not, that they do not.
  *
@@ -327,9 +380,9 @@ function groupByRange(list) {
  * @param {number} total how many manifests declare the module
  * @returns {string} a clause, ready to sit inside the fix
  */
-function majorityClause(groups, total) {
-  const [[topRange, topStaters]] = groups;
-  const tied = groups.filter(([, staters]) => staters.length === topStaters.length);
+function formatMajorityClause(groups, total) {
+  const tied = findTopRanges(groups);
+  const [topRange, topStaters] = tied[0];
 
   if (tied.length > 1) {
     return `no range holds a majority — ${tied.length} of them tie at ${topStaters.length} `
@@ -340,6 +393,49 @@ function majorityClause(groups, total) {
     + 'manifest(s) declaring it';
 }
 
+/**
+ * What npm actually does with the camps — the half of the failure they cannot
+ * show, and a different thing depending on what the module IS.
+ *
+ * A module from the REGISTRY is answered with a copy: the range npm did not
+ * hoist is satisfied by a second copy nested under the workspaces declaring it,
+ * so two toolchains are installed and each side is right about its own.
+ *
+ * A module that names a WORKSPACE of this repo is answered with a link or not
+ * at all: npm links the sibling directory while the declared range accepts the
+ * version that workspace's manifest carries, and goes to the REGISTRY for a
+ * package of that name when it does not. There is no nested copy and no skew —
+ * there is a manifest that has stopped building against the source beside it.
+ * `check-toolchain-hoist` splits its own messages on exactly this distinction,
+ * for the same reason: a range naming a sibling is not a version question.
+ *
+ * @param {string} name the module the manifests disagree about
+ * @param {boolean} hasMajority whether one range is held by more manifests than
+ * every other — with two camps tied there is no minority whose copy gets nested
+ * @returns {string} a sentence, ready to sit inside the fix
+ */
+function formatSkewNote(name, hasMajority) {
+  if (workspaceNames.has(name)) {
+    return `\`${name}\` is a workspace of this repo, so a manifest that disagrees is not `
+      + 'getting a second copy: npm LINKS the workspace directory while the range a manifest '
+      + `declares accepts the version \`${name}\`'s own manifest carries, and goes to the `
+      + 'REGISTRY for a package of that name when it does not. So the manifest whose range has '
+      + 'stopped accepting its sibling builds against whatever the registry answers with under '
+      + 'that name — a published older copy, or a package this repo does not own — rather than '
+      + 'against the source beside it. That is why every workspace range in this repo is '
+      + 'written `*`: it accepts whatever the sibling manifest says today.';
+  }
+
+  if (hasMajority) {
+    return `npm installs the minority's copy nested under the workspaces holding it, so those `
+      + `build, test and lint against a different \`${name}\` than the rest of the repo.`;
+  }
+
+  return `npm gives one of these ranges the top \`node_modules/\` slot and installs the other `
+    + `camp's copy nested under the workspaces holding it, so one camp builds, tests and lints `
+    + `against a different \`${name}\` than the other.`;
+}
+
 for (const [name, list] of shared) {
   const groups = groupByRange(list);
 
@@ -347,22 +443,25 @@ for (const [name, list] of shared) {
     continue;
 
   // One line per range, so the disagreement reads as the camps it is rather
-  // than as a list of manifests the reader has to sort by hand.
+  // than as a list of manifests the reader has to sort by hand. The range is
+  // printed QUOTED — the standard this guard's own non-string-range failure
+  // states — because `"~5.7.2 "` and `"~5.7.2"` are a disagreement it reports
+  // and print as the same characters without it.
   const camps = groups
-    .map(([range, staters]) => `           ${range} (${staters.length}): ${staters.join(', ')}`)
+    .map(([range, staters]) => `           ${JSON.stringify(range)} (${staters.length}): `
+      + staters.join(', '))
     .join('\n');
 
-  const majority = majorityClause(groups, list.length);
+  const majority = formatMajorityClause(groups, list.length);
+  const skew = formatSkewNote(name, findTopRanges(groups).length === 1);
 
   fail(
     name,
     `${list.length} manifest(s) declare it in \`${FIELD}\`, at ${groups.length} different `
     + `ranges\n${camps}`,
-    `pick ONE range and state that exact string in every manifest above — ${majority}. npm `
-    + `installs the minority's copy nested under the workspaces holding it, so those build, `
-    + `test and lint against a different \`${name}\` than `
-    + 'the rest of the repo — and every task stays green on both sides of the skew, because '
-    + 'nothing else in this build compares one workspace\'s manifest with another\'s. If the '
+    `pick ONE range and state that exact string in every manifest above — ${majority}. ${skew} `
+    + 'Every task stays green on both sides of that, because nothing else in this build '
+    + 'compares one workspace\'s manifest with another\'s. If the '
     + 'ranges only differ in their floor, the version already installed is the tiebreaker '
     + `\`${HOIST_GUARD}\` reads out of package-lock.json. Identity is on the range STRING here, `
     + `so \`^1.2.0\` and \`^1.2.3\` fail even though npm can satisfy both from one copy: one `
@@ -373,7 +472,7 @@ for (const [name, list] of shared) {
 
 if (failures.length > 0) {
   console.error(
-    `\n${GUARD_NAME}: ${failures.length} module(s) declared at more than one range\n\n`
+    `\n${GUARD_NAME}: ${failures.length} problem(s) in the manifests' \`${FIELD}\`\n\n`
     + `${failures.map(entry => `  ✗ ${entry}`).join('\n\n')}\n`,
   );
   process.exit(1);
