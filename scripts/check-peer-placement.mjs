@@ -399,6 +399,67 @@ function privatePeerCaveat(name, declarers) {
     + 'were written in.';
 }
 
+/** @type {Set<string>} the package names of the workspaces in this repo */
+const workspaceNames = new Set(workspaces.map(workspace => workspace.name));
+
+/**
+ * The move-it-to-peers remedy, which is the whole fix for a module that comes
+ * from outside this repo.
+ *
+ * @param {{ relDir: string }} workspace the workspace holding the misfiled entry
+ * @param {string} field the field it was found in
+ * @param {string} name the module
+ * @returns {string} one sentence, both halves of docs/plan.md §3
+ */
+function moveToPeersRemedy(workspace, field, name) {
+  return `move \`${name}\` from \`${field}\` to \`${PEER_FIELD}\` in `
+    + `${workspace.relDir}/${MANIFEST}, and list it in ${workspace.relDir}/${TSUP_CONFIG}'s `
+    + `\`${EXTERNAL_FIELD}\` array — both halves, per docs/plan.md §3.`;
+}
+
+/**
+ * Assertion 2's fix, which leads with a different remedy depending on WHICH half
+ * of the contradiction is the likelier defect.
+ *
+ * For a module that is itself a workspace here, it is the peer entry. A
+ * workspace package in an installed field is legal by decision — `theme` depends
+ * on `tokens` and ships it for the consumer — so nothing about this pairing is
+ * wrong until somebody declares that package a peer, and the entry that just
+ * moved is usually theirs, not this one. Leading with "move it to peers" there
+ * would be telling the reader to change the half that was right.
+ *
+ * For anything else the consumer supplies it, and moving the entry is the fix.
+ *
+ * @param {{ relDir: string }} workspace the workspace holding the misfiled entry
+ * @param {string} field the field it was found in
+ * @param {string} name the module
+ * @param {{ name: string, isPublishable: boolean }[]} declarers the workspaces declaring it a peer
+ * @returns {string} problem, remedy and consequence, in that order
+ */
+function misfiledFix(workspace, field, name, declarers) {
+  if (workspaceNames.has(name)) {
+    return `start with the PEER declaration, not this entry: \`${name}\` is a workspace in this `
+      + `repo, and a workspace package in \`${field}\` is legal here exactly while nobody declares `
+      + 'it a peer — `@pineappleui/theme` depends on `@pineappleui/tokens` by decision, theme '
+      + 'shipping it for the consumer rather than asking the consumer for it. So the half that '
+      + `changed is usually the peer entry that pulled \`${name}\` into the union: if declaring it `
+      + 'a peer was nobody\'s decision, delete that entry in the workspace(s) named above and this '
+      + `failure goes with it. If it WAS a decision — the repo now asks the consumer to install `
+      + `\`${name}\` themselves — then ${moveToPeersRemedy(workspace, field, name)} Left as it is, `
+      + `\`${name}\` is declared in \`${field}\` of a package the consumer `
+      + `installs${noteOnOptionality(field)}, so npm puts a SECOND copy in their tree beside the `
+      + `one the peer declaration asked them for.${privatePeerCaveat(name, declarers)}`;
+  }
+
+  return `${moveToPeersRemedy(workspace, field, name)} A module this repo asks the consumer to `
+    + `supply is consumer-supplied everywhere: declared in \`${field}\` of a package they `
+    + `install${noteOnOptionality(field)}, npm installs a SECOND copy into their tree beside the `
+    + 'one they already have. For `react` that is two module registries and two sets of hook '
+    + 'state — an "invalid hook call" in the consumer\'s app, in their stack trace, nowhere near '
+    + 'this commit. If this package genuinely must own its own copy, the peer declarations above '
+    + `are what to change, in a commit that argues it.${privatePeerCaveat(name, declarers)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Assertion 2 — a peer of anyone, in a field anything published installs.
 // ---------------------------------------------------------------------------
@@ -416,16 +477,7 @@ for (const workspace of publishable) {
         `${workspace.name} (${workspace.relDir}/${MANIFEST})`,
         `declares \`${name}\` in \`${field}\`, and ${declarers.length} workspace(s) `
         + `declare it in \`${PEER_FIELD}\`: ${declarers.map(declarer => declarer.name).join(', ')}`,
-        `move \`${name}\` from \`${field}\` to \`${PEER_FIELD}\` in `
-        + `${workspace.relDir}/${MANIFEST}, and list it in ${workspace.relDir}/${TSUP_CONFIG}'s `
-        + `\`${EXTERNAL_FIELD}\` array — both halves, per docs/plan.md §3. A module this repo `
-        + `asks the consumer to supply is consumer-supplied everywhere: declared in \`${field}\` `
-        + `of a package they install${noteOnOptionality(field)}, npm installs a SECOND copy into `
-        + 'their tree beside the one they already have. For `react` that is two module registries '
-        + 'and two sets of hook state — an "invalid hook call" in the consumer\'s app, in their '
-        + 'stack trace, nowhere near this commit. If this package genuinely must own its own '
-        + 'copy, the peer declarations above are what to change, in a commit that argues it.'
-        + `${privatePeerCaveat(name, declarers)}`,
+        misfiledFix(workspace, field, name, declarers),
       );
     }
   }
