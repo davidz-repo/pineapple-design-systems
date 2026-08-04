@@ -4,7 +4,7 @@ import { DesignSystemProvider, ThemePreferencesProvider } from '@pineappleui/the
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
-import { expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 
 import { bySlug } from '../../registry';
 import { Playground } from './Playground';
@@ -52,12 +52,25 @@ function LocationProbe() {
   return <output aria-label="router search">{search}</output>;
 }
 
-async function renderPlayground(path: string) {
+// jsdom ships no Clipboard API, so "Copy link" needs one to call. Defined on
+// the real navigator rather than replacing the whole object.
+const writeText = vi.fn<(text: string) => Promise<void>>();
+Object.defineProperty(globalThis.navigator, 'clipboard', {
+  value: { writeText },
+  configurable: true,
+});
+
+beforeEach(() => {
+  writeText.mockReset();
+  writeText.mockResolvedValue(undefined);
+});
+
+async function renderPlayground(path: string, basename?: string) {
   await act(async () => {
     render(
       <ThemePreferencesProvider>
         <DesignSystemProvider>
-          <MemoryRouter initialEntries={[path]}>
+          <MemoryRouter basename={basename} initialEntries={[path]}>
             <LocationProbe />
             <Playground story={story} entry={entry} />
           </MemoryRouter>
@@ -139,4 +152,36 @@ it('resets to the defaults, and offers nothing to reset until something changes'
   expect(screen.getByLabelText('label')).toHaveValue('Click me');
   expect(routerSearch()).toBe('');
   expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
+});
+
+it('copies the current link, and says so plainly when the link carries it all', async () => {
+  await renderPlayground(PATH);
+  await changeControl('variant', 'soft');
+
+  await clickButton('Copy link');
+  expect(writeText).toHaveBeenCalledWith(
+    `${window.location.origin}${PATH}?variant=soft`,
+  );
+  expect(screen.getByText('Link copied to clipboard')).toBeInTheDocument();
+});
+
+it('says what the copied link cannot carry when a local arg is off-default', async () => {
+  await renderPlayground(PATH);
+  await changeControl('label', 'Save changes');
+
+  await clickButton('Copy link');
+  expect(screen.getByText('Link copied — dropdown args only')).toBeInTheDocument();
+});
+
+it('keeps the router basename in the copied link', async () => {
+  // useLocation reports the path with the basename stripped; a link built from
+  // it alone would 404 wherever the app is not served from the root — which is
+  // where this site lands the day its custom domain comes off.
+  const basename = '/pineapple-design-systems';
+  await renderPlayground(`${basename}${PATH}?variant=soft`, basename);
+
+  await clickButton('Copy link');
+  expect(writeText).toHaveBeenCalledWith(
+    `${window.location.origin}${basename}${PATH}?variant=soft`,
+  );
 });

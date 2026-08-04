@@ -1,3 +1,5 @@
+import { Icon } from '@pineappleui/icons';
+
 import { Stack } from '@pineappleui/stack';
 
 import { Text } from '@pineappleui/text';
@@ -26,18 +28,24 @@ export function ArgControl({ name, argType, value, placeholder, onChange }: ArgC
   let control;
   if (argType?.options !== undefined) {
     control = (
-      <select
-        id={id}
-        className="arg-select"
-        value={String(value ?? '')}
-        onChange={event => onChange(event.target.value)}
-      >
-        {argType.options.map(option => (
-          <option key={String(option)} value={String(option)}>
-            {option === '' ? '(default)' : String(option)}
-          </option>
-        ))}
-      </select>
+      // `appearance: none` takes the platform caret with it, so the design
+      // system's own glyph stands in — decorative by default, and it inherits
+      // the theme's gray scale like every other Icon.
+      <span className="arg-select-shell">
+        <select
+          id={id}
+          className="arg-select"
+          value={String(value ?? '')}
+          onChange={event => onChange(event.target.value)}
+        >
+          {argType.options.map(option => (
+            <option key={String(option)} value={String(option)}>
+              {option === '' ? '(default)' : String(option)}
+            </option>
+          ))}
+        </select>
+        <Icon name="chevron-down" size="sm" className="arg-select-caret" />
+      </span>
     );
   }
   else if (typeof value === 'boolean') {

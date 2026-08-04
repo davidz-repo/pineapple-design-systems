@@ -6,7 +6,7 @@ import { Inline } from '@pineappleui/inline';
 import { LiveRegion } from '@pineappleui/live-region';
 import { Stack } from '@pineappleui/stack';
 import { Text } from '@pineappleui/text';
-import { useLocation, useSearchParams } from 'react-router';
+import { useHref, useLocation, useSearchParams } from 'react-router';
 
 import { jsxSnippet } from '../../jsx-snippet';
 import { CodeBlock } from '../CodeBlock';
@@ -27,8 +27,10 @@ const ANNOUNCEMENT_MS = 2000;
 
 // Drives the package's own Playground story: the story render fn is the
 // preview, its argTypes/args are the controls, and the registry's snippet fn
-// turns the current args into the JSX you would write (imports prepended, so
-// the copy button hands you code that compiles). Initial args are the argTypes
+// turns the current args into the code that renders exactly what the preview
+// is showing (imports prepended, so the copy button hands you something that
+// compiles — story defaults included, since a story default is often not the
+// component's own). Initial args are the argTypes
 // defaultValues overlaid by story.args — the same resolution Ladle applies.
 // Callers key this component by slug so state resets across pages.
 //
@@ -103,10 +105,21 @@ export function Playground({ story, entry }: PlaygroundProps) {
 
   // Every arg value here is a primitive (string, number or boolean), so
   // identity comparison per key is the deep comparison.
-  const isPristine = Object.keys(defaults)
-    .every(name => Object.is(args[name], defaults[name]));
+  const offDefaultNames = Object.keys(defaults)
+    .filter(name => !Object.is(args[name], defaults[name]));
+  const isPristine = offDefaultNames.length === 0;
+  // Args the URL cannot carry (free text, booleans). A link copied while one
+  // of them is off-default arrives showing something else, so the
+  // announcement says so rather than claiming the whole state travelled.
+  const hasUnsharedEdits = offDefaultNames.some(name => !urlArgNames.includes(name));
 
   const location = useLocation();
+  // Through useHref, not `location.pathname` raw: useLocation reports the path
+  // with the router's basename stripped, and this app's base is '/' only while
+  // the custom domain is attached (vite.config.ts documents the fallback to
+  // '/pineapple-design-systems/'). useHref puts the basename back, so the
+  // copied link keeps the segment that makes it resolve.
+  const href = useHref(location);
   const [linkStatus, setLinkStatus] = useState('');
 
   useEffect(() => {
@@ -117,16 +130,18 @@ export function Playground({ story, entry }: PlaygroundProps) {
     return () => clearTimeout(timer);
   }, [linkStatus]);
 
-  // The router's location, not the browser's: this is the URL the app is
-  // showing, which is the same thing under a BrowserRouter and the honest
-  // answer under any other. The failure branch is real — `navigator.clipboard`
-  // is absent outside a secure context and rejects when permission is denied —
-  // and either way the reader hears about it instead of clicking into silence.
+  // The router's href resolved against the current origin — the URL the app is
+  // showing, which is what a reader means by "this link". The failure branch is
+  // real — `navigator.clipboard` is absent outside a secure context and rejects
+  // when permission is denied — and either way the reader hears about it
+  // instead of clicking into silence.
   async function copyLink() {
-    const url = new URL(`${location.pathname}${location.search}`, window.location.origin);
+    const url = new URL(href, window.location.origin);
     try {
       await navigator.clipboard.writeText(url.href);
-      setLinkStatus('Link copied to clipboard');
+      setLinkStatus(
+        hasUnsharedEdits ? 'Link copied — dropdown args only' : 'Link copied to clipboard',
+      );
     }
     catch {
       setLinkStatus('Could not copy the link');
@@ -143,57 +158,57 @@ export function Playground({ story, entry }: PlaygroundProps) {
     <Stack gap="4">
       <div className="playground">
         <section className="playground-pane" aria-labelledby={previewLabelId}>
-          <Heading as="h2" size="2" id={previewLabelId}>Preview</Heading>
+          <div className="playground-pane-header">
+            <Heading as="h2" size="2" id={previewLabelId}>Preview</Heading>
+          </div>
           <div className="playground-preview">
             <Story {...args} />
           </div>
         </section>
-        <section className="playground-controls" aria-labelledby={controlsLabelId}>
-          <Stack gap="3">
-            <Stack gap="1">
-              <div className="playground-controls-header">
-                <Heading as="h2" size="2" id={controlsLabelId}>Story args</Heading>
-                <Inline gap="1" align="center">
-                  <Button
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    disabled={isPristine}
-                    onClick={resetArgs}
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    onClick={() => void copyLink()}
-                  >
-                    Copy link
-                  </Button>
-                </Inline>
-              </div>
-              <Text as="p" size="1" color="gray">
-                These drive the story below. The snippet shows the props
-                you&apos;d actually write.
-              </Text>
-              <LiveRegion className="playground-status">
-                <Text size="1" color="gray">{linkStatus}</Text>
-              </LiveRegion>
-            </Stack>
+        <section className="playground-pane" aria-labelledby={controlsLabelId}>
+          <div className="playground-pane-header">
+            <Heading as="h2" size="2" id={controlsLabelId}>Story args</Heading>
+            <Inline gap="2" align="center">
+              <Button
+                size="1"
+                variant="ghost"
+                color="gray"
+                disabled={isPristine}
+                onClick={resetArgs}
+              >
+                Reset
+              </Button>
+              <Button size="1" variant="ghost" color="gray" onClick={() => void copyLink()}>
+                Copy link
+              </Button>
+            </Inline>
+          </div>
+          <div className="playground-controls">
             <Stack gap="3">
-              {Object.keys(defaults).map(name => (
-                <ArgControl
-                  key={name}
-                  name={name}
-                  argType={story.argTypes?.[name]}
-                  value={args[name]}
-                  placeholder={placeholderFor(entry.slug, name)}
-                  onChange={value => setArg(name, value)}
-                />
-              ))}
+              <Stack gap="1">
+                <Text as="p" size="1" color="gray">
+                  Change an arg to redraw the preview. The snippet below is the
+                  code that renders it — some args become children or wrapper
+                  styles, not props.
+                </Text>
+                <LiveRegion className="playground-status">
+                  <Text size="1" color="gray">{linkStatus}</Text>
+                </LiveRegion>
+              </Stack>
+              <Stack gap="3">
+                {Object.keys(defaults).map(name => (
+                  <ArgControl
+                    key={name}
+                    name={name}
+                    argType={story.argTypes?.[name]}
+                    value={args[name]}
+                    placeholder={placeholderFor(entry.slug, name)}
+                    onChange={value => setArg(name, value)}
+                  />
+                ))}
+              </Stack>
             </Stack>
-          </Stack>
+          </div>
         </section>
       </div>
       <CodeBlock code={prependImports(snippet(args))} />

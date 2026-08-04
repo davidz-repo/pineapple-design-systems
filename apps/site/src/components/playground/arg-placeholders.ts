@@ -8,7 +8,7 @@
 // `label`, Card's `content`) need no entry.
 const PLACEHOLDER_BY_ARG: Record<string, Record<string, string>> = {
   box: { width: 'e.g. 240px' },
-  icons: { label: 'e.g. Home — empty is decorative' },
+  icons: { label: 'e.g. Home' },
 };
 
 export function placeholderFor(slug: string, name: string): string | undefined {
