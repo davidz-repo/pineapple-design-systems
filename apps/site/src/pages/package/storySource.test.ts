@@ -64,6 +64,45 @@ describe('sourceOfExport', () => {
     expect(extracted).not.toContain('export function Other');
   });
 
+  it('stops at a top-level declaration that is not exported', () => {
+    // The shape every story file with a Playground has: the arg type is
+    // declared, not exported. Cutting only at the next `export` swept it — and
+    // everything between — into the story above it.
+    const source = [
+      'export function Colors() {',
+      '  return null;',
+      '}',
+      '',
+      'interface PlaygroundArgs {',
+      '  label: string;',
+      '}',
+      '',
+      'export const Playground = () => null;',
+      '',
+    ].join('\n');
+
+    expect(sourceOfExport(source, 'Colors')).toBe(
+      'export function Colors() {\n  return null;\n}',
+    );
+  });
+
+  it('leaves the comment block that introduces the next declaration out', () => {
+    const source = [
+      'export function Colors() {',
+      '  return null;',
+      '}',
+      '',
+      '// Interactive playground: every knob is wired to a Ladle control.',
+      '// Second line of the same note.',
+      'export const Playground = () => null;',
+      '',
+    ].join('\n');
+
+    const extracted = sourceOfExport(source, 'Colors');
+    expect(extracted).toBe('export function Colors() {\n  return null;\n}');
+    expect(extracted).not.toContain('Interactive playground');
+  });
+
   it('is undefined for a name the file does not declare at the top level', () => {
     const source = 'export function Variants() {}\n';
     expect(sourceOfExport(source, 'Missing')).toBeUndefined();
@@ -74,13 +113,32 @@ describe('sourceOfExport', () => {
   // The story files are the real input, and their formatting is the whole
   // premise: a repo-wide reformat that broke this would otherwise show up as
   // silently missing "Show code" buttons on a page nobody re-opened.
+  //
+  // Badge, not Button: Button is the ONE file whose Playground is declared
+  // above its examples, so nothing follows its last story and the cut never had
+  // to be made. Every other package looks like this one — examples first, then
+  // the Playground's arg type and the Playground — which is what made a bug in
+  // 12 example panels invisible here.
   it('finds every non-Playground export of a real story file', () => {
-    const file = path.join(repoRoot, 'packages/button/src/Button.stories.tsx');
+    const file = path.join(repoRoot, 'packages/badge/src/Badge.stories.tsx');
     const source = readFileSync(file, 'utf8');
 
-    expect(sourceOfExport(source, 'Variants')).toMatch(/^export function Variants\(\) \{/);
-    expect(sourceOfExport(source, 'Variants')).toContain('variant="ghost"');
-    expect(sourceOfExport(source, 'Variants')).not.toContain('export function Loading');
-    expect(sourceOfExport(source, 'Loading')).toMatch(/^export function Loading\(\) \{/);
+    const variants = sourceOfExport(source, 'Variants');
+    expect(variants).toMatch(/^export function Variants\(\) \{/);
+    expect(variants).toContain('variant="outline"');
+    // Cut before the note that introduces the story below it.
+    expect(variants).not.toContain('Maps over the real accent list');
+    expect(variants).not.toContain('export function Colors');
+
+    const colors = sourceOfExport(source, 'Colors');
+    expect(colors).toMatch(/^\/\/ Maps over the real accent list/);
+    expect(colors).toContain('export function Colors() {');
+    // The Playground's arg type and the comment above it belong to the
+    // Playground, not to the last example on the page.
+    expect(colors).not.toContain('interface PlaygroundArgs');
+    expect(colors).not.toContain('Interactive playground');
+
+    // Nothing follows the Playground, so it keeps its args and argTypes.
+    expect(sourceOfExport(source, 'Playground')).toContain('Playground.argTypes');
   });
 });

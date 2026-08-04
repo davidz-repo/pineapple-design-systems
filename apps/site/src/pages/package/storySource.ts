@@ -13,32 +13,52 @@
 // story into a snippet you can paste. What it shows is the file, which is the
 // thing a reader can go and read next to the component it renders.
 
-// The tail of a declaration this can find: an export whose name starts a line.
+// The head of a declaration this can find: an export whose name starts a line.
 const DECLARATION_KEYWORDS = 'function|const|let|class';
+
+// What ENDS one: the next top-level declaration of ANY kind, exported or not.
+// `^export` alone was not enough. A story file writes its Playground's arg type
+// as a bare `interface PlaygroundArgs` between two stories, and an unexported
+// declaration did not stop the slice — so the story above it was cut at the
+// export BELOW the interface and its panel showed a type it does not use, plus
+// the Ladle "Controls" comment introducing the story after it.
+const NEXT_DECLARATION = new RegExp(
+  `^(?:export|import|declare|abstract|async|interface|type|enum|namespace|${DECLARATION_KEYWORDS})\\b`,
+  'm',
+);
 
 // Identifiers are `[A-Za-z0-9_$]`, and `$` is the one that also means something
 // to a regex. Escaped rather than assumed away — the name comes from whatever
 // the package exported.
 const REGEXP_SPECIALS = /[$\\^*+?.()|[\]{}]/g;
 
+/** Where the file declares `exportName` at the top level, if it does. */
+function declarationOf(source: string, exportName: string): RegExpExecArray | null {
+  const name = exportName.replace(REGEXP_SPECIALS, '\\$&');
+  const declaration = new RegExp(`^export (?:async )?(?:${DECLARATION_KEYWORDS}) ${name}\\b`, 'm');
+  return declaration.exec(source);
+}
+
 /**
  * The source text of one exported story, comment block included, or `undefined`
  * when the file does not declare it at the top level.
  */
 export function sourceOfExport(source: string, exportName: string): string | undefined {
-  const name = exportName.replace(REGEXP_SPECIALS, '\\$&');
-  const declaration = new RegExp(`^export (?:async )?(?:${DECLARATION_KEYWORDS}) ${name}\\b`, 'm');
-  const found = declaration.exec(source);
+  const found = declarationOf(source, exportName);
   if (found === null) {
     return undefined;
   }
 
-  // The next top-level `export` ends this one. Statements that belong to the
-  // declaration and are not exports themselves — `Playground.args = {...}` —
-  // stay with it, which is right: they are the story's arguments.
+  // The next top-level declaration ends this one — and so does the comment
+  // block written above THAT declaration, which introduces the next thing
+  // rather than closing this one. Statements that belong to the declaration and
+  // are not declarations themselves — `Playground.args = {...}` — stay with it,
+  // which is right: they are the story's arguments.
   const bodyStart = found.index + found[0].length;
-  const nextExport = /^export\s/m.exec(source.slice(bodyStart));
-  const end = nextExport === null ? source.length : bodyStart + nextExport.index;
+  const next = NEXT_DECLARATION.exec(source.slice(bodyStart));
+  const end = next === null
+    ? source.length
+    : startOfLeadingComment(source, bodyStart + next.index);
 
   return source.slice(startOfLeadingComment(source, found.index), end).trimEnd();
 }
