@@ -40,7 +40,7 @@ scripts/
   check-alias-fences.mjs                                        the gallery's three alias lists agree
   check-ci-invariants.mjs                                       the cache's two keys pair, the guard lists agree, scripts/ stays linted
   check-ref-tests.mjs                                           a package that forwards a ref proves the ref arrives
-  check-peer-placement.mjs                                      a peer of any workspace is in no publishable package's `dependencies` or `optionalDependencies`
+  check-peer-placement.mjs                                      a peer of any workspace is in no publishable package's dependencies or optionalDependencies
 ```
 
 ## Working on it
@@ -80,8 +80,8 @@ not name is a failure rather than a quietly shorter run; the fourth reads compon
 test files, which is what qualifies the `test` task below — a package with no ref test is green
 there in exactly the words a package with one is; and the fifth reads one `package.json` per
 workspace, because a peer module misfiled into `dependencies` or `optionalDependencies` is a
-second copy shipped into the consumer's tree that every step below reports green over. The other three read `dist/` and run
-after.
+second copy shipped into the consumer's tree that every step below reports green over. The other
+three read `dist/` and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'
