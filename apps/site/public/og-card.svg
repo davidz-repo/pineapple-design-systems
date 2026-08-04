@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Pineapple UI — a presentational React design system">
+  <title>Pineapple UI — a presentational React design system</title>
+  <!--
+    SOURCE for /og-card.png, which is what index.html actually points og:image
+    at: link scrapers (Slack, iMessage, Twitter, LinkedIn) do not rasterize SVG,
+    so the shipped card has to be a PNG. This file is the thing to edit; the PNG
+    is a render of it.
+
+    Regenerate after editing, from apps/site/public/ (one-shot, deliberately not
+    a dependency of this workspace — a card redrawn twice a year does not earn a
+    build step):
+
+      npx sharp-cli -i og-card.svg -o og-card.png
+
+    Both the geometry and the palette are duplicated from favicon.svg on
+    purpose: these are two static artworks, not one shared component, and the
+    card's mark is tuned for 300px where the favicon's is tuned for 16px. Hex is
+    literal for the same reason it is literal there — nothing here is rendered
+    by a browser with the theme's custom properties in scope.
+  -->
+  <rect width="1200" height="630" fill="#FBF5EC" />
+  <rect y="618" width="1200" height="12" fill="#E9A33C" />
+
+  <g transform="translate(830 190) scale(9.4)">
+    <g fill="none" stroke="#2E9E6B" stroke-width="3" stroke-linecap="round">
+      <path d="M16 11V3" />
+      <path d="M12.5 11 9.5 5.5" />
+      <path d="M19.5 11 22.5 5.5" />
+    </g>
+    <path fill="#E9A33C" d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+    <g
+      clip-path="url(#og-pineapple-body)"
+      fill="none"
+      stroke="#8A5A16"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      opacity=".45"
+    >
+      <path d="M4 6 28 30" />
+      <path d="M4 14 28 38" />
+      <path d="M4 -2 28 22" />
+      <path d="M28 6 4 30" />
+      <path d="M28 14 4 38" />
+      <path d="M28 -2 4 22" />
+    </g>
+  </g>
+  <defs>
+    <clipPath id="og-pineapple-body">
+      <path d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+    </clipPath>
+  </defs>
+
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" fill="#1F1B16">
+    <text x="88" y="232" font-size="24" font-weight="700" letter-spacing="4" fill="#A9762F">
+      REACT DESIGN SYSTEM
+    </text>
+    <text x="88" y="322" font-size="88" font-weight="700">Pineapple UI</text>
+    <text x="88" y="392" font-size="32" fill="#6B6157">Thin, typed wrappers over Radix Themes,</text>
+    <text x="88" y="438" font-size="32" fill="#6B6157">published under the @pineappleui scope.</text>
+    <text x="88" y="524" font-size="26" fill="#94897C">designpineapple.com</text>
+  </g>
+</svg>

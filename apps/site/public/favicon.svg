@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pineapple UI">
+  <title>Pineapple UI</title>
+  <!--
+    Hand-authored, geometric, and deliberately low-detail so it survives 16px:
+    a three-blade crown, one rounded body, and a crosshatch that reads as
+    texture rather than as lines. Colours are literal hex on purpose — a
+    favicon is fetched outside the document, so no CSS custom property (and
+    therefore no design token) is in scope by the time it paints. They are
+    saturated mid-tones so the mark holds on both light and dark tab chrome.
+
+    This file is the source for the sibling favicon.ico, which exists for the
+    bare /favicon.ico request that agents make without reading the document.
+    To regenerate it after editing (one-shot, no dependency and no build step —
+    a mark redrawn twice a year does not earn either): render this file at 16,
+    32 and 48 px with `npx sharp-cli`, whose density flag takes 36, 72 and 108
+    respectively (this viewBox is 32 units, and the default density is 72 dpi,
+    so each size renders natively rather than being resampled), then wrap the
+    three PNGs unmodified in an ICO container. Do not reach for `npx
+    png-to-ico`: it pads the file to 285 kB with a BMP-encoded 256 px entry
+    upscaled from the largest input.
+  -->
+  <defs>
+    <clipPath id="pineapple-body">
+      <path d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+    </clipPath>
+  </defs>
+
+  <!-- Crown first, body over it: the blade ends tuck under the body's edge. -->
+  <g fill="none" stroke="#2E9E6B" stroke-width="3" stroke-linecap="round">
+    <path d="M16 11V3" />
+    <path d="M12.5 11 9.5 5.5" />
+    <path d="M19.5 11 22.5 5.5" />
+  </g>
+
+  <path fill="#E9A33C" d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+
+  <g
+    clip-path="url(#pineapple-body)"
+    fill="none"
+    stroke="#8A5A16"
+    stroke-width="1.6"
+    stroke-linecap="round"
+    opacity=".45"
+  >
+    <path d="M4 6 28 30" />
+    <path d="M4 14 28 38" />
+    <path d="M4 -2 28 22" />
+    <path d="M28 6 4 30" />
+    <path d="M28 14 4 38" />
+    <path d="M28 -2 4 22" />
+  </g>
+</svg>
