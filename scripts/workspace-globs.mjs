@@ -38,9 +38,14 @@
 //     it takes the whole list for exactly that reason: the subset has to be
 //     derived from every workspace npm installs, or the guard's required set
 //     shrinks with the discovery and reports the same pass over less.
-//   - `check-toolchain-hoist` reads the ROOT manifest's declarations, so it has
-//     no list to walk — it takes the assertion alone, because a new workspace
-//     root is exactly the event that widens what it does not cover.
+//   - `check-toolchain-hoist` reads the ROOT manifest's declarations, so it
+//     walks no workspace list, but it takes `listWorkspaceDirs()` for a
+//     membership test rather than a walk: one root declaration is a LINK to a
+//     sibling workspace, and "the slot links to a workspace" is a claim about
+//     exactly this set — a `file:` dependency on an out-of-tree copy records
+//     the same link entry. It would take the assertion either way, because a
+//     new workspace root is exactly the event that widens what it does not
+//     cover.
 //   - `check-token-drift` scans `git ls-files`, which is layout-agnostic and
 //     therefore cannot shrink when a workspace root is added. It takes the
 //     assertion anyway, so that "which layouts does this repo's tooling

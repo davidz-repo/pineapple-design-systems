@@ -38,10 +38,22 @@
 // here writes as `*`. So the slot question is asked differently for a link, not
 // skipped: npm links a sibling only when the declared range accepts the
 // workspace's own version, and goes to the REGISTRY for a package of that name
-// when it does not — so "the slot resolves to the workspace directory whose
+// when it does not — so "the slot resolves to a WORKSPACE directory whose
 // manifest carries this name" is the whole of "the root's own copy owns it". A
 // link pointing anywhere else, or at a directory the lockfile does not know, is
 // the same capture the version check below exists for, wearing the other shape.
+//
+// Both halves of that sentence are asserted, because a link alone does not say
+// which one it is: `"<name>": "file:../vendored"` produces the identical
+// `{ link: true, resolved: … }` entry, pointing outside the workspace set. So
+// the target is checked against `listWorkspaceDirs()` — the same lock-derived
+// list every other guard walks — and not merely against "the lockfile has an
+// entry here". `name` on that entry is compared where npm wrote one and the
+// directory's basename where it did not (npm omits the field when the two
+// already agree), so an absent field reads as the match it is rather than as a
+// mismatch. And a target carrying no `version` is refused exactly as an
+// unversioned registry entry is: an unverifiable slot printed as `undefined` on
+// a green line is the silence this guard exists to break, not a pass.
 //
 // What this does NOT prove: that the toolchain is complete. The assertion is
 // "every slot the root DECLARES is the one the root asked for" — a slot nobody
@@ -67,7 +79,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { assertWorkspaceGlobsUnderstood } from './workspace-globs.mjs';
+import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const LOCKFILE = 'package-lock.json';
 const TOP_SLOT_PREFIX = 'node_modules/';
@@ -158,8 +170,12 @@ function satisfies(version, range) {
 // A new workspace root is exactly the event that widens what this guard does
 // not cover — a tree of newly declared dependencies, none of them root-declared
 // and so none of them checked, under a line that still reads "N slot(s) OK".
-// Both dependency guards share the assertion so the answer cannot differ.
-assertWorkspaceGlobsUnderstood('check-toolchain-hoist');
+// Both dependency guards share the assertion so the answer cannot differ. The
+// list itself is taken rather than the assertion alone because the link branch
+// below needs it: "this slot links to a workspace" is a claim about that set,
+// and deriving the set here a second way is how two answers to one question get
+// written.
+const workspaceDirs = listWorkspaceDirs('check-toolchain-hoist');
 
 const rootManifest = readJson('package.json');
 const lock = readJson(LOCKFILE);
@@ -189,7 +205,7 @@ function countNestedCopies(name) {
 }
 
 /** @param {string} name @returns {string} the report's parenthetical, or ''. */
-function nestedCopiesNote(name) {
+function formatNestedCopiesNote(name) {
   const nested = countNestedCopies(name);
   return nested > 0
     ? ` (+${nested} nested cop${nested === 1 ? 'y' : 'ies'} elsewhere, off the shared slot)`
@@ -218,12 +234,19 @@ for (const [name, range] of rootDeclared) {
   // A sibling workspace holds the slot as a link to its directory, with the
   // version on the target entry: what is asserted is where the link points.
   if (entry.link === true) {
-    const target = typeof entry.resolved === 'string' ? lockPackages[entry.resolved] : undefined;
+    const resolved = typeof entry.resolved === 'string' ? entry.resolved : null;
+    const target = resolved === null ? undefined : lockPackages[resolved];
 
-    if (target?.name !== name) {
+    // npm writes `name` on a workspace entry only where it differs from the
+    // directory's basename, so a missing field is agreement, not a mismatch.
+    const targetName = typeof target?.name === 'string'
+      ? target.name
+      : resolved !== null ? path.basename(resolved) : null;
+
+    if (targetName !== name) {
       fail(
         name,
-        `${LOCKFILE}'s ${slot} links to ${entry.resolved ?? '(nothing)'}, which is not a `
+        `${LOCKFILE}'s ${slot} links to ${resolved ?? '(nothing)'}, which is not a `
         + `workspace declaring ${name}`,
         `run \`npm install\` and commit ${LOCKFILE}. The root declares ${name}@${range} to use `
         + 'the workspace in this repo; a slot linked somewhere else, or at a directory the '
@@ -234,9 +257,35 @@ for (const [name, range] of rootDeclared) {
       continue;
     }
 
+    if (!workspaceDirs.includes(resolved)) {
+      fail(
+        name,
+        `${LOCKFILE}'s ${slot} links to ${resolved}, which is not one of this repo's `
+        + `workspaces (${workspaceDirs.join(', ')})`,
+        `declare ${name} as the sibling workspace it names, run \`npm install\` and commit `
+        + `${LOCKFILE}. A \`file:\` dependency on a vendored or out-of-tree copy records the `
+        + 'same `{ link: true }` entry a workspace does, so "the slot is a link" alone does '
+        + 'not say the root is loading the source beside it. That directory is built, '
+        + 'linted and tested by nothing in this repo, while the slot reads as owned.',
+      );
+      continue;
+    }
+
+    if (typeof target.version !== 'string') {
+      fail(
+        name,
+        `${LOCKFILE}'s ${slot} links to ${resolved}, whose entry records no version`,
+        `delete ${LOCKFILE} and run \`npm install\` to regenerate it. The linked workspace's `
+        + 'own manifest is where that version comes from, so a missing one means the entry '
+        + 'is stale or hand-edited — and the alternative to refusing is a green line reporting '
+        + 'this slot as `undefined`, which is an unverified slot printed like a verified one.',
+      );
+      continue;
+    }
+
     report.push(
-      `  ${name}@${range} -> ${slot} link -> ${entry.resolved} ${target.version}${
-        nestedCopiesNote(name)}`,
+      `  ${name}@${range} -> ${slot} link -> ${resolved} ${target.version}${
+        formatNestedCopiesNote(name)}`,
     );
     continue;
   }
@@ -280,7 +329,7 @@ for (const [name, range] of rootDeclared) {
     continue;
   }
 
-  report.push(`  ${name}@${range} -> ${slot} ${entry.version}${nestedCopiesNote(name)}`);
+  report.push(`  ${name}@${range} -> ${slot} ${entry.version}${formatNestedCopiesNote(name)}`);
 }
 
 if (failures.length > 0) {
