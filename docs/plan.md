@@ -74,6 +74,41 @@ fails. What reading `dist/` buys is **visibility**: the count of stylesheets sca
 guard's pass line drops, so the loss is legible there instead of arriving as a clean scan of
 nothing.
 
+The rule has a **placement** half too, and it is the one none of those five assertions asks about.
+A module that any workspace declares in `peerDependencies` is consumer-supplied by definition, so
+it may appear in **no publishable workspace's `dependencies`** — nor in its
+`optionalDependencies`, which npm installs by default (`optional` describes what happens when that
+install *fails*, not whether it is attempted) and which therefore ships the identical second copy.
+Assertion D is satisfied by either field — its subject is a module declared *nowhere*, and for that
+question "peer or dependency" is the right reading — so misfiling `react` as a dependency passes
+all five while npm installs a second React into the consumer's tree: the broken-hooks failure this
+section opens with, landing in the consumer's stack trace rather than in any build here.
+
+It hides best in a **JSX-free** package. The JSX reading above is what puts `react` in front of the
+assertions for the eleven wrappers that never name it; a hooks-only package like
+`use-local-storage` emits no `jsx-runtime` import at all, so there is nothing there for that
+reading to flag and a misfiled entry passes as a satisfied declaration.
+`scripts/check-peer-placement.mjs` is the guard, and it is **list-free** the way `check-token-drift`
+is: no module names are written into it, and "is anyone's peer" is derived from the manifests on
+every run, so a module joins the rule by being declared a peer somewhere rather than by an edit
+there. It reads manifests only, so it runs before the build. A workspace dependency in
+`dependencies` stays legal exactly while nobody declares it a peer — which is why
+`@pineappleui/theme` depending on `@pineappleui/tokens` is not a finding, and why the day any
+package declares `tokens` a peer the same manifests make that entry a failure. Private workspaces'
+installed fields (`dependencies`, `optionalDependencies`) are out of scope for the same reason
+they may hold `react` today — `vitest-preset` does — since nothing of theirs reaches a consumer.
+
+Their `peerDependencies` are **not** out of scope, and the asymmetry is deliberate. Every peer
+entry in the repo enters the union, private declarers included, so `eslint` (a peer of the private
+`eslint-config`) and `vitest` (a peer of the private `vitest-preset`) are in it — and for those two
+the "consumer" is *this repo*, not anyone installing a package from here. The union therefore
+over-approximates: it reads some peer entries as claims about a consumer that were not written as
+one. Narrowing it would mean the guard deciding which sense each peer entry carries, and the two
+mistakes are different sizes — a wrong exclusion ships a second React into someone else's tree and
+surfaces in their stack trace, a wrong inclusion prints a failure here that a human resolves in one
+commit. So the guard prefers the loud false positive, and its failure message says so explicitly
+when every workspace declaring the module a peer is private.
+
 ### 4. ESM only
 
 `"type": "module"`, `format: ['esm']`, output forced to `.mjs` via `outExtension` so that
@@ -736,8 +771,9 @@ task the package actually defines, or that names a task that does not exist.
 
 ## Adding a guard later
 
-A new guard is a file plus two wirings, and `scripts/check-ci-invariants.mjs` fails on any of
-the first three being missing. The fourth is convention:
+A new guard is a file plus two wirings, and then two conventions.
+`scripts/check-ci-invariants.mjs` fails on any of steps 1–3 being missing; steps 4 and 5 are
+convention, and nothing enforces either:
 
 1. name it `scripts/check-<thing>.mjs`, directly in `scripts/` — the equality check matches that
    pattern, so a guard under another name, or in a subdirectory, is invisible to it
@@ -745,6 +781,10 @@ the first three being missing. The fourth is convention:
 3. give it its own step in `.github/workflows/ci.yml`, **unconditional** — a step under `if:` or
    `continue-on-error:` is in the file and out of the run
 4. add a `check:<alias>` script, so it is runnable on its own the way the others are
+5. if the guard walks a workspace list, add its clause to the importer enumeration at the top of
+   `scripts/workspace-globs.mjs`. That header is where "which guards get quietly smaller when the
+   discovery gets smaller, and why" is written down; a walker missing from it is a walker nobody
+   knows to re-check the day a workspace root is added
 
 Steps 1–3 are one decision written three times, which is why a guard named by fewer than all
 three fails rather than merely running less. Its own step, not a line appended to another, so a

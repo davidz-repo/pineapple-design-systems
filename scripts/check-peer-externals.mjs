@@ -965,7 +965,8 @@ function checkPackage(relDir) {
       + ', but is declared in neither peerDependencies nor dependencies',
       `add "${name}" to peerDependencies in ${path.basename(pkgDir)}/package.json if the `
       + 'consumer should supply it (React, React DOM, Radix), or to dependencies if this '
-      + 'package should. A devDependency does not travel in the tarball. This is the '
+      + 'package should — unless another workspace declares it a peer, which check-peer-placement '
+      + 'forbids. A devDependency does not travel in the tarball. This is the '
       + 'version of the bug that actually inlines: tsup externalises whatever the manifest '
       + 'declares, so an undeclared module gets BUNDLED — the build succeeds, the tests '
       + 'pass, dist/index.mjs quietly grows by the size of React, and every consumer ends '
@@ -1002,7 +1003,8 @@ function checkPackage(relDir) {
       `${BUILD_ENTRY} imports '${specifier}', but ${name} is in neither `
       + 'peerDependencies nor dependencies',
       `add "${name}" to peerDependencies (if the consumer supplies it) or dependencies `
-      + '(if this package does) in package.json. An import that no manifest field names '
+      + '(if this package does, and no other workspace declares it a peer — check-peer-placement '
+      + 'forbids that placement) in package.json. An import that no manifest field names '
       + 'is a phantom dependency: npm installs nothing for it, the tarball passes every '
       + 'check here, and the consumer\'s app fails at the first import of this package.',
     );
@@ -1034,7 +1036,9 @@ function checkPackage(relDir) {
       `${name} is pulled in with an \`@import\` by ${sources.join(' and ')}, but is in `
       + 'neither peerDependencies nor dependencies',
       `add "${name}" to dependencies in ${path.basename(pkgDir)}/package.json (or to `
-      + 'peerDependencies if the consumer is meant to supply it). The stylesheet ships '
+      + 'peerDependencies if the consumer is meant to supply it — and dependencies is not open '
+      + 'to you if another workspace declares it a peer, which check-peer-placement forbids). '
+      + 'The stylesheet ships '
       + 'verbatim, so that `@import` is resolved by the CONSUMER\'s bundler against the '
       + 'CONSUMER\'s node_modules — an undeclared one installs nothing for them and fails '
       + 'their build in a file they never wrote. A devDependency does not travel in the '

@@ -40,6 +40,7 @@ scripts/
   check-alias-fences.mjs                                        the gallery's three alias lists agree
   check-ci-invariants.mjs                                       the cache's two keys pair, the guard lists agree, scripts/ stays linted
   check-ref-tests.mjs                                           a package that forwards a ref proves the ref arrives
+  check-peer-placement.mjs                                      a peer of any workspace is in no publishable package's dependencies or optionalDependencies
 ```
 
 ## Working on it
@@ -55,7 +56,7 @@ The gallery resolves every `@pineappleui/*` import to that package's `src/`, not
 (`ladle build`, behind a wrapper that fails the task when the build does — ladle exits 0 either
 way) is what proves in CI that every story still compiles.
 
-`verify` runs seven guards around the four turbo tasks. Each is also a script of its own, and
+`verify` runs eight guards around the four turbo tasks. Each is also a script of its own, and
 each fails with the fix in the message:
 
 | Script | Guards against |
@@ -64,19 +65,23 @@ each fails with the fix in the message:
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
 | `npm run check:ci` | a turbo cache `restore-keys` that is not exactly the static portion of `key` — a salt written into one line and not the other restores everything it was meant to discard — and a guard that `scripts/`, `verify` and CI do not all three name, or whose CI step can be skipped — and a `scripts/` lint missing one of its three legs: the root `lint:scripts` script, the `//#lint:scripts` turbo task, and the `lint` task's `dependsOn` entry that reaches it, of which the script and the entry both go green when deleted |
 | `npm run check:refs` | a package whose props carry a `ref` and whose tests never check that the ref arrives — an implementation that accepts the prop and drops it renders, lays out and passes every class-name assertion above it |
+| `npm run check:placement` | a module some workspace declares a peer sitting in a publishable package's `dependencies` or `optionalDependencies` (npm installs both by default) — the consumer supplies it by definition, so npm installs a second copy into their tree beside the one they already have. The JSX-free packages are where it hides from `check:externals`, whose assertion D accepts either field |
 | `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling workspace shipping to consumers, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
 | `npm run check:externals` | a peer that got inlined into `dist/`, an undeclared one that did not, and a dependency only a stylesheet's `@import` names |
 
-`check:hoist`, `check:aliases`, `check:ci` and `check:refs` run *before* the build and need no
-build output: the first reads `package-lock.json`, so it answers "is the toolchain the one we
-declared?" before anything runs on that toolchain; the second reads the gallery's configs, where a
-missing devDependency is what would let the build below replay from cache without compiling the
-change that prompted it; the third reads `.github/workflows/ci.yml`, this `verify` chain itself and
-the `scripts/` listing, so a guard that any one of those three does not name is a failure rather
-than a quietly shorter run; and the fourth reads component sources and test files, which is what
-qualifies the `test` task below — a package with no ref test is green there in exactly the words a
-package with one is. The other three read `dist/` and run after.
+`check:hoist`, `check:aliases`, `check:ci`, `check:refs` and `check:placement` run *before* the
+build and need no build output: the first reads `package-lock.json`, so it answers "is the
+toolchain the one we declared?" before anything runs on that toolchain; the second reads the
+gallery's configs, where a missing devDependency is what would let the build below replay from
+cache without compiling the change that prompted it; the third reads `.github/workflows/ci.yml`,
+this `verify` chain itself and the `scripts/` listing, so a guard that any one of those three does
+not name is a failure rather than a quietly shorter run; the fourth reads component sources and
+test files, which is what qualifies the `test` task below — a package with no ref test is green
+there in exactly the words a package with one is; and the fifth reads one `package.json` per
+workspace, because a peer module misfiled into `dependencies` or `optionalDependencies` is a
+second copy shipped into the consumer's tree that every step below reports green over. The other
+three read `dist/` and run after.
 
 **`turbo` is the only verification entry point.** Running a package's own `npm test` or
 `npm run typecheck` directly reads whatever is currently sitting in its dependencies'
