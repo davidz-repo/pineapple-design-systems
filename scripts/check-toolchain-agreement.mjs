@@ -421,7 +421,7 @@ function formatMajorityClause(groups, total) {
       + 'declarer(s) each, so this is a decision to make rather than a stray bump to revert';
   }
 
-  return `\`${topRange}\` is the majority, held by ${topStaters.length} of the ${total} `
+  return `${JSON.stringify(topRange)} is the majority, held by ${topStaters.length} of the ${total} `
     + 'manifest(s) declaring it';
 }
 
@@ -454,8 +454,10 @@ function formatSkewNote(name, hasMajority) {
       + 'REGISTRY for a package of that name when it does not. So the manifest whose range has '
       + 'stopped accepting its sibling builds against whatever the registry answers with under '
       + 'that name — a published older copy, or a package this repo does not own — rather than '
-      + 'against the source beside it. That is why every workspace range in this repo is '
-      + 'written `*`: it accepts whatever the sibling manifest says today.';
+      + 'against the source beside it. That is why every sibling range in `devDependencies` '
+      + 'here is written `*`: it accepts whatever the sibling manifest says today. A sibling '
+      + 'range in `dependencies` travels to consumers and is pinned instead — that field is '
+      + '`check-publish-contract`\'s subject, and it forbids `*` there.';
   }
 
   if (hasMajority) {

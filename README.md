@@ -229,8 +229,9 @@ different majors of them. (`eslint` was in that list until the root declared it 
 hands), and `scripts/check-toolchain-agreement.mjs` is the one that holds it: every module two or
 more manifests declare in `devDependencies` — the root's own included — must be declared with the
 **same range string**. Compared as text, so `^19.0.0` and `^19.0.8` disagree here even though npm
-can satisfy both from a single copy: one decision written in twenty-one places is checkable by
-`grep`, where "do these two ranges overlap enough" is a re-implementation of npm's resolver.
+can satisfy both from a single copy: one decision written into every manifest that has an opinion
+about it is checkable by `grep`, where "do these two ranges overlap enough" is a re-implementation
+of npm's resolver.
 
 The two of them still stop short of the join. Agreement is about intent, and identical ranges do
 not make npm install one copy — a shared module no manifest declares at the *root* owns no top
