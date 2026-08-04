@@ -135,8 +135,22 @@
   white-space: nowrap;
 }
 
-.site-sidebar {
+/* The grid item the sidebar sits in, and the reason the sidebar is not one.
+   `position: sticky` is resolved against the element's CONTAINING BLOCK, and a
+   grid item's containing block is the grid CONTAINER, not the area it was
+   placed in — so a sticky nav placed straight into the content row was free to
+   travel the whole grid, and at the bottom of a long page its last rows painted
+   over the footer. Nothing in the offsets could have caught that: `top` clears
+   the header and there is no `bottom` that could clear a footer of unknown
+   height. Wrapping the nav gives it a containing block that ENDS where the
+   content row ends, which is the footer's top edge, so the clamp is the layout
+   rather than a number to keep in sync. The border comes with it: the rule is
+   the column's edge, and it has to stop at the footer too. */
+.site-sidebar-column {
   border-right: 1px solid var(--gray-a5);
+}
+
+.site-sidebar {
   padding: var(--space-4);
   overflow-y: auto;
   /* Scrolling past the end of the nav must not carry on into the page behind
@@ -246,6 +260,15 @@
     display: inline-flex;
   }
 
+  /* No slot to occupy here: the panel is fixed, so the wrapper that gives it a
+     containing block on desktop would be an empty grid item holding a column
+     open. `display: contents` removes its box (and the column rule with it)
+     without removing the nav — the panel keeps the out-of-flow behaviour it
+     has always had. */
+  .site-sidebar-column {
+    display: contents;
+  }
+
   /* The sidebar becomes the disclosure panel the header's Menu button opens:
      out of flow (so `.site-main` keeps the 1fr row instead of being pushed
      into an implicit one) and anchored under the sticky header. */
@@ -257,7 +280,6 @@
     z-index: 1;
     max-height: calc(100dvh - var(--site-header-h));
     background: var(--color-background);
-    border-right: none;
     border-bottom: 1px solid var(--gray-a5);
     box-shadow: var(--shadow-4);
   }
@@ -578,11 +600,14 @@
   padding: var(--space-8) 0 var(--space-6);
 }
 
-/* The hero's "Browse components" CTA is an in-page href, and the header is
-   sticky (57px, same figure .site-sidebar offsets by), so the jump has to
-   clear it or it lands under the chrome. */
+/* The hero's "Browse components" CTA is an in-page href and the header is
+   sticky, so the jump has to clear it or it lands under the chrome. The offset
+   is the header token itself — the same one .site-sidebar offsets by — not the
+   57px literal that used to sit here: that figure was never the rendered
+   height (49px at --scaling 100%), and being a literal it could not follow the
+   breakpoint that makes the mobile header taller either. */
 .home-components {
-  scroll-margin-top: calc(57px + var(--space-4));
+  scroll-margin-top: calc(var(--site-header-h) + var(--space-4));
 }
 
 /* Which variant the hero's mini-demo has selected. Keyed off the ARIA state
