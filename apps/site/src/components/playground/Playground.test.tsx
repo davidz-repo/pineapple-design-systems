@@ -86,10 +86,11 @@ function routerSearch(): string {
   return screen.getByLabelText('router search').textContent ?? '';
 }
 
-// The <code> element: getByText matches on an element's own text children, so
-// the <pre> around it does not also match.
+// The code block's own text. Read off the element rather than through
+// `getByText`: the snippet is highlighted (CodeBlock is given `language="tsx"`),
+// so every token is its own span and no single element holds the whole line.
 function snippetText(): string {
-  return screen.getByText(/<Button/).textContent ?? '';
+  return document.querySelector('.code-block pre')?.textContent ?? '';
 }
 
 async function changeControl(label: string, value: string) {

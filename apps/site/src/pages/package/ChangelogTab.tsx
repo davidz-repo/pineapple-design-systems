@@ -8,7 +8,11 @@ import { changelogFor } from '../../content';
 // The changesets-generated CHANGELOG.md, verbatim. Its `# @pineappleui/x`
 // title duplicates the page header, so it is stripped; the `## 0.1.0`
 // version headings are the content.
-export function VersionsTab({ slug }: { slug: string }) {
+//
+// Called "Changelog", not "Versions": the file is a CHANGELOG and changesets
+// calls it one, while "Versions" reads like a version PICKER — a list of
+// releases whose docs you switch between, which this site does not have.
+export function ChangelogTab({ slug }: { slug: string }) {
   const changelog = use(changelogFor(slug));
   if (changelog === null) {
     return (

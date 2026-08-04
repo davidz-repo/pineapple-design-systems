@@ -1,5 +1,7 @@
 import type { ComponentType } from 'react';
 
+import { cachedLoader } from './content';
+
 // The site renders the packages' own Ladle stories: named exports become the
 // Examples section, and the `Playground` export (args + argTypes attached)
 // drives the playground. The types below are a local mirror of the slice of
@@ -28,23 +30,25 @@ const storyModules = import.meta.glob<StoryModule>(
   '../../../packages/*/src/**/*.stories.{ts,tsx}',
 );
 
-// Stable per-slug promises so components can `use()` them under Suspense.
-// Synchronous on purpose: `use` needs the same promise instance across render
-// retries, and an async wrapper would mint a fresh (uncached) promise per
-// call, suspending the component forever.
-const storyCache = new Map<string, Promise<StoryModule | null>>();
+// The same files again, as text. Two globs of one pattern rather than one:
+// `?raw` is a different module (the source string) from the compiled one, and
+// Vite emits each as its own lazy chunk — so the text is fetched alongside the
+// module rather than inside it.
+//
+// A page that shows any example reads this, expanded disclosures or not: it is
+// what "Show code" discloses AND what puts the examples in the order their file
+// declares them (ExamplesSection.tsx), which is a decision made before anything
+// is drawn. The chunk is the story file's own source, next to the story chunk
+// that was compiled from it.
+const storySources = import.meta.glob<string>(
+  '../../../packages/*/src/**/*.stories.{ts,tsx}',
+  { query: '?raw', import: 'default' },
+);
 
-// eslint-disable-next-line ts/promise-function-async -- hands back the cached promise itself; async would break `use()` identity
-export function storyModuleFor(slug: string): Promise<StoryModule | null> {
-  let promise = storyCache.get(slug);
-  if (promise === undefined) {
-    const loader = Object.entries(storyModules)
-      .find(([p]) => p.includes(`/packages/${slug}/src/`))?.[1];
-    promise = loader === undefined ? Promise.resolve(null) : loader();
-    storyCache.set(slug, promise);
-  }
-  return promise;
-}
+// Stable per-slug promises so components can `use()` them under Suspense —
+// see content.ts for why the returned function must stay synchronous.
+export const storyModuleFor = cachedLoader(storyModules);
+export const storySourceFor = cachedLoader(storySources);
 
 // Filters out non-story exports such as live-region's `export default
 // { title }` object — a story is always a render function.

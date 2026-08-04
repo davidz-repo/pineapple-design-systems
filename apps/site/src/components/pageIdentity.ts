@@ -1,3 +1,4 @@
+import { PACKAGE_TABS } from '../packageTabs';
 import { bySlug } from '../registry';
 
 // What counts as "a different page" for the shell's route-change behavior
@@ -22,23 +23,19 @@ import { bySlug } from '../registry';
 const SITE_NAME = 'Pineapple UI';
 const COMPONENT_PREFIX = '/components/';
 
-// The tab segments `PackagePage` routes, and what each is called in a title.
-// It owns the tab strip; this is the naming half of the same vocabulary, kept
-// here because a title is not a tab label ("Button playground", not
-// "Playground"). A segment missing from this map titles as not found — which
-// is also what the router renders for it.
+// Derived from the tab list itself, not a second copy of it: a segment the
+// router serves but this map had never heard of used to title a working page
+// "Page not found", and no test could see the disagreement because there was
+// nothing that said the two lists were supposed to match. Now there is one list.
 //
 // The one case this cannot see: a tab a package does not HAVE (there is no
 // `/components/tokens/playground` because tokens exports no stories). Knowing
 // that means resolving the story module, which is async and route-level; the
-// page renders not-found while the title names the tab. Rare, and cheaper than
-// making the title wait on a dynamic import.
-const TAB_TITLES: Record<string, string> = {
-  '': '',
-  'examples': ' examples',
-  'playground': ' playground',
-  'versions': ' versions',
-};
+// page says so in place of the tab's content while the title names the tab.
+// Rare, and cheaper than making the title wait on a dynamic import.
+const TAB_TITLES: Record<string, string> = Object.fromEntries(
+  PACKAGE_TABS.map(tab => [tab.segment, tab.titleSuffix]),
+);
 
 // `/getting-started/` is the same route as `/getting-started` to the router,
 // so it is the same page and the same title here.
