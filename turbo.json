@@ -11,16 +11,21 @@
     // depends on it — so the one unfiltered `turbo run build lint test
     // typecheck` that CI and `verify` already run covers scripts/ with nothing
     // added to either list. Root tasks default to hashing the WHOLE repo, so
-    // the inputs are stated: the sources, the config that lints them, the
-    // shared factory that config imports, the root manifest holding the script
-    // and its devDependencies, and the lockfile that pins the linter itself.
+    // the inputs are stated: the sources, the config that lints them, the two
+    // files that ARE the shared factory that config imports — its entry point
+    // and the manifest that resolves it, rather than the package directory,
+    // which would pull in its gitignored node_modules/ and another task's
+    // recorded output under .turbo/, neither of which exists in CI — the root
+    // manifest holding the script and its devDependencies, and the lockfile
+    // that pins the linter itself.
     "//#lint:scripts": {
       "inputs": [
         "scripts/**",
         "eslint.config.mjs",
         "package.json",
         "package-lock.json",
-        "packages/eslint-config/**"
+        "packages/eslint-config/index.mjs",
+        "packages/eslint-config/package.json"
       ]
     },
     "lint": {

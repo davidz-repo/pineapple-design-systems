@@ -117,7 +117,10 @@ guard wired into fewer than all three is a guard that does not run somewhere it 
 about that. The same guard machine-enforces the turbo cache salt rule that pairs with it: the
 cache step's `restore-keys` entry must be exactly the static portion of its `key`, so a re-salt
 that touches one line and not the other fails instead of silently restoring everything it was
-meant to discard.
+meant to discard. It holds the `scripts/` lint above the same way — the root `lint:scripts`
+script, the `//#lint:scripts` task and the `lint` task's `dependsOn` entry are one sentence
+declared three times, and deleting the script or the entry leaves `turbo run lint` green with
+`scripts/` linted by nothing.
 
 ### 7. The doubled `sourceMappingURL` is expected output
 
