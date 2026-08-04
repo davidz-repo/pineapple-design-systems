@@ -31,7 +31,7 @@
     "lint:scripts": "eslint scripts eslint.config.mjs",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "verify": "node scripts/check-toolchain-hoist.mjs && node scripts/check-alias-fences.mjs && node scripts/check-ci-invariants.mjs && node scripts/check-ref-tests.mjs && node scripts/check-peer-placement.mjs && turbo run build lint test typecheck && node scripts/check-publish-contract.mjs && node scripts/check-token-drift.mjs && node scripts/check-peer-externals.mjs",
+    "verify": "node scripts/check-toolchain-hoist.mjs && node scripts/check-toolchain-agreement.mjs && node scripts/check-alias-fences.mjs && node scripts/check-ci-invariants.mjs && node scripts/check-ref-tests.mjs && node scripts/check-peer-placement.mjs && turbo run build lint test typecheck && node scripts/check-publish-contract.mjs && node scripts/check-token-drift.mjs && node scripts/check-peer-externals.mjs",
     "check:aliases": "node scripts/check-alias-fences.mjs",
     "check:ci": "node scripts/check-ci-invariants.mjs",
     "check:refs": "node scripts/check-ref-tests.mjs",
@@ -40,6 +40,7 @@
     "check:drift": "node scripts/check-token-drift.mjs",
     "check:externals": "node scripts/check-peer-externals.mjs",
     "check:hoist": "node scripts/check-toolchain-hoist.mjs",
+    "check:agreement": "node scripts/check-toolchain-agreement.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version && npm install --package-lock-only --no-audit --no-fund",
     "release": "changeset publish"

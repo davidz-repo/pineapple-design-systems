@@ -62,9 +62,25 @@
 // notice two workspaces building on different majors of them — `eslint` was one
 // of them until the root declared it for its own lint task. That is a
 // different failure (workspaces disagreeing) from the one this file exists for
-// (one shared slot silently changing hands), and asserting cross-workspace
-// agreement is a possible extension rather than something to read into the
-// green line this prints.
+// (one shared slot silently changing hands), and it belongs to
+// `check-toolchain-agreement`: that guard reads the MANIFESTS rather than the
+// lockfile, and requires every module two or more of them declare — the root's
+// own `devDependencies` included — to be declared with the same range string.
+//
+// What the two of them together still do not prove is the join. Agreement is
+// about intent, and twenty-one manifests stating one range does not make npm
+// install one copy: a shared module NO manifest declares at the ROOT owns no
+// top slot by anybody's decision, so which package ends up in
+// `node_modules/typescript` is settled by whichever claimant npm hoisted — a
+// lockfile fact nothing here asks about, which is the gap `vite` fell through.
+// It is a milder gap than `vite`'s was, and the difference is the declarers:
+// `vite` had none, so one hoist decided what every workspace ran, where a
+// module nineteen manifests declare identically leaves each of them with a copy
+// their own range accepts, nested if the shared slot went elsewhere. What is
+// unasserted is that SHARED slot — which `typescript`, `vitest` or `tsup`
+// resolves from the repo root, for everything that reads from there rather than
+// from a workspace. Declaring the module at the root is what turns that
+// question into the one this file answers.
 //
 // Reads package-lock.json rather than node_modules/ on purpose: the lockfile is
 // what `npm ci` will install on every machine and in CI, so the assertion holds
@@ -83,6 +99,12 @@ import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const LOCKFILE = 'package-lock.json';
 const TOP_SLOT_PREFIX = 'node_modules/';
+
+// The guard on the other side of the outcome/intent line, named in the fix that
+// changes a ROOT range: the root is one of its declarers, so a range edited
+// here alone is a disagreement there for every module another manifest declares
+// too.
+const AGREEMENT_GUARD = 'check-toolchain-agreement';
 
 // Ranges this guard evaluates. Deliberately a closed set, and deliberately not
 // `semver` from node_modules: that package is a transitive here, and reaching
@@ -324,7 +346,12 @@ for (const [name, range] of rootDeclared) {
       + `another package's harder requirement has captured the top slot and every workspace `
       + `is now building and testing against ${name}@${entry.version} — silently, because a `
       + 'hoisted downgrade breaks no install and fails no test. Either raise that package, '
-      + `or pin the root range so npm nests the intruder's copy under it instead.`,
+      + `or pin the root range so npm nests the intruder's copy under it instead — and if any `
+      + `other manifest declares ${name} too, that second edit is not root-only: `
+      + `\`${AGREEMENT_GUARD}\` compares the range STRING across every manifest declaring a `
+      + 'module, so the range you pin has to be written into each of them. It will report the '
+      + 'range they hold today as the majority, which is the one this fix is deliberately '
+      + 'leaving.',
     );
     continue;
   }
