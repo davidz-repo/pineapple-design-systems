@@ -95,8 +95,8 @@ there. It reads manifests only, so it runs before the build. A workspace depende
 `dependencies` stays legal exactly while nobody declares it a peer — which is why
 `@pineappleui/theme` depending on `@pineappleui/tokens` is not a finding, and why the day any
 package declares `tokens` a peer the same manifests make that entry a failure. Private workspaces'
-`dependencies` are out of scope for the same reason they may hold `react` today —
-`vitest-preset` does — since nothing of theirs reaches a consumer.
+installed fields (`dependencies`, `optionalDependencies`) are out of scope for the same reason
+they may hold `react` today — `vitest-preset` does — since nothing of theirs reaches a consumer.
 
 Their `peerDependencies` are **not** out of scope, and the asymmetry is deliberate. Every peer
 entry in the repo enters the union, private declarers included, so `eslint` (a peer of the private

@@ -31,14 +31,18 @@
 //
 // Who imports what, and why it differs:
 //
-//   - `check-peer-externals`, `check-publish-contract`, `check-ref-tests` and
-//     `check-peer-placement` walk a workspace list: they take
-//     `listWorkspaceDirs()`, which calls the assertion for them. Two of the four
-//     have a subject that is a SUBSET of that list and take the whole list for
-//     exactly that reason. `check-ref-tests`' subject is the packages whose
-//     sources forward a ref: the subset has to be derived from every workspace
-//     npm installs, or the guard's required set shrinks with the discovery and
-//     reports the same pass over less. `check-peer-placement` forbids a peer
+//   - `check-peer-externals`, `check-publish-contract`, `check-ref-tests`,
+//     `check-alias-fences` and `check-peer-placement` walk a workspace list:
+//     they take `listWorkspaceDirs()`, which calls the assertion for them.
+//     Three of the five have a subject that is a SUBSET of that list and take
+//     the whole list for exactly that reason. `check-ref-tests`' subject is
+//     the packages whose sources forward a ref: the subset has to be derived
+//     from every workspace npm installs, or the guard's required set shrinks
+//     with the discovery and reports the same pass over less.
+//     `check-alias-fences`' subject is the aliased packages the gallery maps:
+//     it resolves each aliased name to its directory through this list rather
+//     than by assuming the layout, so a workspace the discovery misses is an
+//     alias that resolves nowhere. `check-peer-placement` forbids a peer
 //     module in a PUBLISHABLE workspace's installed fields, but builds the union
 //     of peer names from EVERY workspace, private ones included — a workspace
 //     missing from the discovery takes its peer declarations out of that union,
