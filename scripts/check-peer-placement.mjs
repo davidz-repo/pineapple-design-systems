@@ -73,6 +73,16 @@
 //     `@pineappleui/use-local-storage`, whose own `react` peer the consumer has
 //     to satisfy; npm reports an unmet peer at install time, and re-deriving that
 //     here would be a second, worse resolver.
+//   - A module with exactly ONE peer declarer leaves the rule the moment that
+//     same manifest moves it from `peerDependencies` to `dependencies`: the
+//     module drops out of the union in the same edit that misfiles it, and this
+//     guard stays green having nothing left to forbid. Today that is `eslint`
+//     (only `@pineappleui/eslint-config` peers it) and `vitest` (only
+//     `@pineappleui/vitest-preset`), both private, and `react` — fifteen
+//     declarers — keeps the rule through any one of them changing. This is the
+//     PRICE of list-freeness, paid knowingly: the alternative is the written-down
+//     list of names above, and a list is what goes stale silently while a
+//     derived predicate only ever shrinks with the manifests it is derived from.
 //   - `bundleDependencies`/`bundledDependencies` is not read, and that omission
 //     is a decision rather than a field nobody thought of. Nobody declares one
 //     today, and it ships by a different MECHANISM: its names are inlined into
