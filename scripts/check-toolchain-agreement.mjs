@@ -9,9 +9,13 @@
 // there would notice two workspaces building on different majors of them. This
 // file is that sentence turned into an assertion.
 //
-// The failure is quiet for the same structural reason the vite 8 -> 6 downgrade
-// was quiet: nothing else in this build ever compares one workspace's manifest
-// with another's. Bump `packages/box` to `typescript@~5.8.0` in the PR that
+// The failure is quiet for the same kind of structural reason the vite 8 -> 6
+// downgrade was quiet — a question nothing in this build was asking — though
+// not the same question, and not the same shape: `vite` had no declarer at all,
+// so one hoist decided what every workspace ran, where here each declarer gets
+// a copy its own range accepts and what is lost is that they are not the same
+// copy. Nothing else in this build ever compares one workspace's manifest with
+// another's. Bump `packages/box` to `typescript@~5.8.0` in the PR that
 // needed one 5.8 fix, and npm installs that copy nested under `box` while every
 // other workspace goes on compiling under 5.7. Nothing fails. `box` builds,
 // typechecks and tests on 5.8; its nineteen siblings do the same on 5.7; the
@@ -59,6 +63,18 @@
 //     is why they are two files: agreeing manifests can still resolve to a copy
 //     nobody wanted, and a correct slot says nothing about the nineteen ranges
 //     that never competed for one.
+//   - AGREEMENT AMONG DECLARERS IS NOT EVERY WORKSPACE DECLARING. The subject is
+//     the manifests that state a range for a module, and a workspace stating
+//     none makes no claim for this guard to compare: it takes whatever holds the
+//     top slot, which is the `vite` shape exactly — used everywhere, declared
+//     nowhere, and so decided by the first package that did declare one.
+//     Nineteen of the twenty-one manifests declare `typescript`; the two that
+//     do not — the root and `packages/eslint-config`, neither of which has a
+//     TypeScript source to compile — are legitimately silent rather than
+//     disagreeing. So a module can be unanimous here and still be resolved for
+//     part of the repo by a decision nobody wrote down. The pass line's "21 of 21
+//     manifest(s) read" is a count of manifests READ, not of declarers of any
+//     one module — that number is the parenthesis beside each name.
 //   - SINGLE-DECLARER MODULES ARE UNEXAMINED. A module exactly one manifest
 //     declares has nobody to disagree with — `turbo` and the changesets CLI at
 //     the root, each workspace dependency the gallery alone lists — so it is
@@ -69,21 +85,38 @@
 //     because the module somebody forgets to add to such a list is the one that
 //     has just moved. The price is the same one `check-peer-placement` pays and
 //     names: a module drops out of the subject in the same edit that leaves it
-//     with a single declarer.
+//     with a single declarer. There is a second exit of the same shape, through
+//     the FIELD rather than the count — move a module from `devDependencies` to
+//     `dependencies` in enough manifests and it leaves this guard's subject
+//     without ever being deleted, green on the way out.
 //   - `dependencies` AND `peerDependencies` ARE OUT OF SCOPE, and that is a
-//     boundary rather than a field nobody thought of. WHERE a peer module is
-//     declared is `check-peer-placement`'s assertion and whether it stayed out
-//     of `dist/` is `check-peer-externals`'; peer RANGES are a non-proof
+//     boundary rather than a field nobody thought of.
+//     A `dependencies` range TRAVELS WITH THE PACKAGE: it is installed into a
+//     consumer's tree by an `npm install` of the published tarball, so what it
+//     must satisfy is a question about what this repo SHIPS —
+//     `check-publish-contract`'s and `check-peer-placement`'s subject — rather
+//     than about which toolchain the repo builds on, which is the only thing
+//     asserted here.
+//     For `peerDependencies`, WHERE a peer module is declared is
+//     `check-peer-placement`'s assertion and whether it stayed out of `dist/` is
+//     `check-peer-externals`'; peer RANGES are a non-proof
 //     `check-peer-placement` names out loud, in the pass line it prints them on
 //     ("names only — the ranges beside them are unexamined"). Absorbing them
 //     here quietly would give that sentence a second and contradicting answer.
-//     They are also a different KIND of range: a peer range is the
-//     compatibility window this repo offers a CONSUMER, and it is meant to be
-//     wider than the version the repo itself builds against — `eslint` is
-//     peered `^10.0.0` by `@pineappleui/eslint-config` and dev-declared
-//     `^10.1.0` by everyone, which is two correct statements about two
-//     different questions. "Identical string" is the wrong predicate over that
-//     field, not merely one this file skips.
+//     "Identical string" is also the wrong predicate over that field, and the
+//     repo diverges across the two fields twice today: `eslint` is peered
+//     `^10.0.0` by `@pineappleui/eslint-config` and dev-declared `^10.1.0` by 20
+//     of the 21 manifests, and `vitest` is peered `^4.0.0` by
+//     `@pineappleui/vitest-preset` and dev-declared `^4.1.2`. Neither of those
+//     is explained by "a peer range is the window offered to a CONSUMER":
+//     `check-peer-placement`'s own header says the party supplying both of those
+//     peers is THIS repo. What the two fields do owe each other is CONTAINMENT
+//     — the dev range falling inside the peer window, so no workspace here
+//     builds against a version its own peer entry says a supplier need not have
+//     — and that relation is asserted by nothing in this repo. It is a
+//     candidate for `check-peer-placement`, which already reads both fields, and
+//     it is going to the ledger rather than being smuggled in as a fourth
+//     predicate of a guard whose subject is identity.
 //
 // REFUSALS
 //
