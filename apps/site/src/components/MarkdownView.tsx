@@ -23,12 +23,29 @@ interface MarkdownViewProps {
   stripLeadingH1?: boolean;
 }
 
-function codeTextOf(node: ReactNode): string | undefined {
+interface Fence {
+  code: string;
+  /** The fence's `language-*` info string, if the author wrote one. */
+  language?: string;
+}
+
+// A ``` fence reaches the `pre` override as a single `code` element whose
+// className carries the info string remark wrote (```tsx -> `language-tsx`).
+// Both halves are read here: the text is what CodeBlock copies, the language is
+// what it highlights by. Anything else under `pre` (there is no such markdown
+// today, but `pre` is reachable from raw HTML) is left as plain markup.
+function fenceOf(node: ReactNode): Fence | undefined {
   if (!isValidElement(node)) {
     return undefined;
   }
-  const children = (node.props as { children?: unknown }).children;
-  return typeof children === 'string' ? children.replace(/\n$/, '') : undefined;
+  const { children, className } = node.props as { children?: unknown; className?: unknown };
+  if (typeof children !== 'string') {
+    return undefined;
+  }
+  const language = typeof className === 'string'
+    ? /(?:^|\s)language-(\S+)/.exec(className)?.[1]
+    : undefined;
+  return { code: children.replace(/\n$/, ''), language };
 }
 
 const components: Components = {
@@ -41,9 +58,21 @@ const components: Components = {
     <a href={href} target="_blank" rel="noreferrer">{children}</a>
   ),
   pre: ({ children }) => {
-    const code = codeTextOf(children);
-    return code === undefined ? <pre>{children}</pre> : <CodeBlock code={code} />;
+    const fence = fenceOf(children);
+    return fence === undefined
+      ? <pre>{children}</pre>
+      : <CodeBlock code={fence.code} language={fence.language} />;
   },
+  // READMEs carry prop tables far wider than a phone: the theme package's
+  // options table alone has 60-word cells. Scrolling the table instead of the
+  // page keeps the surrounding prose at the reader's line length, and the
+  // first-column min-width (site.css) stops the name column collapsing to one
+  // character per line to buy the description room it does not have either.
+  table: ({ children }) => (
+    <div className="markdown-table-scroll">
+      <table>{children}</table>
+    </div>
+  ),
 };
 
 export function MarkdownView({ markdown, stripLeadingH1 = false }: MarkdownViewProps) {
