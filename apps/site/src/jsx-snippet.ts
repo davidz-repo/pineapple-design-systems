@@ -1,4 +1,7 @@
-// Formats the playground's current args as the JSX you would actually write.
+// Formats the playground's current args as the JSX that renders the preview
+// beside it — every arg the story is passing, story defaults included, since a
+// story default is often not the component's own (icons `size="lg"` against a
+// `md` default, box `p="4"` against no padding at all).
 // Omission rules mirror the stories' own idiom (`color={color || undefined}`):
 // empty string, false and undefined all mean "not passed", so they never
 // appear in the snippet.

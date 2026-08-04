@@ -1,3 +1,5 @@
+import { Icon } from '@pineappleui/icons';
+
 import { Stack } from '@pineappleui/stack';
 
 import { Text } from '@pineappleui/text';
@@ -10,6 +12,8 @@ interface ArgControlProps {
   name: string;
   argType: StoryArgType | undefined;
   value: unknown;
+  /** Hint for a free-text arg whose default is empty — see arg-placeholders. */
+  placeholder?: string;
   onChange: (value: unknown) => void;
 }
 
@@ -18,24 +22,30 @@ interface ArgControlProps {
 // (booleans live only in `args`, never in `argTypes`, in this repo's
 // stories). A native <select> on purpose: the stories use '' as a real
 // option value ("inherit the theme accent"), which Radix's Select rejects.
-export function ArgControl({ name, argType, value, onChange }: ArgControlProps) {
+export function ArgControl({ name, argType, value, placeholder, onChange }: ArgControlProps) {
   const id = `arg-${name}`;
 
   let control;
   if (argType?.options !== undefined) {
     control = (
-      <select
-        id={id}
-        className="arg-select"
-        value={String(value ?? '')}
-        onChange={event => onChange(event.target.value)}
-      >
-        {argType.options.map(option => (
-          <option key={String(option)} value={String(option)}>
-            {option === '' ? '(default)' : String(option)}
-          </option>
-        ))}
-      </select>
+      // `appearance: none` takes the platform caret with it, so the design
+      // system's own glyph stands in — decorative by default, and it inherits
+      // the theme's gray scale like every other Icon.
+      <span className="arg-select-shell">
+        <select
+          id={id}
+          className="arg-select"
+          value={String(value ?? '')}
+          onChange={event => onChange(event.target.value)}
+        >
+          {argType.options.map(option => (
+            <option key={String(option)} value={String(option)}>
+              {option === '' ? '(default)' : String(option)}
+            </option>
+          ))}
+        </select>
+        <Icon name="chevron-down" size="sm" className="arg-select-caret" />
+      </span>
     );
   }
   else if (typeof value === 'boolean') {
@@ -47,6 +57,7 @@ export function ArgControl({ name, argType, value, onChange }: ArgControlProps) 
         id={id}
         size="1"
         type="number"
+        placeholder={placeholder}
         value={String(value)}
         onChange={event => onChange(Number(event.target.value))}
       />
@@ -57,6 +68,7 @@ export function ArgControl({ name, argType, value, onChange }: ArgControlProps) 
       <TextField.Root
         id={id}
         size="1"
+        placeholder={placeholder}
         value={String(value ?? '')}
         onChange={event => onChange(event.target.value)}
       />
@@ -66,7 +78,7 @@ export function ArgControl({ name, argType, value, onChange }: ArgControlProps) 
   return (
     <Stack gap="1">
       <label htmlFor={id}>
-        <Text size="1" color="gray">{name}</Text>
+        <Text size="1" weight="medium" color="gray">{name}</Text>
       </label>
       {control}
     </Stack>

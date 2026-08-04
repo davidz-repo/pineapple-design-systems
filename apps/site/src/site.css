@@ -256,6 +256,26 @@
   align-items: start;
 }
 
+/* A titled column: the heading names what the box below it is, so neither
+   the preview nor the controls is an anonymous rectangle. Both columns read
+   heading row -> box, and the header's min-height is the size-1 button it may
+   hold, so the two boxes start on the same line whether or not a column has
+   actions. */
+.playground-pane {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.playground-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-height: var(--space-5);
+}
+
 .playground-preview {
   border: 1px dashed var(--gray-a6);
   border-radius: var(--radius-3);
@@ -272,6 +292,15 @@
   padding: var(--space-4);
 }
 
+/* Reserved height: the copy-link announcement appears and clears on a timer,
+   and controls that jump a line each way are worse than a held gap. One line
+   is enough for the longest string it holds — "Link copied — dropdown args
+   only" — at font-size-1 in this column; a longer message would wrap and the
+   jump would be back. */
+.playground-status {
+  min-height: var(--line-height-1);
+}
+
 @media (max-width: 700px) {
   .playground {
     grid-template-columns: minmax(0, 1fr);
@@ -279,16 +308,44 @@
 }
 
 /* Native select: the stories use '' as a real option value, which Radix's
-   Select rejects, so this control stays a styled <select>. */
+   Select rejects, so this control stays a styled <select>. Metrics track the
+   Radix size-1 text fields it sits beside — same height, same inset ring
+   instead of a border, same type scale, and a left inset that puts the value's
+   left edge on theirs — so the column reads as one form. */
+.arg-select-shell {
+  display: block;
+  position: relative;
+}
+
 .arg-select {
+  appearance: none;
   width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--gray-a7);
+  height: var(--space-5);
+  padding: 0 var(--space-5) 0 calc(var(--space-1) * 1.5);
+  border: none;
   border-radius: var(--radius-2);
-  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--gray-a7);
+  background-color: var(--color-surface);
   color: var(--gray-12);
   font-family: inherit;
-  font-size: var(--font-size-2);
+  font-size: var(--font-size-1);
+  line-height: var(--line-height-1);
+}
+
+/* `appearance: none` removes the platform caret; the design system's own
+   glyph replaces it, laid over the (unclickable-through) right inset. */
+.arg-select-caret {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--gray-a11);
+}
+
+.arg-select:focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: -1px;
 }
 
 /* ---- Examples -------------------------------------------------------- */
