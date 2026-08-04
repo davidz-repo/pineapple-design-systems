@@ -17,15 +17,21 @@ export default pineapple({
 }).append({
   // Every guard here hand-writes a reader for a file the repo owns — a
   // workflow, a manifest, a source tree — and each pattern is spelled out
-  // beside prose that says exactly what it must and must not match. These four
+  // beside prose that says exactly what it must and must not match. These three
   // rules all ask for the pattern to be rewritten, and the set a guard's regex
   // matches is the guard's contract: narrowing or widening it by a character is
-  // the one change that cannot be made here for style. The backtracking two of
-  // them price in needs an input nobody can supply — there is no user text on
-  // this path.
+  // the one change that cannot be made here for style. The backtracking that
+  // the first of them prices in needs an input nobody can supply — there is no
+  // user text on this path.
+  //
+  // `regexp/no-contradiction-with-assertion` is deliberately NOT among them: its
+  // three reports here were `*` -> `+` on quantifiers a preceding `\b` already
+  // forbids matching empty, so applying them left the matched set of every
+  // pattern identical — verified by running both guards before and after and
+  // diffing their output. A rule whose rewrite provably cannot move the contract
+  // is one this file has no reason to turn off.
   files: ['scripts/**'],
   rules: {
-    'regexp/no-contradiction-with-assertion': 'off',
     'regexp/no-super-linear-backtracking': 'off',
     'regexp/prefer-character-class': 'off',
     'regexp/use-ignore-case': 'off',

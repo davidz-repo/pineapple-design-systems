@@ -209,13 +209,13 @@ const REF_MARKERS = [
     pattern: /\bexport\s*\{[^}]*\}\s*from\s*['"]@radix-ui\/themes['"]/,
   },
   {
-    // `[^{]*` cannot cross a `{`, so the `extends` has to belong to THIS
+    // `[^{]+` cannot cross a `{`, so the `extends` has to belong to THIS
     // interface's heading rather than to anything later in the file. That is
     // what keeps it off `live-region`'s and `theme`'s own `…Props` interfaces,
     // which declare their members and extend nothing — they own every prop they
     // take, so there is no imported `ref` to inherit.
     label: 'interface …Props extends …',
-    pattern: /\binterface\s+\w*Props\b[^{]*\bextends\b/,
+    pattern: /\binterface\s+\w*Props\b[^{]+\bextends\b/,
   },
   {
     // The hand-written route: a package that spells the prop out itself

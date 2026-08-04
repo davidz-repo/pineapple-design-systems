@@ -394,7 +394,7 @@ function readCode(pkgName, filePath, options) {
 // `import ... from '<spec>'` / `export ... from '<spec>'`. The clause is
 // captured so a type-only import can be told from a runtime one; the negated
 // class spans newlines, which multi-line named imports need.
-const FROM_IMPORT = /^[ \t]*(?:import|export)\b(?<clause>[^;'"]*?)\bfrom\s*['"](?<specifier>[^'"]+)['"]/gm;
+const FROM_IMPORT = /^[ \t]*(?:import|export)\b(?<clause>[^;'"]+?)\bfrom\s*['"](?<specifier>[^'"]+)['"]/gm;
 // `import '<spec>'` — a side-effect import, never erased.
 const SIDE_EFFECT_IMPORT = /^[ \t]*import\s*['"](?<specifier>[^'"]+)['"]/gm;
 // `import('<spec>')` — a runtime import by construction.
