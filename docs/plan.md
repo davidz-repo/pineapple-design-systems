@@ -771,8 +771,9 @@ task the package actually defines, or that names a task that does not exist.
 
 ## Adding a guard later
 
-A new guard is a file plus two wirings, and `scripts/check-ci-invariants.mjs` fails on any of
-the first three being missing. The fourth is convention:
+A new guard is a file plus two wirings, and then two conventions.
+`scripts/check-ci-invariants.mjs` fails on any of steps 1–3 being missing; steps 4 and 5 are
+convention, and nothing enforces either:
 
 1. name it `scripts/check-<thing>.mjs`, directly in `scripts/` — the equality check matches that
    pattern, so a guard under another name, or in a subdirectory, is invisible to it
@@ -780,6 +781,10 @@ the first three being missing. The fourth is convention:
 3. give it its own step in `.github/workflows/ci.yml`, **unconditional** — a step under `if:` or
    `continue-on-error:` is in the file and out of the run
 4. add a `check:<alias>` script, so it is runnable on its own the way the others are
+5. if the guard walks a workspace list, add its clause to the importer enumeration at the top of
+   `scripts/workspace-globs.mjs`. That header is where "which guards get quietly smaller when the
+   discovery gets smaller, and why" is written down; a walker missing from it is a walker nobody
+   knows to re-check the day a workspace root is added
 
 Steps 1–3 are one decision written three times, which is why a guard named by fewer than all
 three fails rather than merely running less. Its own step, not a line appended to another, so a
