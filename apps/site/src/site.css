@@ -340,14 +340,13 @@
   }
 
   /* Header chrome that does not survive a 390px viewport: the badge is
-     decoration, the GitHub link is repeated in the footer, the appearance
-     segments become one cycling button, and the accent trigger keeps its
-     swatch (and its label) without the color name. What is left — brand,
-     cycler, accent swatch, Menu — holds one row at 390px. */
+     decoration, the GitHub link is repeated in the footer, and the appearance
+     segments become one cycling button. What is left — brand, cycler, Menu —
+     holds one row at 390px with room to spare, now that the accent picker it
+     used to share the row with is gone. */
   .site-docs-badge,
   .site-header-link,
-  .site-appearance-segments,
-  .site-accent-name {
+  .site-appearance-segments {
     display: none;
   }
 
@@ -682,12 +681,4 @@
   text-decoration: none;
   color: inherit;
   height: 100%;
-}
-
-.accent-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  background: var(--accent-9);
-  display: inline-block;
 }

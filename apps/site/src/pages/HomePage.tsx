@@ -8,8 +8,6 @@ import { Heading } from '@pineappleui/heading';
 import { Inline } from '@pineappleui/inline';
 import { Stack } from '@pineappleui/stack';
 import { Text } from '@pineappleui/text';
-import { useThemePreferences } from '@pineappleui/theme';
-import { ACCENT_COLORS } from '@pineappleui/tokens';
 import { Link } from 'react-router';
 
 import { CodeBlock } from '../components/CodeBlock';
@@ -46,38 +44,6 @@ const PROOF_POINTS: ReadonlyArray<{ label: string; detail: string }> = [
 // Licence, language, runtime — the three facts a reader checks before trying
 // anything, so they sit next to the proof points rather than in a footer.
 const PROJECT_FACTS = ['MIT', 'TypeScript', 'React 19'] as const;
-
-// Every accent, painted with its own scale rather than the current theme's —
-// clicking one makes it the theme accent. The list is spread from
-// ACCENT_COLORS; a hand-typed copy fails scripts/check-token-drift.mjs.
-function AccentShowcase() {
-  const { accentColor, setAccentColor } = useThemePreferences();
-  return (
-    <Inline gap="2" align="center">
-      {ACCENT_COLORS.map(color => (
-        <button
-          key={color}
-          type="button"
-          className="accent-swatch"
-          style={{
-            background: `var(--${color}-9)`,
-            border: color === accentColor
-              ? '2px solid var(--gray-12)'
-              : '2px solid transparent',
-            // 24px is the WCAG 2.2 target-size minimum; these sit in a row of
-            // six, so anything smaller is a miss for touch and tremor alike.
-            width: 24,
-            height: 24,
-            cursor: 'pointer',
-          }}
-          aria-label={`Use the ${color} accent`}
-          aria-pressed={color === accentColor}
-          onClick={() => setAccentColor(color)}
-        />
-      ))}
-    </Inline>
-  );
-}
 
 // The six variants as a mini-demo rather than a row of buttons that do
 // nothing: each one selects itself and the caption prints the JSX for the
@@ -180,10 +146,6 @@ export function HomePage() {
             </Button>
           </Inline>
 
-          <Inline gap="4" align="center">
-            <Text size="2" color="gray">Try an accent:</Text>
-            <AccentShowcase />
-          </Inline>
           <VariantShowcase />
         </Stack>
       </div>

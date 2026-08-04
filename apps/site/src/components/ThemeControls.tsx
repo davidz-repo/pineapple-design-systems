@@ -2,15 +2,20 @@ import { Button } from '@pineappleui/button';
 import { Inline } from '@pineappleui/inline';
 
 import { useThemePreferences } from '@pineappleui/theme';
-import { ACCENT_COLORS } from '@pineappleui/tokens';
-import { SegmentedControl, Select } from '@radix-ui/themes';
+import { SegmentedControl } from '@radix-ui/themes';
 
-import type { AccentColor, AppearanceSetting } from '@pineappleui/tokens';
+import type { AppearanceSetting } from '@pineappleui/tokens';
 
-// The header's appearance + accent pickers, wired straight to the theme
-// package's own preferences hook — the same store the FOUC script reads on
-// the next load. The accent options are spread from ACCENT_COLORS; a
-// hand-typed copy of that list fails scripts/check-token-drift.mjs.
+// The header's appearance picker, wired straight to the theme package's own
+// preferences hook — the same store the FOUC script reads on the next load.
+//
+// Appearance is the ONLY theme choice this site offers. The accent picker that
+// used to sit beside it is gone: the site has one theme now (see the pineapple
+// block in site.css), and a control that repaints half a page the palette was
+// tuned against is a way to leave, not a feature. The accent is pinned in
+// main.tsx instead. @pineappleui/theme still exports `setAccentColor` and the
+// gallery still uses it — the picker is what this site dropped, not the
+// capability.
 //
 // Two appearance controls are rendered and site.css shows exactly one: the
 // three-way segmented control needs ~180px it does not have on a phone, so
@@ -27,7 +32,7 @@ function nextAppearance(current: AppearanceSetting): AppearanceSetting {
 }
 
 export function ThemeControls() {
-  const { appearance, accentColor, setAppearance, setAccentColor } = useThemePreferences();
+  const { appearance, setAppearance } = useThemePreferences();
   const next = nextAppearance(appearance);
 
   return (
@@ -61,23 +66,6 @@ export function ThemeControls() {
       >
         {appearance}
       </Button>
-      <Select.Root
-        size="1"
-        value={accentColor}
-        onValueChange={value => setAccentColor(value as AccentColor)}
-      >
-        <Select.Trigger aria-label="Accent color">
-          <Inline gap="2" align="center" wrap="nowrap">
-            <span className="accent-swatch" />
-            <span className="site-accent-name">{accentColor}</span>
-          </Inline>
-        </Select.Trigger>
-        <Select.Content>
-          {ACCENT_COLORS.map(color => (
-            <Select.Item key={color} value={color}>{color}</Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
     </Inline>
   );
 }
