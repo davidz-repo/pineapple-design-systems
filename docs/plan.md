@@ -76,11 +76,13 @@ nothing.
 
 The rule has a **placement** half too, and it is the one none of those five assertions asks about.
 A module that any workspace declares in `peerDependencies` is consumer-supplied by definition, so
-it may appear in **no publishable workspace's `dependencies`**. Assertion D is satisfied by either
-field — its subject is a module declared *nowhere*, and for that question "peer or dependency" is
-the right reading — so misfiling `react` as a dependency passes all five while npm installs a
-second React into the consumer's tree: the broken-hooks failure this section opens with, landing
-in the consumer's stack trace rather than in any build here.
+it may appear in **no publishable workspace's `dependencies`** — nor in its
+`optionalDependencies`, which npm installs by default (`optional` describes what happens when that
+install *fails*, not whether it is attempted) and which therefore ships the identical second copy.
+Assertion D is satisfied by either field — its subject is a module declared *nowhere*, and for that
+question "peer or dependency" is the right reading — so misfiling `react` as a dependency passes
+all five while npm installs a second React into the consumer's tree: the broken-hooks failure this
+section opens with, landing in the consumer's stack trace rather than in any build here.
 
 It hides best in a **JSX-free** package. The JSX reading above is what puts `react` in front of the
 assertions for the eleven wrappers that never name it; a hooks-only package like

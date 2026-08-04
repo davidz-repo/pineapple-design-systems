@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Peer-placement guard: a module ANY workspace declares in `peerDependencies`
-// may appear in NO publishable workspace's `dependencies`.
+// may appear in NO publishable workspace's `dependencies` — or its
+// `optionalDependencies`, which npm installs by default and which therefore
+// ships the identical second copy under a field name that reads as if it might
+// not.
 //
 // docs/plan.md principle 3 says React and Radix stay peers and stay external.
 // `check-peer-externals` holds the "stay external" half, and its assertion D
@@ -13,11 +16,13 @@
 // It is not a filing preference. A module the repo asks the CONSUMER to supply
 // is consumer-supplied by definition, and the peer declaration is the whole of
 // what keeps npm from installing a second copy into their tree. Declare the same
-// module in `dependencies` of a package they install and npm installs one
-// anyway, beside the copy they already have: two Reacts, two module registries,
-// two sets of hook state. What the consumer sees is the duplicate-React "invalid
-// hook call" principle 3 is written about — in their stack trace, in their repo,
-// with nothing in this one having failed. The package builds, its own tests pass
+// module in a field of that package npm installs anyway — `dependencies`, or
+// `optionalDependencies`, where "optional" describes what happens when the
+// install FAILS rather than whether npm attempts it — and a copy lands beside
+// the one they already have: two Reacts, two module registries, two sets of hook
+// state. What the consumer sees is the duplicate-React "invalid hook call"
+// principle 3 is written about — in their stack trace, in their repo, with
+// nothing in this one having failed. The package builds, its own tests pass
 // (they import `src/`), the tarball is well formed, and
 // `check-publish-contract` reads manifest fields without an opinion on what is
 // in them.
@@ -57,7 +62,7 @@
 //   - `devDependencies` are unexamined, in every workspace. They do not ship:
 //     `files: ["dist"]` never carries a story, which is why the seven packages
 //     whose story picker imports `@pineappleui/tokens` declare it there.
-//   - PRIVATE workspaces' `dependencies` are unexamined. Nothing of theirs
+//   - PRIVATE workspaces' installed fields are unexamined. Nothing of theirs
 //     reaches a consumer's tree, so a peer sitting in one is not a second copy
 //     of anything. `@pineappleui/vitest-preset` declares `react` and `react-dom`
 //     as dependencies today — the docs/plan.md delta that exists because there is
@@ -68,9 +73,16 @@
 //     `@pineappleui/use-local-storage`, whose own `react` peer the consumer has
 //     to satisfy; npm reports an unmet peer at install time, and re-deriving that
 //     here would be a second, worse resolver.
-//   - `optionalDependencies` is not read. No workspace here declares one, and a
-//     publishable package that did would ship the same second copy — this is the
-//     file to widen when the first one arrives, not a shape to leave unnamed.
+//   - `bundleDependencies`/`bundledDependencies` is not read, and that omission
+//     is a decision rather than a field nobody thought of. Nobody declares one
+//     today, and it ships by a different MECHANISM: its names are inlined into
+//     the tarball at pack time rather than installed from the registry when the
+//     consumer installs the package, so what it duplicates and what an install
+//     resolves are different questions from the one asked here. Widening to it
+//     is a separate argument, and this sentence is what says so. The two fields
+//     npm installs by DEFAULT — `dependencies` and `optionalDependencies` — are
+//     both read, because for the question this guard asks they are the same
+//     field with two names.
 //
 // Three assertions, and each failure names the module, the manifest and the fix:
 //
@@ -78,12 +90,14 @@
 //      workspaces included, together with who declares it. A private workspace's
 //      peer is as much a statement that the consumer supplies the module as a
 //      publishable one's.
-//   2. MISFILED — no publishable workspace lists a name from that union in its
-//      `dependencies`.
+//   2. MISFILED — no publishable workspace lists a name from that union in
+//      either field npm installs, `dependencies` or `optionalDependencies`. The
+//      failure names WHICH of the two it was found in, because that is the line
+//      to edit.
 //   3. CONTRADICTORY — no workspace, private included, lists one name in BOTH
-//      its `peerDependencies` and its `dependencies`. Checked first, and a pair
-//      it reports is not reported again by 2: one edit gets one failure, and the
-//      more specific diagnosis is the one worth printing.
+//      its `peerDependencies` and either installed field. Checked first, and a
+//      pair it reports is not reported again by 2: one edit gets one failure,
+//      and the more specific diagnosis is the one worth printing.
 //
 // Reads manifests only — one `package.json` per workspace `listWorkspaceDirs()`
 // returns, no `dist/`, no sources — so it runs BEFORE `turbo run build` in both
@@ -108,7 +122,16 @@ const GUARD_NAME = 'check-peer-placement';
 
 const MANIFEST = 'package.json';
 const PEER_FIELD = 'peerDependencies';
-const DEPENDENCY_FIELD = 'dependencies';
+
+// The fields npm installs by DEFAULT, which is the whole of why both are here.
+// `optionalDependencies` is not opt-in: npm installs it like `dependencies` and
+// merely tolerates a failure, so a peer misfiled into it lands the same second
+// copy in the consumer's tree — and under a field name that reads as if it
+// might not have.
+const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies'];
+
+/** The pair spelled out, for the prose that has to name both. */
+const DEPENDENCY_FIELDS_PHRASE = DEPENDENCY_FIELDS.map(field => `\`${field}\``).join(' or ');
 
 // Where the other half of principle 3 is written, named in the fix because
 // moving a module to `peerDependencies` without listing it there leaves tsup
@@ -187,9 +210,15 @@ if (workspaceDirs.length === 0) {
 }
 
 /**
- * Every workspace, as the two fields this guard compares.
+ * Every workspace, as the fields this guard compares.
  *
- * @type {{ relDir: string, name: string, isPublishable: boolean, peers: string[], dependencies: string[] }[]}
+ * The installed fields stay SEPARATE rather than merged into one list: every
+ * failure below has to name the field it found the module in, because "delete
+ * this `optionalDependencies` entry" and "delete this `dependencies` entry" are
+ * edits to different lines of the manifest, and a message that named neither
+ * would leave the reader diffing the two fields by hand.
+ *
+ * @type {{ relDir: string, name: string, isPublishable: boolean, peers: string[], installedFields: { field: string, names: string[] }[] }[]}
  */
 const workspaces = workspaceDirs.map((relDir) => {
   const manifest = JSON.parse(readFileSync(path.join(repoRoot, relDir, MANIFEST), 'utf8'));
@@ -201,31 +230,50 @@ const workspaces = workspaceDirs.map((relDir) => {
     // whether anything here ever lands in someone else's node_modules.
     isPublishable: !manifest.private,
     peers: readDeclaredNames(relDir, manifest, PEER_FIELD),
-    dependencies: readDeclaredNames(relDir, manifest, DEPENDENCY_FIELD),
+    installedFields: DEPENDENCY_FIELDS.map(field => ({
+      field,
+      names: readDeclaredNames(relDir, manifest, field),
+    })),
   };
 });
+
+/**
+ * Every name a workspace declares in any field npm installs, in field order.
+ *
+ * @param {{ installedFields: { names: string[] }[] }} workspace
+ * @returns {string[]} `dependencies` first, then `optionalDependencies`, each sorted
+ */
+function declaredInstalledNames(workspace) {
+  return workspace.installedFields.flatMap(({ names }) => names);
+}
 
 // ---------------------------------------------------------------------------
 // Assertion 1 — the union, and who declares each member.
 // ---------------------------------------------------------------------------
 
-/** @type {Map<string, string[]>} module name -> the workspaces declaring it a peer */
+/**
+ * Module name -> the workspaces declaring it a peer, as workspace records rather
+ * than names: assertion 2's fix asks whether every one of them is PRIVATE, which
+ * a list of strings cannot answer.
+ *
+ * @type {Map<string, { name: string, isPublishable: boolean }[]>}
+ */
 const peerDeclarers = new Map();
 
 for (const workspace of workspaces) {
   for (const name of workspace.peers) {
     const declarers = peerDeclarers.get(name);
     if (declarers === undefined)
-      peerDeclarers.set(name, [workspace.name]);
+      peerDeclarers.set(name, [workspace]);
     else
-      declarers.push(workspace.name);
+      declarers.push(workspace);
   }
 }
 
 if (peerDeclarers.size === 0) {
   refuse(
     `no workspace declares a \`${PEER_FIELD}\` at all, so this guard would forbid nothing\n`
-    + `to nobody and report success over every \`${DEPENDENCY_FIELD}\` entry in the repo.\n`
+    + `to nobody and report success over every ${DEPENDENCY_FIELDS_PHRASE} entry in the repo.\n`
     + `  read: ${workspaces.length} ${MANIFEST}(s), across ${workspaceDirs.length} workspace(s)\n`
     + '  fix: if the packages here stopped declaring React and Radix as peers — a codemod, a\n'
     + '       move to a shared manifest generator — this guard has lost its subject and the\n'
@@ -243,16 +291,31 @@ if (publishable.length === 0) {
   refuse(
     `every one of the ${workspaces.length} workspace(s) here is private, so assertion 2 — the\n`
     + 'one this guard exists for — has no manifest to hold.\n'
-    + `  fix: this guard forbids a peer module in a PUBLISHABLE workspace's \`${DEPENDENCY_FIELD}\`,\n`
-    + '       because that is the field that lands in a consumer\'s node_modules. With nothing\n'
+    + `  fix: this guard forbids a peer module in a PUBLISHABLE workspace's ${DEPENDENCY_FIELDS_PHRASE},\n`
+    + '       because those are the fields that land in a consumer\'s node_modules. With nothing\n'
     + '       publishable it would print the same pass having compared nothing. If the repo\n'
     + '       has stopped publishing, delete this guard along with the release pipeline; if a\n'
     + '       manifest lost its `publishConfig` by accident, that is the bug.',
   );
 }
 
+/**
+ * The clause that says an `optionalDependencies` entry is not opt-in, appended
+ * only where that is the field at fault — `dependencies` needs no such warning,
+ * and carrying it there anyway would read as boilerplate.
+ *
+ * @param {string} field the field the module was found in
+ * @returns {string} empty for `dependencies`
+ */
+function noteOnOptionality(field) {
+  if (field === 'dependencies')
+    return '';
+  return ` (npm installs \`${field}\` by default — "optional" describes what happens when that `
+    + 'install FAILS, not whether it is attempted)';
+}
+
 // ---------------------------------------------------------------------------
-// Assertion 3 — one workspace, one module, both fields.
+// Assertion 3 — one workspace, one module, a peer and an installed field.
 //
 // Run before assertion 2 so the pair it reports is reported once, with the
 // diagnosis that fits: the contradiction is inside a single manifest and the fix
@@ -260,56 +323,61 @@ if (publishable.length === 0) {
 // says the consumer supplies.
 // ---------------------------------------------------------------------------
 
-/** @type {Set<string>} `<relDir> <module>` pairs assertion 3 has already reported */
+/** @type {Set<string>} `<relDir>\0<module>` pairs assertion 3 has already reported */
 const contradictoryPairs = new Set();
 
 for (const workspace of workspaces) {
-  for (const name of workspace.dependencies) {
-    if (!workspace.peers.includes(name))
-      continue;
+  for (const { field, names } of workspace.installedFields) {
+    for (const name of names) {
+      if (!workspace.peers.includes(name))
+        continue;
 
-    contradictoryPairs.add(`${workspace.relDir} ${name}`);
+      contradictoryPairs.add(`${workspace.relDir}\0${name}`);
 
-    fail(
-      `${workspace.name} (${workspace.relDir}/${MANIFEST})`,
-      `declares \`${name}\` in BOTH \`${PEER_FIELD}\` and \`${DEPENDENCY_FIELD}\``,
-      `keep exactly one. The peer entry says the consumer supplies \`${name}\`; the dependency `
-      + 'entry has npm install it here regardless, so the copy this package brings is the one '
-      + 'its own imports resolve to and the consumer\'s copy sits beside it — which is the '
-      + 'duplicate the peer entry was written to prevent, with a line in the manifest that '
-      + 'reads as preventing it. Delete the dependency entry if the consumer supplies it (and '
-      + `list \`${name}\` in ${TSUP_CONFIG}'s \`${EXTERNAL_FIELD}\`); delete the peer entry, in a `
-      + 'commit that says why, if this package must own its copy.',
-    );
+      fail(
+        `${workspace.name} (${workspace.relDir}/${MANIFEST})`,
+        `declares \`${name}\` in BOTH \`${PEER_FIELD}\` and \`${field}\``,
+        `keep exactly one. The peer entry says the consumer supplies \`${name}\`; the `
+        + `\`${field}\` entry has npm install it here regardless${noteOnOptionality(field)}, so `
+        + 'the copy this package brings is the one its own imports resolve to and the '
+        + 'consumer\'s copy sits beside it — which is the duplicate the peer entry was written '
+        + 'to prevent, with a line in the manifest that reads as preventing it. Delete the '
+        + `\`${field}\` entry if the consumer supplies it (and list \`${name}\` in `
+        + `${TSUP_CONFIG}'s \`${EXTERNAL_FIELD}\`); delete the peer entry, in a commit that says `
+        + 'why, if this package must own its copy.',
+      );
+    }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Assertion 2 — a peer of anyone, in the `dependencies` of anything published.
+// Assertion 2 — a peer of anyone, in a field anything published installs.
 // ---------------------------------------------------------------------------
 
 for (const workspace of publishable) {
-  for (const name of workspace.dependencies) {
-    const declarers = peerDeclarers.get(name);
-    if (declarers === undefined)
-      continue;
-    if (contradictoryPairs.has(`${workspace.relDir} ${name}`))
-      continue;
+  for (const { field, names } of workspace.installedFields) {
+    for (const name of names) {
+      const declarers = peerDeclarers.get(name);
+      if (declarers === undefined)
+        continue;
+      if (contradictoryPairs.has(`${workspace.relDir}\0${name}`))
+        continue;
 
-    fail(
-      `${workspace.name} (${workspace.relDir}/${MANIFEST})`,
-      `declares \`${name}\` in \`${DEPENDENCY_FIELD}\`, and ${declarers.length} workspace(s) `
-      + `declare it in \`${PEER_FIELD}\`: ${declarers.join(', ')}`,
-      `move \`${name}\` from \`${DEPENDENCY_FIELD}\` to \`${PEER_FIELD}\` in `
-      + `${workspace.relDir}/${MANIFEST}, and list it in ${workspace.relDir}/${TSUP_CONFIG}'s `
-      + `\`${EXTERNAL_FIELD}\` array — both halves, per docs/plan.md §3. A module this repo asks `
-      + 'the consumer to supply is consumer-supplied everywhere: declared as a dependency of a '
-      + 'package they install, npm installs a SECOND copy into their tree beside the one they '
-      + `already have. For \`react\` that is two module registries and two sets of hook state — `
-      + 'an "invalid hook call" in the consumer\'s app, in their stack trace, nowhere near this '
-      + 'commit. If this package genuinely must own its own copy, the peer declarations above '
-      + 'are what to change, in a commit that argues it.',
-    );
+      fail(
+        `${workspace.name} (${workspace.relDir}/${MANIFEST})`,
+        `declares \`${name}\` in \`${field}\`, and ${declarers.length} workspace(s) `
+        + `declare it in \`${PEER_FIELD}\`: ${declarers.map(declarer => declarer.name).join(', ')}`,
+        `move \`${name}\` from \`${field}\` to \`${PEER_FIELD}\` in `
+        + `${workspace.relDir}/${MANIFEST}, and list it in ${workspace.relDir}/${TSUP_CONFIG}'s `
+        + `\`${EXTERNAL_FIELD}\` array — both halves, per docs/plan.md §3. A module this repo `
+        + `asks the consumer to supply is consumer-supplied everywhere: declared in \`${field}\` `
+        + `of a package they install${noteOnOptionality(field)}, npm installs a SECOND copy into `
+        + 'their tree beside the one they already have. For `react` that is two module registries '
+        + 'and two sets of hook state — an "invalid hook call" in the consumer\'s app, in their '
+        + 'stack trace, nowhere near this commit. If this package genuinely must own its own '
+        + 'copy, the peer declarations above are what to change, in a commit that argues it.',
+      );
+    }
   }
 }
 
@@ -328,7 +396,7 @@ const declaringPeers = workspaces.filter(workspace => workspace.peers.length > 0
 // read the right manifests can read them off the pass line. A publishable
 // workspace dropping out of the second line is this count going quiet the way
 // `check-peer-externals`' stylesheet count would.
-const withDependencies = publishable.filter(workspace => workspace.dependencies.length > 0);
+const withDependencies = publishable.filter(workspace => declaredInstalledNames(workspace).length > 0);
 
 const peerSummary = [...peerDeclarers]
   .map(([name, declarers]) => `${name}(${declarers.length})`)
@@ -336,7 +404,7 @@ const peerSummary = [...peerDeclarers]
   .join(', ');
 
 const dependencySummary = withDependencies
-  .map(workspace => `${workspace.name} [${workspace.dependencies.join(', ')}]`)
+  .map(workspace => `${workspace.name} [${declaredInstalledNames(workspace).join(', ')}]`)
   .join(', ');
 
 console.log(
@@ -344,7 +412,7 @@ console.log(
   + 'workspace(s), no publishable dependency misfiles one\n'
   + `  peers: ${peerSummary}\n`
   + `  ${publishable.length} publishable workspace(s), ${withDependencies.length} declaring `
-  + `\`${DEPENDENCY_FIELD}\`: ${dependencySummary || 'none'}\n`
-  + `  private, \`${DEPENDENCY_FIELD}\` not examined: `
+  + `${DEPENDENCY_FIELDS_PHRASE}: ${dependencySummary || 'none'}\n`
+  + `  private, ${DEPENDENCY_FIELDS_PHRASE} not examined: `
   + `${privateWorkspaces.map(workspace => workspace.name).join(', ') || 'none'}`,
 );
