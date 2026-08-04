@@ -15,32 +15,57 @@ import {
 import '@testing-library/jest-dom/vitest';
 
 // What the package page does with a package, on the real pipeline: the story
-// globs, the READMEs and the manifests are all the ones on disk. The one thing
-// mocked is a story that throws, because no package ships one — and a boundary
-// nobody has seen catch anything is a boundary nobody knows is wired up.
+// globs, the READMEs and the manifests are all the ones on disk. Two packages'
+// story MODULES are stood in for, and each stands in for something this
+// environment cannot produce:
+//
+//   - a story that throws, because no package ships one, and a boundary nobody
+//     has seen catch anything is a boundary nobody knows is wired up;
+//   - a module whose exports enumerate SORTED, which is what a browser's ES
+//     module namespace does and what the ordering exists to undo. vite-node
+//     hands a real module's exports back in declaration order, so against the
+//     real module the ordering is unobservable and its removal would pass.
+//
+// Both keep their real story FILE (`storySourceFor` is untouched), which is
+// where the declaration order and the disclosed source come from.
 
-const BROKEN_SLUG = 'badge';
-
-const { brokenStories } = vi.hoisted(() => {
+// Hoisted with the modules themselves: `vi.mock`'s factory runs before this
+// file's own top-level `const`s, and it reads the slugs.
+const { BROKEN_SLUG, SORTED_SLUG, brokenStories, sortedStories } = vi.hoisted(() => {
   function Broken(): string {
     throw new Error('this story is broken');
   }
   function Fine(): string {
     return 'a working example';
   }
-  // A stable promise, not a fresh one per call: `use()` needs the same instance
+  // Card's file declares Variants above Sizes; these are the same two exports
+  // in the order a namespace object would list them.
+  function Sizes(): string {
+    return 'the sizes example';
+  }
+  function Variants(): string {
+    return 'the variants example';
+  }
+  // Stable promises, not fresh ones per call: `use()` needs the same instance
   // across render retries — the same reason content.ts caches its loaders.
-  return { brokenStories: Promise.resolve({ Broken, Fine }) };
+  return {
+    BROKEN_SLUG: 'badge',
+    SORTED_SLUG: 'card',
+    brokenStories: Promise.resolve({ Broken, Fine }),
+    sortedStories: Promise.resolve({ Sizes, Variants }),
+  };
 });
 
 vi.mock('../../stories', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../stories')>();
+  const stubbed = new Map<string, Promise<Record<string, unknown>>>([
+    [BROKEN_SLUG, brokenStories],
+    [SORTED_SLUG, sortedStories],
+  ]);
   return {
     ...actual,
     // eslint-disable-next-line ts/promise-function-async -- same rule as the real loader: `async` would mint a fresh promise per call and break `use()` identity
-    storyModuleFor: (slug: string) => (
-      slug === BROKEN_SLUG ? brokenStories : actual.storyModuleFor(slug)
-    ),
+    storyModuleFor: (slug: string) => stubbed.get(slug) ?? actual.storyModuleFor(slug),
   };
 });
 
@@ -55,6 +80,17 @@ describe('overview tab', () => {
     // the two exist. DOCUMENT_POSITION_FOLLOWING: the README comes after.
     expect(examples.compareDocumentPosition(readmeHeading) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
+  });
+
+  it('shows the examples in the order the story file declares them', async () => {
+    await renderApp(`/components/${SORTED_SLUG}`);
+    await screen.findByRole('heading', { name: 'Examples' }, SUSPENSE_TIMEOUT);
+
+    // The module hands them over sorted (Sizes, Variants); the file declares
+    // Variants first, and the file is what the page shows.
+    const examples = screen.getByRole('region', { name: 'Examples' });
+    expect(within(examples).getAllByRole('heading', { level: 3 }).map(h => h.textContent))
+      .toEqual(['Variants', 'Sizes']);
   });
 
   it('discloses each example\'s own source on demand', async () => {

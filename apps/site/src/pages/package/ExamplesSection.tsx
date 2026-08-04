@@ -10,7 +10,7 @@ import { CodeBlock } from '../../components/CodeBlock';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { storySourceFor } from '../../stories';
 import { humanizeExportName } from './humanize';
-import { sourceOfExport } from './storySource';
+import { orderByDeclaration, sourceOfExport } from './storySource';
 
 import type { StoryExport } from '../../stories';
 
@@ -29,7 +29,9 @@ export function ExamplesSection({
   examples: Array<[string, StoryExport]>;
 }) {
   // The story FILE, as text. The module next door is the same file compiled,
-  // and a compiled module cannot show what it was written as.
+  // and a compiled module cannot show what it was written as — nor what ORDER
+  // it was written in, which is why the text is read whether or not anyone
+  // opens a disclosure.
   const source = use(storySourceFor(slug));
   const labelId = useId();
 
@@ -37,7 +39,7 @@ export function ExamplesSection({
     <section aria-labelledby={labelId}>
       <Stack gap="5">
         <Heading as="h2" size="5" id={labelId}>Examples</Heading>
-        {examples.map(([name, Story]) => (
+        {orderByDeclaration(examples, source).map(([name, Story]) => (
           <Example
             key={name}
             name={name}

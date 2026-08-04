@@ -30,11 +30,16 @@ const storyModules = import.meta.glob<StoryModule>(
   '../../../packages/*/src/**/*.stories.{ts,tsx}',
 );
 
-// The same files again, as text, for the "Show code" disclosure under each
-// example. Two globs of one pattern rather than one: `?raw` is a different
-// module (the source string) from the compiled one, and a page that only ever
-// renders the examples must not pay for the text of stories nobody expanded.
-// Vite emits each as its own lazy chunk.
+// The same files again, as text. Two globs of one pattern rather than one:
+// `?raw` is a different module (the source string) from the compiled one, and
+// Vite emits each as its own lazy chunk — so the text is fetched alongside the
+// module rather than inside it.
+//
+// A page that shows any example reads this, expanded disclosures or not: it is
+// what "Show code" discloses AND what puts the examples in the order their file
+// declares them (ExamplesSection.tsx), which is a decision made before anything
+// is drawn. The chunk is the story file's own source, next to the story chunk
+// that was compiled from it.
 const storySources = import.meta.glob<string>(
   '../../../packages/*/src/**/*.stories.{ts,tsx}',
   { query: '?raw', import: 'default' },

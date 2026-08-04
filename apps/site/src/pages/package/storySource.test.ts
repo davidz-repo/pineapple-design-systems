@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { repoRoot } from '../../test-helpers';
-import { sourceOfExport } from './storySource';
+import { orderByDeclaration, sourceOfExport } from './storySource';
 
 describe('sourceOfExport', () => {
   it('takes a function declaration and stops at the next export', () => {
@@ -140,5 +140,44 @@ describe('sourceOfExport', () => {
 
     // Nothing follows the Playground, so it keeps its args and argTypes.
     expect(sourceOfExport(source, 'Playground')).toContain('Playground.argTypes');
+  });
+});
+
+// The fixtures here are written, not read off disk, and that is the point: the
+// input this guards against is a story module's exports, which an ES module
+// namespace enumerates SORTED. vite-node hands a real module's exports back in
+// declaration order, so a test that imported one would pass with the sort
+// deleted. Only a fixture whose declaration order disagrees with its
+// alphabetical order can fail.
+describe('orderByDeclaration', () => {
+  const source = [
+    'export function Variants() {}',
+    '',
+    'export function Loading() {}',
+    '',
+    'export function Colors() {}',
+    '',
+  ].join('\n');
+
+  // What `Object.entries` of the story module hands the page.
+  const alphabetical: Array<[string, number]> = [
+    ['Colors', 3],
+    ['Loading', 2],
+    ['Variants', 1],
+  ];
+
+  it('reorders the stories to match the file they are declared in', () => {
+    expect(orderByDeclaration(alphabetical, source).map(([name]) => name))
+      .toEqual(['Variants', 'Loading', 'Colors']);
+  });
+
+  it('keeps a story the file does not declare, at the end', () => {
+    const entries: Array<[string, number]> = [['Elsewhere', 0], ...alphabetical];
+    expect(orderByDeclaration(entries, source).map(([name]) => name))
+      .toEqual(['Variants', 'Loading', 'Colors', 'Elsewhere']);
+  });
+
+  it('leaves the order alone when there is no source text to read', () => {
+    expect(orderByDeclaration(alphabetical, null)).toEqual(alphabetical);
   });
 });

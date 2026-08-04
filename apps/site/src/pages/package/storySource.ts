@@ -64,6 +64,33 @@ export function sourceOfExport(source: string, exportName: string): string | und
 }
 
 /**
+ * `entries` in the order the FILE declares them, rather than the order they
+ * arrive in. An ES module namespace enumerates its keys sorted, so the stories
+ * a package page reads off its story module come back alphabetically —
+ * Button's Overview opened with `Loading` above `Variants`, which is neither
+ * the order the file was written in nor an order anything on the page implies.
+ * The file is already here as text, so the text is what the order comes from.
+ *
+ * A name the file does not declare at the top level (nothing today) keeps its
+ * incoming position, at the end.
+ */
+export function orderByDeclaration<T>(
+  entries: ReadonlyArray<[string, T]>,
+  source: string | null,
+): Array<[string, T]> {
+  if (source === null) {
+    return [...entries];
+  }
+  return entries
+    .map(entry => ({
+      entry,
+      declaredAt: declarationOf(source, entry[0])?.index ?? Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => a.declaredAt - b.declaredAt)
+    .map(({ entry }) => entry);
+}
+
+/**
  * Where the `//` comment block immediately above `declarationStart` begins —
  * `declarationStart` itself when there is none. A blank line ends the block,
  * which is what keeps a file header out of the first story in the file while
