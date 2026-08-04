@@ -1,0 +1,82 @@
+name: Deploy reference site
+
+# Builds apps/site and publishes its dist/ to GitHub Pages, which serves it at
+# https://designpineapple.com (the repo's configured custom domain).
+#
+# One-time manual steps this workflow cannot do for itself, in the repo's
+# Settings → Pages: set Source to "GitHub Actions" — until that is flipped the
+# deploy job fails with "Not Found", because the Pages site has to exist before
+# the API will accept a deployment — and set Custom domain to
+# designpineapple.com. The site's vite `base` is '/' on the assumption the
+# custom domain is attached; without it Pages serves from
+# /pineapple-design-systems/ and every asset URL in the build points one path
+# segment too high.
+#
+# Deploys from main only. CI (ci.yml) has already verified every commit that
+# lands here with an unfiltered turbo run, so this workflow does not re-run
+# lint/test/typecheck — it exists to produce and ship the artifact, and the
+# `--filter` below is safe for the same reason: correctness was someone
+# else's job.
+on:
+  push:
+    branches: [main]
+  # For re-deploying without a commit — e.g. right after flipping the Pages
+  # source setting, or if a deploy was lost to an outage.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancel one mid-flight: an interrupted Pages
+# deployment can leave the live site on a half-published state. A queued run
+# always deploys the newest commit anyway, since it checks out its own ref.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Same reasoning as ci.yml: the root manifest declares
+      # devEngines.packageManager npm ^11.0.0 and runners ship npm 10.
+      - name: Install npm 11 to match devEngines.packageManager
+        run: |
+          npm install -g npm@11
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `^build` builds the 16 workspace packages the site aliases before the
+      # site itself; the FOUC inject plugin reads @pineappleui/theme's dist.
+      - name: Build the site
+        run: npx turbo run build --filter=@pineappleui/site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/site/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

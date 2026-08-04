@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pineapple UI</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- The theme's first-paint <script> is injected after #root by the
+         pineapple-fouc-script plugin in vite.config.ts: it paints the root
+         element and returns silently if #root has not been parsed yet, so
+         placing it in <head> would be a permanent no-op. -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
