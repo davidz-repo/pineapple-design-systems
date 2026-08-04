@@ -39,9 +39,11 @@ const {
   BROKEN_SLUG,
   SORTED_SLUG,
   UNLOADABLE_SLUG,
+  SLOW_SLUG,
   brokenStories,
   sortedStories,
   unloadableStories,
+  slowStories,
 } = vi.hoisted(() => {
   function Broken(): string {
     throw new Error('this story is broken');
@@ -69,9 +71,13 @@ const {
     BROKEN_SLUG: 'badge',
     SORTED_SLUG: 'card',
     UNLOADABLE_SLUG: 'inline',
+    SLOW_SLUG: 'text-area',
     brokenStories: Promise.resolve({ Broken, Fine }),
     sortedStories: Promise.resolve({ Sizes, Variants }),
     unloadableStories: unloadable,
+    // A chunk still in flight, forever: the cold cache, held still. Anything
+    // that has to wait for this never happens in a test.
+    slowStories: new Promise<Record<string, unknown>>(() => {}),
   };
 });
 
@@ -81,6 +87,7 @@ vi.mock('../../stories', async (importOriginal) => {
     [BROKEN_SLUG, brokenStories],
     [SORTED_SLUG, sortedStories],
     [UNLOADABLE_SLUG, unloadableStories],
+    [SLOW_SLUG, slowStories],
   ]);
   return {
     ...actual,
@@ -233,6 +240,34 @@ describe('overview tab', () => {
 
     consoleError.mockRestore();
   });
+
+  it('leaves one package\'s failure behind when the reader walks to another', async () => {
+    const consoleError = silenceCaughtErrors();
+    await renderApp(`/components/${UNLOADABLE_SLUG}`);
+    expect(await screen.findByRole(
+      'heading',
+      { name: /docs failed to render$/ },
+      SUSPENSE_TIMEOUT,
+    )).toBeInTheDocument();
+
+    // One route serves every package (`components/:slug/*`), so React reuses
+    // the boundary element across this navigation and a caught error would
+    // still be caught — the reader would arrive at a working package and be
+    // told its docs failed. The `key={slug}` remount is the only thing that
+    // clears it, and nothing else in the suite would notice its removal.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('link', { name: 'Button' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Examples' })).toBeInTheDocument();
+    }, SUSPENSE_TIMEOUT);
+    expect(screen.queryByRole('heading', { name: /docs failed to render$/ }))
+      .not
+      .toBeInTheDocument();
+
+    consoleError.mockRestore();
+  });
 });
 
 describe('package links', () => {
@@ -373,6 +408,20 @@ describe('tabs', () => {
     expect(await screen.findByRole('heading', { name: '0.1.0', level: 2 }, SUSPENSE_TIMEOUT))
       .toBeInTheDocument();
     expect(screen.queryByText(/has no “versions” tab/)).not.toBeInTheDocument();
+  });
+
+  it('redirects without waiting for the package\'s story chunk', async () => {
+    // This package's stories never arrive, so anything downstream of that
+    // import cannot run: the tab <Routes> live under a Suspense boundary that
+    // waits on it, and a redirect declared there would leave a reader on a
+    // skeleton — titled "Page not found", since the address names no tab —
+    // until the network came back. The redirect is above that boundary.
+    await renderApp(`/components/${SLOW_SLUG}/versions`, <CurrentPath />);
+
+    await waitFor(() => {
+      expect(screen.getByText(`test-only: at /components/${SLOW_SLUG}/changelog`))
+        .toBeInTheDocument();
+    }, SUSPENSE_TIMEOUT);
   });
 
   it('answers an unknown tab inside the page, not with a full-page 404', async () => {

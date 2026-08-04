@@ -88,15 +88,6 @@ function PackageContent({ entry }: { entry: RegistryEntry }) {
             />
           )}
           <Route path="changelog" element={<ChangelogTab slug={entry.slug} />} />
-          {/* This tab was `versions` until PR #44 renamed it, and the address
-              is in whatever anyone had bookmarked, linked or left in their
-              history. `replace`, so the dead address does not sit in the
-              reader's Back stack. Delete it once those referrers have dried
-              up — it is here to survive a rename, not forever. */}
-          <Route
-            path="versions"
-            element={<Navigate to={tabPath(entry.slug, 'changelog')} replace />}
-          />
           <Route path="*" element={<NoSuchTab entry={entry} tabs={tabs} />} />
         </Routes>
       </Suspense>
@@ -162,6 +153,25 @@ export function PackagePage() {
 
   return (
     <Stack gap="4">
+      {/* This tab was `versions` until PR #44 renamed it, and that address is in
+          whatever anyone had bookmarked, linked or left in their history.
+          `replace`, so the dead address does not sit in the reader's Back
+          stack. Delete it once those referrers have dried up — it is here to
+          survive a rename, not forever.
+
+          It sits HERE, above the boundary that waits on the package's story
+          chunk, and not in the tab <Routes> below: those do not render until
+          that dynamic import resolves, so on a cold cache the reader watched a
+          skeleton — titled "Page not found", since the address names no tab —
+          before the redirect happened. Still a route, so trailing slashes and
+          ranking stay the router's business; it renders nothing at every other
+          address. */}
+      <Routes>
+        <Route
+          path="versions"
+          element={<Navigate to={tabPath(entry.slug, 'changelog')} replace />}
+        />
+      </Routes>
       <Stack gap="2">
         <Inline gap="3" align="center">
           <Heading as="h1" size="8">{entry.name}</Heading>

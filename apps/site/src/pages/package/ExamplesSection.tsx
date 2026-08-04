@@ -67,7 +67,11 @@ function Example({
 
   return (
     <Stack gap="2">
-      <Heading as="h3" size="3">{title}</Heading>
+      {/* size="4" is what MarkdownView draws an h3 at, and the README's
+          demoted sections are h3s a screen apart from these on the same page:
+          one heading level has to be one size, or the outline a reader hears
+          and the scale they see disagree. */}
+      <Heading as="h3" size="4">{title}</Heading>
       {/* A boundary per example, not per page: these are other packages' story
           files rendering live, and one of them throwing must cost its own
           canvas rather than every example below it and the README under those. */}
