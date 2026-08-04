@@ -81,7 +81,7 @@ export function GettingStartedPage() {
           whichever components you use. Radix Themes, React and ReactDOM are
           peers.
         </Text>
-        <CodeBlock code={INSTALL} />
+        <CodeBlock code={INSTALL} language="bash" />
       </Stack>
 
       <Stack gap="3">
@@ -97,7 +97,7 @@ export function GettingStartedPage() {
           <code>&lt;Theme&gt;</code>
           ; never mount another.
         </Text>
-        <CodeBlock code={PROVIDERS} />
+        <CodeBlock code={PROVIDERS} language="tsx" />
       </Stack>
 
       <Stack gap="3">
@@ -107,7 +107,7 @@ export function GettingStartedPage() {
           hold no state of their own and need no configuration; render them
           anywhere inside the providers.
         </Text>
-        <CodeBlock code={FIRST_COMPONENT} />
+        <CodeBlock code={FIRST_COMPONENT} language="tsx" />
         <Text as="p" size="3">
           <code>Inline</code>
           {' '}
@@ -137,7 +137,7 @@ export function GettingStartedPage() {
           theme on reload, inline the first-paint script — this site does
           exactly that at build time.
         </Text>
-        <CodeBlock code={FOUC} />
+        <CodeBlock code={FOUC} language="ts" />
         <Text as="p" size="3">
           Here is how this site inlines it, from its own Vite config. The
           {' '}
@@ -150,7 +150,7 @@ export function GettingStartedPage() {
           and returns silently when that element has not been parsed yet, so
           injecting into the head would be a permanent no-op.
         </Text>
-        <CodeBlock code={FOUC_PLUGIN} />
+        <CodeBlock code={FOUC_PLUGIN} language="ts" />
       </Stack>
 
       <Stack gap="3">
