@@ -6,10 +6,14 @@
 
 .site-shell {
   /* The header's own box, expressed in the scale it is actually built from:
-     two --space-3 paddings, one --space-5 line box and the bottom border.
-     The 57px this replaced was never the rendered height (~49px at the
-     default scaling) and it could not follow Radix's --scaling at all, so the
-     sticky sidebar sat in the wrong place at every scale including 100%. */
+     two --space-3 paddings, the tallest control in the row, and the bottom
+     border. Here that control is a Radix size-1 (--space-5), which is what
+     every control the desktop header shows is. The mobile block redefines
+     this — its Menu trigger is a size-2 — and anything that changes a
+     control's size has to come back here, because the sticky sidebar offsets
+     from this value and an 8px error parks the panel behind the header.
+     The 57px this replaced was never the rendered height and could not follow
+     Radix's --scaling at all, so the sidebar sat wrong at every scale. */
   --site-header-h: calc(var(--space-3) * 2 + var(--space-5) + 1px);
 
   display: grid;
@@ -59,8 +63,9 @@
   gap: var(--space-4);
   /* min-height, not height: a viewport narrow enough to wrap the brand off
      the controls' row makes the header taller, and a fixed height would clip
-     that row rather than show it. The sticky offsets below stay exact for the
-     one-row case, which is every case the breakpoint rules leave. */
+     that row rather than show it. The sticky offsets are exact whenever the
+     header holds one row — each breakpoint sets --site-header-h to its own
+     tallest control — and a wrapped header only ever grows past them. */
   min-height: var(--site-header-h);
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--gray-a5);
@@ -228,6 +233,12 @@
 
 @media (max-width: 860px) {
   .site-shell {
+    /* The Menu trigger is a size-2 (--space-6), and it is the tallest thing
+       in the mobile header — so the header is 8px taller here than the
+       desktop token says. Without this the panel's `top` would anchor that
+       much too high and its first link would sit behind the sticky header. */
+    --site-header-h: calc(var(--space-3) * 2 + var(--space-6) + 1px);
+
     grid-template-columns: minmax(0, 1fr);
   }
 
