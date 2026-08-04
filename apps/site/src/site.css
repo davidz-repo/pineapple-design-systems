@@ -83,6 +83,23 @@
   color: inherit;
 }
 
+/* --space-5, the SAME token --site-header-h is derived from above, because the
+   mark is now one of the controls that row is as tall as. A literal 24px would
+   be right at --scaling 100% and wrong at every other scale; anything TALLER
+   than --space-5 makes the header taller than the token says it is, and the
+   sticky offsets that read the token — the nav panel's `top`, the hero's
+   scroll-margin — all land under the chrome.
+
+   The -1px is optical, not geometric: the crown's blades are the mark's
+   lightest mass, so a mark centred by its box reads as sitting low against the
+   wordmark's cap height. Nudged on the box rather than inside the viewBox, so
+   the drawing stays the same drawing as the favicon and the OG card. */
+.site-brand-mark {
+  width: var(--space-5);
+  height: var(--space-5);
+  margin-block-start: -1px;
+}
+
 /* The menu disclosure is a mobile affordance only; ≥860px the sidebar is
    always on screen and the trigger would control nothing. Likewise the
    appearance cycler: desktop keeps the three-way segmented control. Both are

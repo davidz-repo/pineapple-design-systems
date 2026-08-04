@@ -8,6 +8,7 @@ import { Text } from '@pineappleui/text';
 import { Link, Outlet, useLocation } from 'react-router';
 
 import { pageKeyFor, pageTitleFor } from './pageIdentity';
+import { PineappleMark } from './PineappleMark';
 import { Sidebar } from './Sidebar';
 import { ThemeControls } from './ThemeControls';
 
@@ -94,7 +95,7 @@ export function Layout() {
       <a className="site-skip-link" href="#main">Skip to content</a>
       <header className="site-header">
         <Link to="/" className="site-header-brand">
-          <span className="accent-swatch" aria-hidden />
+          <PineappleMark />
           <Text size="3" weight="bold">Pineapple UI</Text>
           <Badge className="site-docs-badge" variant="soft" size="1">docs</Badge>
         </Link>
