@@ -30,11 +30,37 @@
 // else. A new root declaration joins this guard by being written down, with
 // nothing to remember.
 //
+// One declaration shape carries no version to compare. A dependency on a
+// sibling workspace — the root declares `@pineappleui/eslint-config` so its own
+// eslint.config.mjs can import the shared factory — is recorded as a LINK:
+// `node_modules/<name>` holds `{ "link": true, "resolved": "packages/<dir>" }`
+// and the version sits on that target entry, behind a range every workspace
+// here writes as `*`. So the slot question is asked differently for a link, not
+// skipped: npm links a sibling only when the declared range accepts the
+// workspace's own version, and goes to the REGISTRY for a package of that name
+// when it does not — so "the slot resolves to a WORKSPACE directory whose
+// manifest carries this name" is the whole of "the root's own copy owns it". A
+// link pointing anywhere else, or at a directory the lockfile does not know, is
+// the same capture the version check below exists for, wearing the other shape.
+//
+// Both halves of that sentence are asserted, because a link alone does not say
+// which one it is: `"<name>": "file:../vendored"` produces the identical
+// `{ link: true, resolved: … }` entry, pointing outside the workspace set. So
+// the target is checked against `listWorkspaceDirs()` — the same lock-derived
+// list every other guard walks — and not merely against "the lockfile has an
+// entry here". `name` on that entry is compared where npm wrote one and the
+// directory's basename where it did not (npm omits the field when the two
+// already agree), so an absent field reads as the match it is rather than as a
+// mismatch. And a target carrying no `version` is refused exactly as an
+// unversioned registry entry is: an unverifiable slot printed as `undefined` on
+// a green line is the silence this guard exists to break, not a pass.
+//
 // What this does NOT prove: that the toolchain is complete. The assertion is
 // "every slot the root DECLARES is the one the root asked for" — a slot nobody
-// declares is a slot this guard never looks at. `typescript`, `vitest`, `tsup`
-// and `eslint` are pinned per-package rather than at the root, so nothing here
-// would notice two workspaces building on different majors of them. That is a
+// declares is a slot this guard never looks at. `typescript`, `vitest` and
+// `tsup` are pinned per-package rather than at the root, so nothing here would
+// notice two workspaces building on different majors of them — `eslint` was one
+// of them until the root declared it for its own lint task. That is a
 // different failure (workspaces disagreeing) from the one this file exists for
 // (one shared slot silently changing hands), and asserting cross-workspace
 // agreement is a possible extension rather than something to read into the
@@ -49,9 +75,11 @@
 //   node scripts/check-toolchain-hoist.mjs
 
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { assertWorkspaceGlobsUnderstood } from './workspace-globs.mjs';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const LOCKFILE = 'package-lock.json';
 const TOP_SLOT_PREFIX = 'node_modules/';
@@ -86,7 +114,8 @@ function readJson(relPath) {
 /** @param {string} version @returns {[number, number, number]|null} */
 function parseVersion(version) {
   const match = VERSION_PATTERN.exec(version);
-  if (!match) return null;
+  if (!match)
+    return null;
   const { major, minor, patch } = match.groups;
   return [Number(major), Number(minor), Number(patch)];
 }
@@ -94,7 +123,8 @@ function parseVersion(version) {
 /** @returns {number} negative if a < b */
 function compareVersions(a, b) {
   for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) return a[i] - b[i];
+    if (a[i] !== b[i])
+      return a[i] - b[i];
   }
   return 0;
 }
@@ -104,7 +134,8 @@ function compareVersions(a, b) {
  *
  * @param {string} version
  * @param {string} range
- * @returns {{ ok: boolean } | { unsupported: string }}
+ * @returns {{ ok: boolean } | { unsupported: string }} the verdict, or which of
+ * the two it could not read
  */
 function satisfies(version, range) {
   const operator = range.startsWith(CARET) || range.startsWith(TILDE) ? range[0] : '';
@@ -112,11 +143,15 @@ function satisfies(version, range) {
 
   const floor = parseVersion(floorText);
   const actual = parseVersion(version);
-  if (floor === null) return { unsupported: `range "${range}"` };
-  if (actual === null) return { unsupported: `installed version "${version}"` };
-  if (compareVersions(actual, floor) < 0) return { ok: false };
+  if (floor === null)
+    return { unsupported: `range "${range}"` };
+  if (actual === null)
+    return { unsupported: `installed version "${version}"` };
+  if (compareVersions(actual, floor) < 0)
+    return { ok: false };
 
-  if (operator === '') return { ok: compareVersions(actual, floor) === 0 };
+  if (operator === '')
+    return { ok: compareVersions(actual, floor) === 0 };
 
   if (operator === TILDE) {
     // ~x.y.z allows patch bumps only.
@@ -125,16 +160,22 @@ function satisfies(version, range) {
 
   // ^x.y.z allows changes that do not modify the left-most non-zero element,
   // so ^0.5.0 is as tight as ~0.5.0 and ^0.0.3 is exact.
-  if (floor[0] !== 0) return { ok: actual[0] === floor[0] };
-  if (floor[1] !== 0) return { ok: actual[0] === 0 && actual[1] === floor[1] };
+  if (floor[0] !== 0)
+    return { ok: actual[0] === floor[0] };
+  if (floor[1] !== 0)
+    return { ok: actual[0] === 0 && actual[1] === floor[1] };
   return { ok: compareVersions(actual, floor) === 0 };
 }
 
 // A new workspace root is exactly the event that widens what this guard does
 // not cover — a tree of newly declared dependencies, none of them root-declared
 // and so none of them checked, under a line that still reads "N slot(s) OK".
-// Both dependency guards share the assertion so the answer cannot differ.
-assertWorkspaceGlobsUnderstood('check-toolchain-hoist');
+// Both dependency guards share the assertion so the answer cannot differ. The
+// list itself is taken rather than the assertion alone because the link branch
+// below needs it: "this slot links to a workspace" is a claim about that set,
+// and deriving the set here a second way is how two answers to one question get
+// written.
+const workspaceDirs = listWorkspaceDirs('check-toolchain-hoist');
 
 const rootManifest = readJson('package.json');
 const lock = readJson(LOCKFILE);
@@ -163,17 +204,20 @@ function countNestedCopies(name) {
   return Object.keys(lockPackages).filter(key => key.endsWith(suffix)).length;
 }
 
+/** @param {string} name @returns {string} the report's parenthetical, or ''. */
+function formatNestedCopiesNote(name) {
+  const nested = countNestedCopies(name);
+  return nested > 0
+    ? ` (+${nested} nested cop${nested === 1 ? 'y' : 'ies'} elsewhere, off the shared slot)`
+    : '';
+}
+
 /** @type {string[]} */
 const report = [];
 
 for (const [name, range] of rootDeclared) {
   const slot = `${TOP_SLOT_PREFIX}${name}`;
-  let entry = lockPackages[slot];
-
-  // A workspace link records its target rather than a version.
-  if (entry?.link && typeof entry.resolved === 'string') {
-    entry = lockPackages[entry.resolved];
-  }
+  const entry = lockPackages[slot];
 
   if (entry === undefined) {
     fail(
@@ -183,6 +227,65 @@ for (const [name, range] of rootDeclared) {
       + `package has taken the ${slot} slot and this one was nested underneath it — which `
       + 'is the exact shape of the vite 8 -> 6 downgrade this guard exists to prevent. '
       + 'Declaring it at the root is what wins the slot back.',
+    );
+    continue;
+  }
+
+  // A sibling workspace holds the slot as a link to its directory, with the
+  // version on the target entry: what is asserted is where the link points.
+  if (entry.link === true) {
+    const resolved = typeof entry.resolved === 'string' ? entry.resolved : null;
+    const target = resolved === null ? undefined : lockPackages[resolved];
+
+    // npm writes `name` on a workspace entry only where it differs from the
+    // directory's basename, so a missing field is agreement, not a mismatch.
+    const targetName = typeof target?.name === 'string'
+      ? target.name
+      : resolved !== null ? path.basename(resolved) : null;
+
+    if (targetName !== name) {
+      fail(
+        name,
+        `${LOCKFILE}'s ${slot} links to ${resolved ?? '(nothing)'}, which is not a `
+        + `workspace declaring ${name}`,
+        `run \`npm install\` and commit ${LOCKFILE}. The root declares ${name}@${range} to use `
+        + 'the workspace in this repo; a slot linked somewhere else, or at a directory the '
+        + 'lockfile has no entry for, means every root file importing it is loading something '
+        + 'other than the source beside it — the same capture the version check exists for, '
+        + 'in the shape a link takes.',
+      );
+      continue;
+    }
+
+    if (!workspaceDirs.includes(resolved)) {
+      fail(
+        name,
+        `${LOCKFILE}'s ${slot} links to ${resolved}, which is not one of this repo's `
+        + `workspaces (${workspaceDirs.join(', ')})`,
+        `declare ${name} as the sibling workspace it names, run \`npm install\` and commit `
+        + `${LOCKFILE}. A \`file:\` dependency on a vendored or out-of-tree copy records the `
+        + 'same `{ link: true }` entry a workspace does, so "the slot is a link" alone does '
+        + 'not say the root is loading the source beside it. That directory is built, '
+        + 'linted and tested by nothing in this repo, while the slot reads as owned.',
+      );
+      continue;
+    }
+
+    if (typeof target.version !== 'string') {
+      fail(
+        name,
+        `${LOCKFILE}'s ${slot} links to ${resolved}, whose entry records no version`,
+        `delete ${LOCKFILE} and run \`npm install\` to regenerate it. The linked workspace's `
+        + 'own manifest is where that version comes from, so a missing one means the entry '
+        + 'is stale or hand-edited — and the alternative to refusing is a green line reporting '
+        + 'this slot as `undefined`, which is an unverified slot printed like a verified one.',
+      );
+      continue;
+    }
+
+    report.push(
+      `  ${name}@${range} -> ${slot} link -> ${resolved} ${target.version}${
+        formatNestedCopiesNote(name)}`,
     );
     continue;
   }
@@ -226,13 +329,7 @@ for (const [name, range] of rootDeclared) {
     continue;
   }
 
-  const nested = countNestedCopies(name);
-  report.push(
-    `  ${name}@${range} -> ${slot} ${entry.version}`
-    + (nested > 0
-      ? ` (+${nested} nested cop${nested === 1 ? 'y' : 'ies'} elsewhere, off the shared slot)`
-      : ''),
-  );
+  report.push(`  ${name}@${range} -> ${slot} ${entry.version}${formatNestedCopiesNote(name)}`);
 }
 
 if (failures.length > 0) {

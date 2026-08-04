@@ -38,8 +38,10 @@
 //   node scripts/check-alias-fences.mjs
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const GUARD_NAME = 'check-alias-fences';
@@ -105,7 +107,7 @@ function refuse(message) {
  * is not the report anyone needs.
  *
  * @param {string} relPath
- * @returns {Set<string>}
+ * @returns {Set<string>} the names the fence lists, deduplicated
  */
 function readFencedPackages(relPath) {
   const source = readFileSync(path.join(repoRoot, relPath), 'utf8');
@@ -145,7 +147,8 @@ function readWorkspaceDirsByPackageName() {
   const byName = new Map();
   for (const relDir of listWorkspaceDirs(GUARD_NAME)) {
     const manifest = JSON.parse(readFileSync(path.join(repoRoot, relDir, 'package.json'), 'utf8'));
-    if (manifest.name) byName.set(manifest.name, relDir);
+    if (manifest.name)
+      byName.set(manifest.name, relDir);
   }
   return byName;
 }
@@ -243,7 +246,8 @@ for (const name of [...new Set([...inVite, ...inTsconfig, ...declared, ...storyO
     [MANIFEST, declared.has(name)],
   ];
   const absent = presence.filter(([, present]) => !present).map(([file]) => file);
-  if (absent.length === 0) continue;
+  if (absent.length === 0)
+    continue;
 
   const present = presence.filter(([, isPresent]) => isPresent).map(([file]) => file);
   const ownsStories = storyOwners.includes(name);
@@ -251,15 +255,16 @@ for (const name of [...new Set([...inVite, ...inTsconfig, ...declared, ...storyO
   fail(
     `${SCOPE}${name}`,
     `is ${present.length > 0 ? `named in ${present.join(' and ')} but ` : ''}`
-    + `missing from ${absent.join(' and ')}`
-    + (ownsStories && present.length === 0
-      ? `, and ${STORY_ROOT}/${name} owns a story file the gallery compiles`
-      : ''),
-    `add ${SCOPE}${name} to ${absent.join(' and ')}`
-    + (present.length > 0
-      ? `, or remove it from ${present.join(' and ')} if it does not belong in the gallery`
-      : `. Ladle globs its stories off disk the moment the file exists — there is nothing `
-        + 'to register per package, which is exactly what makes the alias easy to forget')
+    + `missing from ${absent.join(' and ')}${
+      ownsStories && present.length === 0
+        ? `, and ${STORY_ROOT}/${name} owns a story file the gallery compiles`
+        : ''}`,
+    `add ${SCOPE}${name} to ${absent.join(' and ')}${
+      present.length > 0
+        ? `, or remove it from ${present.join(' and ')} if it does not belong in the gallery`
+        : '. Ladle globs its stories off disk the moment the file exists — there is nothing '
+          + 'to register per package, which is exactly what makes the alias easy to forget'
+    }`
     + `. The three lists are one decision written three times, inside the \`${FENCE_START}\` `
     + `fences in the two configs: ${absent.map(file => `${file} — ${WHY_EACH_FILE[file]}`).join('; ')}. `
     + 'Each of those passes every other check in this repo.',

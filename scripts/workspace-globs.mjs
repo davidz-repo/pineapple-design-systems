@@ -38,9 +38,14 @@
 //     it takes the whole list for exactly that reason: the subset has to be
 //     derived from every workspace npm installs, or the guard's required set
 //     shrinks with the discovery and reports the same pass over less.
-//   - `check-toolchain-hoist` reads the ROOT manifest's declarations, so it has
-//     no list to walk — it takes the assertion alone, because a new workspace
-//     root is exactly the event that widens what it does not cover.
+//   - `check-toolchain-hoist` reads the ROOT manifest's declarations, so it
+//     walks no workspace list, but it takes `listWorkspaceDirs()` for a
+//     membership test rather than a walk: one root declaration is a LINK to a
+//     sibling workspace, and "the slot links to a workspace" is a claim about
+//     exactly this set — a `file:` dependency on an out-of-tree copy records
+//     the same link entry. It would take the assertion either way, because a
+//     new workspace root is exactly the event that widens what it does not
+//     cover.
 //   - `check-token-drift` scans `git ls-files`, which is layout-agnostic and
 //     therefore cannot shrink when a workspace root is added. It takes the
 //     assertion anyway, so that "which layouts does this repo's tooling
@@ -56,8 +61,9 @@
 //     written.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 /** The workspace globs the discovery below actually implements. */
 const UNDERSTOOD_GLOBS = ['packages/*', 'apps/*'];
@@ -96,8 +102,10 @@ if (malformedGlobs.length > 0) {
  * and this reader does not.
  */
 function readGlobs(workspaces) {
-  if (Array.isArray(workspaces)) return workspaces;
-  if (workspaces && Array.isArray(workspaces.packages)) return workspaces.packages;
+  if (Array.isArray(workspaces))
+    return workspaces;
+  if (workspaces && Array.isArray(workspaces.packages))
+    return workspaces.packages;
   return null;
 }
 
@@ -184,7 +192,8 @@ function listWorkspaceDirsOnDisk() {
       continue;
     }
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+      if (!entry.isDirectory())
+        continue;
       const relDir = `${root}/${entry.name}`;
       try {
         statSync(path.join(repoRoot, relDir, 'package.json'));
@@ -238,13 +247,15 @@ export function listWorkspaceDirs(guardName) {
   if (missingFromLock.length > 0 || missingFromDisk.length > 0) {
     console.error(
       `\n${guardName}: package-lock.json and the working tree disagree about which\n`
-      + 'workspaces exist.\n'
-      + (missingFromLock.length > 0
-        ? `  on disk with a package.json, absent from the lockfile: ${missingFromLock.join(', ')}\n`
-        : '')
-      + (missingFromDisk.length > 0
-        ? `  in the lockfile, absent from disk: ${missingFromDisk.join(', ')}\n`
-        : '')
+      + `workspaces exist.\n${
+        missingFromLock.length > 0
+          ? `  on disk with a package.json, absent from the lockfile: ${missingFromLock.join(', ')}\n`
+          : ''
+      }${
+        missingFromDisk.length > 0
+          ? `  in the lockfile, absent from disk: ${missingFromDisk.join(', ')}\n`
+          : ''
+      }`
       + '  fix: run `npm install` and commit package-lock.json.\n'
       + '       Every guard discovers workspaces from the lockfile, because that is what\n'
       + '       `npm ci` installs in CI. A workspace the lockfile has never heard of is\n'

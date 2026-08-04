@@ -37,8 +37,10 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
 import { assertWorkspaceGlobsUnderstood } from './workspace-globs.mjs';
 
 // The package that owns every list checked here. Its own sources are the
@@ -50,7 +52,15 @@ const TOKENS_ENTRY = `${TOKENS_PKG_DIR}/dist/index.mjs`;
 // list in prose is visible in review and executes nothing, so .md is out of
 // scope on purpose rather than by omission.
 const SCANNED_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.css', '.html', '.json',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.css',
+  '.html',
+  '.json',
 ]);
 
 // Two members of one list is a copy of that list. One is a legitimate single
@@ -69,7 +79,7 @@ const failures = [];
  * gray name has not copied either list, but a file holding two accent names has.
  *
  * Arrays contribute their string members. Plain objects contribute their keys
- * *and* their string values — a gray-by-accent map drifts on either side.
+ * AND their string values — a gray-by-accent map drifts on either side.
  *
  * @param {Record<string, unknown>} tokens
  * @returns {Map<string, Set<string>>} export name -> members
@@ -82,17 +92,20 @@ function collectVocabulary(tokens) {
 
     if (Array.isArray(value)) {
       for (const member of value) {
-        if (typeof member === 'string') members.add(member);
+        if (typeof member === 'string')
+          members.add(member);
       }
     }
     else if (value !== null && typeof value === 'object') {
       for (const [key, member] of Object.entries(value)) {
         members.add(key);
-        if (typeof member === 'string') members.add(member);
+        if (typeof member === 'string')
+          members.add(member);
       }
     }
 
-    if (members.size >= COPY_THRESHOLD) vocabulary.set(exportName, members);
+    if (members.size >= COPY_THRESHOLD)
+      vocabulary.set(exportName, members);
   }
 
   return vocabulary;
@@ -109,7 +122,7 @@ function collectVocabulary(tokens) {
  * under-stripping surfaces a name for a human to look at.
  *
  * @param {string} source
- * @returns {string}
+ * @returns {string} the same text with every comment blanked
  */
 function stripComments(source) {
   return source
@@ -169,10 +182,12 @@ if (vocabulary.size === 0) {
 }
 
 const scannedFiles = listTrackedFiles().filter((relPath) => {
-  if (!SCANNED_EXTENSIONS.has(path.extname(relPath))) return false;
+  if (!SCANNED_EXTENSIONS.has(path.extname(relPath)))
+    return false;
   // The definition site. Structural: this package must contain the lists in
   // order to be the thing every other package derives them from.
-  if (relPath === `${TOKENS_PKG_DIR}/package.json`) return true;
+  if (relPath === `${TOKENS_PKG_DIR}/package.json`)
+    return true;
   return !relPath.startsWith(`${TOKENS_PKG_DIR}/`);
 });
 
@@ -212,7 +227,8 @@ for (const relPath of scannedFiles) {
       .filter(member => new RegExp(`\\b${member}\\b`).test(source))
       .sort();
 
-    if (found.length < COPY_THRESHOLD) continue;
+    if (found.length < COPY_THRESHOLD)
+      continue;
 
     failures.push(
       `${relPath}: restates ${found.length} member(s) of ${exportName} `
@@ -243,6 +259,6 @@ console.log(
   `check-token-drift: ${scannedFiles.length - skippedMissing} file(s) scanned, `
   + 'no hard-coded token lists\n'
   + `  vocabulary read from ${TOKENS_ENTRY}: ${vocabularySummary}\n`
-  + `  definition site exempt: ${TOKENS_PKG_DIR}/`
-  + (skippedMissing > 0 ? `\n  ${skippedMissing} indexed file(s) absent from the working tree, skipped` : ''),
+  + `  definition site exempt: ${TOKENS_PKG_DIR}/${
+    skippedMissing > 0 ? `\n  ${skippedMissing} indexed file(s) absent from the working tree, skipped` : ''}`,
 );

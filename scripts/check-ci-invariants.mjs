@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// CI-invariant guard: two pairings across .github/workflows/ci.yml, the root
-// package.json and scripts/ that nothing in the build can fail on today.
+// CI-invariant guard: three pairings across .github/workflows/ci.yml,
+// turbo.json, the root package.json and scripts/ that nothing in the build can
+// fail on today.
 //
 // Each one is held by a comment and by whoever remembers to read it, and each
 // one breaks by staying green:
@@ -58,6 +59,45 @@
 //      `if:` or `continue-on-error:`, since a step that can be skipped or
 //      ignored is in the list and out of the run.
 //
+//   3. THE scripts/ LINT IS WIRED ON ALL THREE LEGS. The root is not a
+//      workspace, so `scripts/` has no package `lint` script for `turbo run
+//      lint` to find. It is linted by a root task instead, and that one
+//      sentence — "`turbo run lint` also lints scripts/" — is written as three
+//      declarations across two files: the root package.json's `lint:scripts`
+//      SCRIPT, turbo.json's `//#lint:scripts` TASK, and the `//#lint:scripts`
+//      entry in turbo.json's `lint.dependsOn`. Two of the three go silent when
+//      removed:
+//
+//        - the root SCRIPT renamed or deleted: the task is still declared and
+//          still depended on, so turbo still resolves it — and runs nothing,
+//          because the root manifest has no script by that name. The run is
+//          green with the `scripts/` lint simply absent from it.
+//        - the `dependsOn` ENTRY deleted: `lint` stops reaching the root task,
+//          so the single unfiltered `turbo run build lint test typecheck` that
+//          CI and `verify` run never asks for it. Every package still lints,
+//          every task still passes, and the guards are out of the run.
+//
+//      Deleting the TASK BLOCK while leaving the edge is the one leg that
+//      already fails loudly — turbo refuses a `dependsOn` naming a task it
+//      cannot find. It is asserted with the other two anyway: which leg is the
+//      loud one is turbo's decision and not this repo's, and an assertion
+//      covering only the legs a tool happens to catch this year is how a guard
+//      quietly stops covering them.
+//
+//      The task's `inputs` are checked against that same script, because the
+//      inputs are a fourth copy of "what gets linted": a lint TARGET outside
+//      them is a file whose change does not move the task's hash, so the first
+//      run's recorded pass replays over a `scripts/` the linter has not read
+//      since. Every positional argument of `eslint <target>…` must be named by
+//      `inputs` — as itself, or by a glob rooted at it.
+//
+//      This guard is the cheapest home for all of it: it already reads the root
+//      manifest, it already runs in both places by invariant 2, and it already
+//      owns the rule that hand-maintained lists spelling out one decision have
+//      to agree. A new guard file would arrive needing exactly the three-way
+//      wiring invariant 2 exists to certify — a wiring assertion that itself
+//      has to be wired in.
+//
 // The workflow is read line by line rather than parsed. The guards here take no
 // dependencies, and a guard against a wiring mistake is the last place to add
 // the first one. That reader DETECTS wider than it validates — a cache step is
@@ -70,6 +110,23 @@
 // print a pass over the one step it recognised while a second restores by an
 // unsalted prefix beside it, and a guard that silently matched nothing is the
 // exact failure this file exists to end.
+//
+// turbo.json is JSONC — it carries `//` comments and turbo reads it that way —
+// so it is comment-stripped before `JSON.parse`. The stripper is string-aware
+// out of necessity rather than taste: the task invariant 3 is about is named by
+// the string `"//#lint:scripts"`, and a stripper that treats every `//` as the
+// start of a comment truncates the exact value it was added to check, leaving
+// the guard reporting a missing task over a file that declares one. scripts/
+// already holds three comment strippers of differing fidelity —
+// `stripNonCode()` in check-peer-externals (the highest: it lexes regex
+// literals and reports what it cannot read), `stripComments()` in
+// check-ref-tests, and `stripComments()` in check-token-drift, a chain of
+// replaces — and this is deliberately a fourth, minimal and JSONC-specific: it
+// knows double-quoted strings with backslash escapes, `//`, `/* */`, and
+// nothing else, because JSON has nothing else. Reconciling the four into one
+// shared lexer is worth doing and is not done here; the gap is named so the
+// next reader finds accepted duplicates rather than four implementations that
+// each look authoritative.
 //
 // The one thing it cannot hold is itself. Delete this guard's own step from
 // ci.yml and invariant 2 reports it — but only where the guard still runs,
@@ -84,8 +141,9 @@
 //   node scripts/check-ci-invariants.mjs
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const GUARD_NAME = 'check-ci-invariants';
 
@@ -93,6 +151,14 @@ const WORKFLOW = '.github/workflows/ci.yml';
 const MANIFEST = 'package.json';
 const SCRIPTS_DIR = 'scripts';
 const VERIFY_SCRIPT = 'verify';
+
+// Invariant 3's four names: the root script, the turbo task that runs it, the
+// task that has to depend on it, and the linter the script is expected to be.
+const TURBO_CONFIG = 'turbo.json';
+const LINT_SCRIPTS_SCRIPT = 'lint:scripts';
+const LINT_SCRIPTS_TASK = `//#${LINT_SCRIPTS_SCRIPT}`;
+const LINT_TASK = 'lint';
+const LINTER = 'eslint';
 
 // The step whose two fields must agree, found by the action it uses rather than
 // by its `name:` — a step name is prose, and free to be reworded by someone who
@@ -164,7 +230,12 @@ function fail(subject, problem, fix) {
   failures.push(`${subject}: ${problem}\n    fix: ${fix}`);
 }
 
-/** Exits non-zero: nothing below is meaningful once a field cannot be read. */
+/**
+ * Exits non-zero: nothing below is meaningful once a field cannot be read.
+ *
+ * @param {string} message problem and fix, already formatted
+ * @returns {never} the process is gone before a caller resumes
+ */
 function refuse(message) {
   console.error(`\n${GUARD_NAME}: ${message}\n`);
   process.exit(1);
@@ -196,14 +267,16 @@ function stripQuotes(value) {
  * @param {number} from
  * @param {number} to
  * @param {string} field
- * @returns {{ lineNumber: number, values: string[] }|null}
+ * @returns {{ lineNumber: number, values: string[] }|null} null when the range
+ * holds no such field
  */
 function readField(lines, from, to, field) {
   const pattern = new RegExp(`^(\\s*)${field}:(?:\\s+(.*))?\\s*$`);
 
   for (let i = from; i < to; i++) {
     const match = pattern.exec(lines[i]);
-    if (!match) continue;
+    if (!match)
+      continue;
 
     const fieldIndent = match[1].length;
     const inline = (match[2] ?? '').trim();
@@ -226,8 +299,10 @@ function readField(lines, from, to, field) {
     /** @type {string[]} */
     const values = [];
     for (let j = i + 1; j < to; j++) {
-      if (lines[j].trim() === '') continue;
-      if (indentOf(lines[j]) <= fieldIndent) break;
+      if (lines[j].trim() === '')
+        continue;
+      if (indentOf(lines[j]) <= fieldIndent)
+        break;
       values.push(stripQuotes(lines[j].trim().replace(/^-\s+/, '')));
     }
     return { lineNumber: i + 1, values };
@@ -242,14 +317,16 @@ function readField(lines, from, to, field) {
  *
  * @param {string[]} lines
  * @param {number} start
- * @returns {number}
+ * @returns {number} that line's index, or `lines.length`
  */
 function blockEnd(lines, start) {
   const startIndent = indentOf(lines[start]);
 
   for (let i = start + 1; i < lines.length; i++) {
-    if (lines[i].trim() === '') continue;
-    if (indentOf(lines[i]) <= startIndent) return i;
+    if (lines[i].trim() === '')
+      continue;
+    if (indentOf(lines[i]) <= startIndent)
+      return i;
   }
 
   return lines.length;
@@ -270,7 +347,8 @@ function blockEnd(lines, start) {
  * `restore-keys` went on restoring everything.
  *
  * @param {string[]} lines
- * @returns {{ start: number, end: number, name: string }}
+ * @returns {{ start: number, end: number, name: string }} the step's first line,
+ * the line after it, and its `name:` where it has one
  */
 function findCacheStep(lines) {
   const cacheUses = lines.flatMap((line, index) => {
@@ -305,15 +383,16 @@ function findCacheStep(lines) {
         + '       pairing it asserts is about a step that is no longer there, and a guard\n'
         + '       whose subject is missing must not go on printing a pass.'
         : `teach \`findCacheStep()\` in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs which caches to check.\n`
-        + '       Checking the first and reporting "the cache keys OK" would leave the\n'
-        + '       other one free to restore every pre-salt entry, unexamined.'}`,
+          + '       Checking the first and reporting "the cache keys OK" would leave the\n'
+          + '       other one free to restore every pre-salt entry, unexamined.'}`,
     );
   }
 
   const usesIndent = indentOf(lines[usesAt[0]]);
   let start = -1;
   for (let i = usesAt[0]; i >= 0; i--) {
-    if (!/^\s*-\s/.test(lines[i])) continue;
+    if (!/^\s*-\s/.test(lines[i]))
+      continue;
     // The `uses:` line is itself the list item when the step is written
     // `- uses: …` with no `name:` above it.
     if (i === usesAt[0] || indentOf(lines[i]) < usesIndent) {
@@ -350,7 +429,7 @@ function findCacheStep(lines) {
  * @param {string[]} lines
  * @param {number} from
  * @param {number} to
- * @returns {string[]}
+ * @returns {string[]} one entry per command line
  */
 function runCommandsIn(lines, from, to) {
   /** @type {string[]} */
@@ -358,7 +437,8 @@ function runCommandsIn(lines, from, to) {
 
   for (let i = from; i < to; i++) {
     const match = /^(\s*)run:(?:\s+(.*))?\s*$/.exec(lines[i]);
-    if (!match) continue;
+    if (!match)
+      continue;
 
     const runIndent = match[1].length;
     const inline = (match[2] ?? '').trim();
@@ -369,10 +449,13 @@ function runCommandsIn(lines, from, to) {
     }
 
     for (let j = i + 1; j < to; j++) {
-      if (lines[j].trim() === '') continue;
-      if (indentOf(lines[j]) <= runIndent) break;
+      if (lines[j].trim() === '')
+        continue;
+      if (indentOf(lines[j]) <= runIndent)
+        break;
       const body = lines[j].trim();
-      if (body.startsWith('#')) continue;
+      if (body.startsWith('#'))
+        continue;
       commands.push(body);
     }
   }
@@ -391,7 +474,8 @@ function runCommandsIn(lines, from, to) {
  *
  * @param {string[]} lines
  * @returns {{ lineNumber: number, name: string, invocations: string[],
- *   conditionalKeys: { key: string, lineNumber: number }[] }[]}
+ *   conditionalKeys: { key: string, lineNumber: number }[] }[]} one entry per
+ *   step, in file order
  */
 function readSteps(lines) {
   /** @type {number[]} */
@@ -400,7 +484,8 @@ function readSteps(lines) {
   let itemIndent = -1;
 
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim() === '') continue;
+    if (lines[i].trim() === '')
+      continue;
 
     if (stepsIndent !== -1 && indentOf(lines[i]) <= stepsIndent) {
       stepsIndent = -1;
@@ -409,13 +494,17 @@ function readSteps(lines) {
 
     if (stepsIndent === -1) {
       const opens = /^(\s*)steps:\s*$/.exec(lines[i]);
-      if (opens) stepsIndent = opens[1].length;
+      if (opens)
+        stepsIndent = opens[1].length;
       continue;
     }
 
-    if (!/^\s*-\s+/.test(lines[i])) continue;
-    if (itemIndent === -1) itemIndent = indentOf(lines[i]);
-    if (indentOf(lines[i]) === itemIndent) starts.push(i);
+    if (!/^\s*-\s+/.test(lines[i]))
+      continue;
+    if (itemIndent === -1)
+      itemIndent = indentOf(lines[i]);
+    if (indentOf(lines[i]) === itemIndent)
+      starts.push(i);
   }
 
   return starts.map((start) => {
@@ -427,9 +516,11 @@ function readSteps(lines) {
     /** @type {{ key: string, lineNumber: number }[]} */
     const conditionalKeys = [];
     for (let i = start; i < end; i++) {
-      if (i !== start && indentOf(lines[i]) !== keyIndent) continue;
+      if (i !== start && indentOf(lines[i]) !== keyIndent)
+        continue;
       const key = CONDITIONAL_KEY.exec(lines[i].slice(keyIndent))?.[1];
-      if (key !== undefined) conditionalKeys.push({ key, lineNumber: i + 1 });
+      if (key !== undefined)
+        conditionalKeys.push({ key, lineNumber: i + 1 });
     }
 
     return {
@@ -453,21 +544,202 @@ function invocationsIn(text) {
  * guard's whole subject is a workflow that stopped running what it should, and
  * "the workflow is not where the guard looks" is the largest version of that.
  *
- * @returns {string[]}
+ * @returns {string[]} the file's lines, its newlines dropped
  */
 function readWorkflowLines() {
   try {
     return readFileSync(path.join(repoRoot, WORKFLOW), 'utf8').split(/\r?\n/);
   }
   catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-    refuse(
+    if (error.code !== 'ENOENT')
+      throw error;
+    // `return` because `refuse()` is `never`: this branch does not fall out of
+    // the function, it ends the process.
+    return refuse(
       `${WORKFLOW} does not exist, so neither invariant here has a workflow to hold.\n`
       + '  fix: restore it, or point WORKFLOW in this guard at the file that runs CI now.\n'
       + '       Both assertions below are about that one file; with it gone this guard\n'
       + '       would be certifying a cache key and a guard list that nothing runs.',
     );
   }
+}
+
+/**
+ * JSONC, minus its comments. String-aware because the value this guard reads
+ * out of turbo.json is itself `"//#lint:scripts"` — see the header on why this
+ * is a fourth stripper rather than one of the three already in scripts/.
+ *
+ * @param {string} source
+ * @returns {{ json: string } | { unterminated: string }} refuses rather than
+ * guessing when the scan runs off the end of a literal or a block comment.
+ */
+function stripJsoncComments(source) {
+  let json = '';
+  let index = 0;
+
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (char === '"') {
+      let end = index + 1;
+      while (end < source.length && source[end] !== '"')
+        end += source[end] === '\\' ? 2 : 1;
+      if (end >= source.length)
+        return { unterminated: 'a string' };
+      json += source.slice(index, end + 1);
+      index = end + 1;
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      const end = source.indexOf('\n', index);
+      if (end === -1)
+        break;
+      index = end; // Keep the newline, so a parse error names the right line.
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      const end = source.indexOf('*/', index + 2);
+      if (end === -1)
+        return { unterminated: 'a block comment' };
+      json += ' ';
+      index = end + 2;
+      continue;
+    }
+
+    json += char;
+    index++;
+  }
+
+  return { json };
+}
+
+/**
+ * turbo.json, parsed.
+ *
+ * Missing or unreadable is refused with the fix rather than left to throw:
+ * every leg of invariant 3 is a claim about this file, and a guard that cannot
+ * read it has nothing to say about them.
+ *
+ * @returns {Record<string, unknown>} the config, comments stripped
+ */
+function readTurboConfig() {
+  let source;
+  try {
+    source = readFileSync(path.join(repoRoot, TURBO_CONFIG), 'utf8');
+  }
+  catch (error) {
+    if (error.code !== 'ENOENT')
+      throw error;
+    return refuse(
+      `${TURBO_CONFIG} does not exist, so the task that lints ${SCRIPTS_DIR}/ has no file to be\n`
+      + '  declared in.\n'
+      + `  fix: restore it. Without ${TURBO_CONFIG} there is no build graph at all, and this\n`
+      + `       guard refuses rather than reporting the ${SCRIPTS_DIR}/ lint wiring as absent —\n`
+      + '       which would be true and useless.',
+    );
+  }
+
+  const stripped = stripJsoncComments(source);
+  if ('unterminated' in stripped) {
+    return refuse(
+      `${TURBO_CONFIG} ends inside ${stripped.unterminated}, so this guard cannot tell its\n`
+      + 'comments from its values.\n'
+      + `  fix: close it. Everything invariant 3 asserts is read out of this file, and half a\n`
+      + '       parse is a task list with entries missing — which reads exactly like the\n'
+      + '       wiring having been deleted.',
+    );
+  }
+
+  try {
+    return JSON.parse(stripped.json);
+  }
+  catch (error) {
+    return refuse(
+      `${TURBO_CONFIG} does not parse as JSON once its comments are stripped: ${error.message}\n`
+      + `  fix: check it for a trailing comma or an unquoted key — the shapes JSONC allows\n`
+      + `       beyond comments, which \`stripJsoncComments()\` in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs\n`
+      + '       does not implement. turbo would accept the file and this guard would refuse\n'
+      + '       it, so the fix is either the file or that function, never a skipped assertion.',
+    );
+  }
+}
+
+/**
+ * The paths `lint:scripts` lints, out of its `eslint <target>…` command.
+ *
+ * Options are refused rather than skipped: `--max-warnings 0` puts a `0` in
+ * argument position, and no text reader can tell an option's VALUE from a
+ * target. Guessing in one direction invents a missing input; guessing in the
+ * other drops a real target out of the coverage check below.
+ *
+ * @param {string} command
+ * @returns {string[]} the command's positional arguments, in order
+ */
+function readLintTargets(command) {
+  const [binary, ...args] = command.trim().split(/\s+/);
+
+  if (binary !== LINTER) {
+    refuse(
+      `${MANIFEST}'s \`${LINT_SCRIPTS_SCRIPT}\` runs \`${binary}\`, and this guard reads lint targets\n`
+      + `out of an \`${LINTER} <target>…\` command.\n`
+      + `         ${LINT_SCRIPTS_SCRIPT}: ${command}\n`
+      + `  fix: teach \`readLintTargets()\` in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs this command's shape.\n`
+      + `       The check it feeds is "${TURBO_CONFIG}'s \`inputs\` cover what is linted"; over a\n`
+      + '       command it cannot read, that check would be an empty target list agreeing with\n'
+      + '       any inputs at all.',
+    );
+  }
+
+  const options = args.filter(arg => arg.startsWith('-'));
+  if (options.length > 0) {
+    refuse(
+      `${MANIFEST}'s \`${LINT_SCRIPTS_SCRIPT}\` passes option(s) — ${options.join(', ')} — and this guard\n`
+      + 'reads the arguments after `eslint` as lint targets.\n'
+      + `         ${LINT_SCRIPTS_SCRIPT}: ${command}\n`
+      + `  fix: teach \`readLintTargets()\` in ${SCRIPTS_DIR}/${GUARD_NAME}.mjs which options take a\n`
+      + '       value, or configure the linter through eslint.config.mjs instead of the command\n'
+      + '       line. An option\'s value sits in argument position, so a reader that skips only\n'
+      + `       the flag would assert that ${TURBO_CONFIG} lists \`0\` among its inputs.`,
+    );
+  }
+
+  if (args.length === 0) {
+    refuse(
+      `${MANIFEST}'s \`${LINT_SCRIPTS_SCRIPT}\` names no lint target.\n`
+      + `         ${LINT_SCRIPTS_SCRIPT}: ${command}\n`
+      + `  fix: state the paths to lint — \`${LINTER} ${SCRIPTS_DIR} eslint.config.mjs\`. With no\n`
+      + '       target this guard has nothing to check the task\'s `inputs` against, and eslint\n'
+      + '       itself lints nothing.',
+    );
+  }
+
+  return args;
+}
+
+/**
+ * Whether an `inputs` entry names `target`: as itself, or as a glob rooted at
+ * it — `scripts` is covered by `scripts` and by `scripts/**`.
+ *
+ * Text, not glob semantics, and honest about the difference: a glob rooted at
+ * the target that matches only part of the tree under it is counted as
+ * covering, so this can pass over a narrow input it cannot evaluate. It cannot
+ * go the other way — an entry rooted somewhere else never counts, which is the
+ * direction the assertion is for.
+ *
+ * @param {string} input
+ * @param {string} target
+ * @returns {boolean} whether this one entry accounts for the target
+ */
+function coversTarget(input, target) {
+  const normalized = target.replace(/\/+$/, '');
+  if (input === normalized)
+    return true;
+  if (!input.startsWith(`${normalized}/`))
+    return false;
+  return input.slice(normalized.length + 1).includes('*');
 }
 
 const workflowLines = readWorkflowLines();
@@ -482,7 +754,8 @@ const keyField = readField(workflowLines, cacheStep.start, cacheStep.end, KEY_FI
 const restoreField = readField(workflowLines, cacheStep.start, cacheStep.end, RESTORE_KEYS_FIELD);
 
 for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restoreField]]) {
-  if (read !== null) continue;
+  if (read !== null)
+    continue;
   refuse(
     `${WORKFLOW}'s "${cacheStep.name}" step declares no \`${field}\`, so there is nothing to\n`
     + 'compare the other key against.\n'
@@ -495,7 +768,8 @@ for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restore
 }
 
 for (const [field, read] of [[KEY_FIELD, keyField], [RESTORE_KEYS_FIELD, restoreField]]) {
-  if (read.values.length === 1) continue;
+  if (read.values.length === 1)
+    continue;
   refuse(
     `${WORKFLOW}:${read.lineNumber} \`${field}\` holds ${read.values.length} entries, and this guard\n`
     + 'implements exactly one.\n'
@@ -620,7 +894,8 @@ const inWorkflow = new Set(workflowSteps.flatMap(step => step.invocations));
 // an `if:` and invokes no guard, which is why this is per step.
 for (const step of workflowSteps) {
   const guards = step.invocations.filter(name => GUARD_FILE.test(name));
-  if (guards.length === 0 || step.conditionalKeys.length === 0) continue;
+  if (guards.length === 0 || step.conditionalKeys.length === 0)
+    continue;
 
   fail(
     `${WORKFLOW}:${step.lineNumber} "${step.name}"`,
@@ -636,7 +911,8 @@ for (const step of workflowSteps) {
 }
 
 for (const [list, names] of [[IN_VERIFY, inVerify], [IN_WORKFLOW, inWorkflow]]) {
-  if (names.size > 0) continue;
+  if (names.size > 0)
+    continue;
   refuse(
     `${list} invokes no \`node ${SCRIPTS_DIR}/*.mjs\` at all.\n`
     + `  fix: wire the guards back in, or — if they are now invoked some way this reader\n`
@@ -671,7 +947,8 @@ for (const name of everyGuard) {
     [IN_WORKFLOW, inWorkflow.has(name)],
   ];
   const absent = presence.filter(([, isPresent]) => !isPresent).map(([list]) => list);
-  if (absent.length === 0) continue;
+  if (absent.length === 0)
+    continue;
 
   const present = presence.filter(([, isPresent]) => isPresent).map(([list]) => list);
 
@@ -686,6 +963,111 @@ for (const name of everyGuard) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Invariant 3 — the scripts/ lint is wired on all three legs.
+// ---------------------------------------------------------------------------
+
+const turboConfig = readTurboConfig();
+const turboTasks = typeof turboConfig.tasks === 'object' && turboConfig.tasks !== null
+  ? turboConfig.tasks
+  : {};
+
+const lintScriptsCommand = rootManifest.scripts?.[LINT_SCRIPTS_SCRIPT];
+const lintScriptsTask = turboTasks[LINT_SCRIPTS_TASK];
+const lintTask = turboTasks[LINT_TASK];
+
+const hasLintScriptsTask = typeof lintScriptsTask === 'object' && lintScriptsTask !== null;
+
+if (typeof lintScriptsCommand !== 'string') {
+  fail(
+    `${MANIFEST} \`scripts.${LINT_SCRIPTS_SCRIPT}\``,
+    `is missing — it is the command the ${TURBO_CONFIG} task \`${LINT_SCRIPTS_TASK}\` runs`,
+    `restore \`"${LINT_SCRIPTS_SCRIPT}": "${LINTER} ${SCRIPTS_DIR} eslint.config.mjs"\` in `
+    + `${MANIFEST}, or take the whole wiring out — task block and \`${LINT_TASK}.dependsOn\` entry `
+    + 'with it. This is the leg that goes green: turbo resolves the task, finds no script of '
+    + `that name in the root manifest, and reports it as having nothing to run, so \`turbo run `
+    + `${LINT_TASK}\` passes with ${SCRIPTS_DIR}/ linted by nobody. Renaming the script is the `
+    + 'same edit — the task names it by string.',
+  );
+}
+
+if (!hasLintScriptsTask) {
+  fail(
+    `${TURBO_CONFIG} \`tasks["${LINT_SCRIPTS_TASK}"]\``,
+    lintScriptsTask === undefined
+      ? `is missing, so the build graph holds no task that runs \`${LINT_SCRIPTS_SCRIPT}\``
+      : `is ${typeof lintScriptsTask}, not a task block`,
+    `restore the task, with \`inputs\` naming what it lints. ${SCRIPTS_DIR}/ is linted through a `
+    + `ROOT task because the root is not a workspace and has no package \`${LINT_TASK}\` script for `
+    + `\`turbo run ${LINT_TASK}\` to find — with the task gone there is nothing left for the `
+    + `\`${LINT_TASK}\` task to depend on, and the guards leave the one unfiltered run that CI and `
+    + `\`${VERIFY_SCRIPT}\` already do.`,
+  );
+}
+
+if (typeof lintTask !== 'object' || lintTask === null) {
+  fail(
+    `${TURBO_CONFIG} \`tasks.${LINT_TASK}\``,
+    `is missing, so there is no ${LINT_TASK} task to carry the \`${LINT_SCRIPTS_TASK}\` dependency`,
+    `restore the \`${LINT_TASK}\` task with \`"dependsOn": ["^build", "${LINT_SCRIPTS_TASK}"]\`. The `
+    + `root task is reached only through that edge: it is what puts ${SCRIPTS_DIR}/ inside the `
+    + `single \`turbo run build ${LINT_TASK} test typecheck\` that CI and \`${VERIFY_SCRIPT}\` run, `
+    + 'rather than beside it as a second command someone has to remember.',
+  );
+}
+else if (!(Array.isArray(lintTask.dependsOn) && lintTask.dependsOn.includes(LINT_SCRIPTS_TASK))) {
+  fail(
+    `${TURBO_CONFIG} \`tasks.${LINT_TASK}.dependsOn\``,
+    `does not name \`${LINT_SCRIPTS_TASK}\``,
+    `add \`"${LINT_SCRIPTS_TASK}"\` to it. This is the other leg that goes green: the task block `
+    + `stays, the root script stays, and nothing asks for either — \`turbo run ${LINT_TASK}\` runs `
+    + `every package's lint, passes, and never reaches the root task, so ${SCRIPTS_DIR}/ is linted `
+    + `by no command anyone runs. Removing the edge is also the obvious way to "fix" a slow `
+    + `${LINT_TASK}, which is why it is asserted rather than commented.`,
+  );
+}
+
+/** @type {string[]} */
+const lintTargets = typeof lintScriptsCommand === 'string' ? readLintTargets(lintScriptsCommand) : [];
+
+if (hasLintScriptsTask && lintTargets.length > 0) {
+  const { inputs } = lintScriptsTask;
+
+  if (inputs !== undefined && !Array.isArray(inputs)) {
+    refuse(
+      `${TURBO_CONFIG}'s \`${LINT_SCRIPTS_TASK}\` declares \`inputs\` as ${typeof inputs}, and this guard\n`
+      + 'reads it as the array turbo documents.\n'
+      + '  fix: state `inputs` as an array of path patterns, or drop the field. It is refused\n'
+      + '       rather than skipped because the assertion it feeds — that everything the lint\n'
+      + '       reads is hashed into the task — is the difference between a cached pass and a\n'
+      + '       pass.',
+    );
+  }
+
+  // No `inputs` field at all is turbo's default: the whole repo is hashed, which
+  // covers every target by construction. There is nothing to assert there, and
+  // asserting it would be asking for the wider hash.
+  if (Array.isArray(inputs)) {
+    const uncovered = lintTargets.filter(
+      target => !inputs.some(input => typeof input === 'string' && coversTarget(input, target)),
+    );
+
+    if (uncovered.length > 0) {
+      fail(
+        `${TURBO_CONFIG} \`tasks["${LINT_SCRIPTS_TASK}"].inputs\``,
+        `names none of ${uncovered.map(target => `\`${target}\``).join(', ')}, which `
+        + `\`${LINT_SCRIPTS_SCRIPT}\` lints\n           ${LINT_SCRIPTS_SCRIPT}: ${lintScriptsCommand}\n`
+        + `           inputs: ${inputs.join(', ')}`,
+        `add each linted path to \`inputs\` — as itself or as a glob rooted at it (\`${SCRIPTS_DIR}\` `
+        + `is covered by \`${SCRIPTS_DIR}/**\`). A target outside \`inputs\` is a file whose change `
+        + `does not move the task's hash, so turbo replays the first run's recorded pass over a `
+        + `${SCRIPTS_DIR}/ the linter has not read since — a green ${LINT_TASK} that is a cache hit, `
+        + 'not a check.',
+      );
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error(
     `\n${GUARD_NAME}: ${failures.length} broken CI invariant(s)\n\n`
@@ -695,9 +1077,12 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `${GUARD_NAME}: both CI invariants hold\n`
+  `${GUARD_NAME}: all three CI invariants hold\n`
   + `  cache salt — ${WORKFLOW} "${cacheStep.name}": ${RESTORE_KEYS_FIELD} \`${restoreValue}\` `
   + `is exactly the static portion of ${KEY_FIELD} \`${keyValue}\`\n`
   + `  guard set — ${everyGuard.length} guard(s) named by ${ON_DISK}, by ${IN_VERIFY} and by `
-  + `${IN_WORKFLOW}: ${everyGuard.map(name => name.replace(/\.mjs$/, '')).join(', ')}`,
+  + `${IN_WORKFLOW}: ${everyGuard.map(name => name.replace(/\.mjs$/, '')).join(', ')}\n`
+  + `  ${SCRIPTS_DIR}/ lint — ${MANIFEST} \`${LINT_SCRIPTS_SCRIPT}\`, ${TURBO_CONFIG} task `
+  + `\`${LINT_SCRIPTS_TASK}\` and \`${LINT_TASK}.dependsOn\` naming it, with inputs covering `
+  + `${lintTargets.join(', ')}`,
 );

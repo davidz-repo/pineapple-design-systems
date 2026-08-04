@@ -42,8 +42,10 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
 import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 const REQUIRED_SCRIPTS = ['build', 'lint', 'test', 'typecheck'];
@@ -153,7 +155,7 @@ function checkPublishable(pkgName, relDir, manifest) {
       pkgName,
       'no license field',
       'add `"license": "MIT"`. npm renders a missing license as "proprietary", '
-      + "which trips consumers' license scanners.",
+      + 'which trips consumers\' license scanners.',
     );
   }
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
@@ -196,7 +198,6 @@ function checkPublishable(pkgName, relDir, manifest) {
       + 'package page at its own folder rather than the repo root.',
     );
   }
-
 }
 
 /**
@@ -225,10 +226,12 @@ function checkWorkspaceRanges(pkgName, relDir, manifest, workspaceVersions) {
   for (const field of SHIPPED_DEPENDENCY_FIELDS) {
     for (const [name, range] of Object.entries(manifest[field] ?? {})) {
       const version = workspaceVersions.get(name);
-      if (version === undefined) continue; // Not a sibling; npm's problem, not this one's.
+      if (version === undefined)
+        continue; // Not a sibling; npm's problem, not this one's.
 
       shippedWorkspaceRanges.push(`${pkgName} ${field}["${name}"]=${range}`);
-      if (typeof range === 'string' && PINNED_RANGE.test(range)) continue;
+      if (typeof range === 'string' && PINNED_RANGE.test(range))
+        continue;
 
       fail(
         pkgName,
@@ -364,7 +367,8 @@ function listDeclaredEntryPoints(pkgName, manifest) {
   const targets = new Set();
 
   for (const field of ['main', 'module', 'types']) {
-    if (typeof manifest[field] === 'string') targets.add(manifest[field]);
+    if (typeof manifest[field] === 'string')
+      targets.add(manifest[field]);
   }
 
   const collect = (value) => {
@@ -448,7 +452,8 @@ function checkTarball(pkgName, relDir, manifest) {
   // specific files consumers import were. The gap it closes is a second entry
   // point — a stylesheet, a subpath export — that the build stopped writing.
   for (const target of listDeclaredEntryPoints(pkgName, manifest) ?? []) {
-    if (entries.includes(target)) continue;
+    if (entries.includes(target))
+      continue;
     fail(
       pkgName,
       `the manifest points at ${target}, which the published tarball would not contain `
@@ -456,12 +461,13 @@ function checkTarball(pkgName, relDir, manifest) {
       `either build the file (check this package's tsup.config.ts — a second \`entry\`, or `
       + 'the loader that copies it, is what puts a non-JS file in dist/) or stop declaring '
       + 'it. A published package whose `exports` names a missing file installs cleanly and '
-      + "fails at the consumer's import, which is the first place anything looks.",
+      + 'fails at the consumer\'s import, which is the first place anything looks.',
     );
   }
 
   for (const required of [LICENSE_FILE, README_FILE]) {
-    if (entries.includes(required)) continue;
+    if (entries.includes(required))
+      continue;
     fail(
       pkgName,
       `the published tarball would not contain ${required}`,

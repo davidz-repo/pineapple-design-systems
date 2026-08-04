@@ -38,7 +38,7 @@ scripts/
   check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
   check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
   check-alias-fences.mjs                                        the gallery's three alias lists agree
-  check-ci-invariants.mjs                                       the cache's two keys pair, and scripts/, verify and CI agree
+  check-ci-invariants.mjs                                       the cache's two keys pair, the guard lists agree, scripts/ stays linted
   check-ref-tests.mjs                                           a package that forwards a ref proves the ref arrives
 ```
 
@@ -62,7 +62,7 @@ each fails with the fix in the message:
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
-| `npm run check:ci` | a turbo cache `restore-keys` that is not exactly the static portion of `key` — a salt written into one line and not the other restores everything it was meant to discard — and a guard that `scripts/`, `verify` and CI do not all three name, or whose CI step can be skipped |
+| `npm run check:ci` | a turbo cache `restore-keys` that is not exactly the static portion of `key` — a salt written into one line and not the other restores everything it was meant to discard — and a guard that `scripts/`, `verify` and CI do not all three name, or whose CI step can be skipped — and a `scripts/` lint missing one of its three legs: the root `lint:scripts` script, the `//#lint:scripts` turbo task, and the `lint` task's `dependsOn` entry that reaches it, of which the script and the entry both go green when deleted |
 | `npm run check:refs` | a package whose props carry a `ref` and whose tests never check that the ref arrives — an implementation that accepts the prop and drops it renders, lays out and passes every class-name assertion above it |
 | `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling workspace shipping to consumers, and a workspace running zero tasks |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
@@ -85,6 +85,13 @@ precisely so this cannot happen. Use `npm run verify` from the repo root, or
 `npx turbo run <task>`.
 
 Individual tasks: `npm run build`, `npm run lint`, `npm run test`, `npm run typecheck`.
+
+`turbo run lint` also lints `scripts/` and the root `eslint.config.mjs`, through the root task
+`//#lint:scripts` that the `lint` task declares in `dependsOn`. The root is not a workspace, so
+it has no `lint` script for `turbo run lint` to find on its own — depending on the root task is
+what puts the guards inside the single `turbo run build lint test typecheck` that `verify` and
+CI already run, with nothing added to either. It uses the same `@pineappleui/eslint-config`
+factory as every package, with `react` and `typescript` off: plain Node ESM, no tsconfig here.
 
 ### Every workspace accounts for all four tasks
 
@@ -204,11 +211,13 @@ root's range. The list is the root's own declared `dependencies` and `devDepende
 that is only the latter), so a new one joins the guard by being declared.
 
 What that guard proves is that the root's **declared** slots hold — not that the toolchain set is
-complete. `typescript`, `vitest`, `tsup` and `eslint` are pinned per-package rather than at the
-root, so they own no root-declared slot and nothing here would report two workspaces building on
-different majors of them. That is a different problem (workspaces disagreeing) from the one this
-guard exists for (one shared slot silently changing hands); asserting cross-workspace agreement
-is a possible extension, not something the green line already covers.
+complete. `typescript`, `vitest` and `tsup` are pinned per-package rather than at the root, so
+they own no root-declared slot and nothing here would report two workspaces building on
+different majors of them. (`eslint` was in that list until the root declared it for
+`//#lint:scripts`; the shared slot is now asserted like any other.) That is a different problem
+(workspaces disagreeing) from the one this guard exists for (one shared slot silently changing
+hands); asserting cross-workspace agreement is a possible extension, not something the green line
+already covers.
 
 ## License
 

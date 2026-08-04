@@ -104,7 +104,10 @@ build output and reports a **false green**.
 
 Consequence for reviewers and for CI: never verify by running a package-local
 `npm test` / `npm run typecheck`. Run `npm run verify` at the root, or `npx turbo run <task>`.
-CI runs one unfiltered `npx turbo run build lint test typecheck` for the same reason.
+CI runs one unfiltered `npx turbo run build lint test typecheck` for the same reason. The root's
+own `scripts/` ride that same invocation rather than a second one: the root is not a workspace and
+has no `lint` script to be found, so its lint is the turbo root task `//#lint:scripts` that the
+`lint` task depends on — covered by the run that already exists, with no list to extend.
 
 The guards around that run are written out three times — the files in `scripts/`, the root
 `verify` chain, and CI's per-guard steps — so `scripts/check-ci-invariants.mjs` asserts that all
@@ -114,7 +117,10 @@ guard wired into fewer than all three is a guard that does not run somewhere it 
 about that. The same guard machine-enforces the turbo cache salt rule that pairs with it: the
 cache step's `restore-keys` entry must be exactly the static portion of its `key`, so a re-salt
 that touches one line and not the other fails instead of silently restoring everything it was
-meant to discard.
+meant to discard. It holds the `scripts/` lint above the same way — the root `lint:scripts`
+script, the `//#lint:scripts` task and the `lint` task's `dependsOn` entry are one sentence
+declared three times, and deleting the script or the entry leaves `turbo run lint` green with
+`scripts/` linted by nothing.
 
 ### 7. The doubled `sourceMappingURL` is expected output
 

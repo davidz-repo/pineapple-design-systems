@@ -95,8 +95,10 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire, isBuiltin } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
 import { listWorkspaceDirs } from './workspace-globs.mjs';
 
 // A workspace is in scope iff it has a tsup config: that is what produces the
@@ -179,8 +181,10 @@ function listFilesRecursively(dir) {
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const absolute = path.join(dir, entry.name);
-    if (entry.isDirectory()) found.push(...listFilesRecursively(absolute));
-    else if (entry.isFile()) found.push(absolute);
+    if (entry.isDirectory())
+      found.push(...listFilesRecursively(absolute));
+    else if (entry.isFile())
+      found.push(absolute);
   }
   return found;
 }
@@ -210,7 +214,8 @@ const SPECIFIER_LEAD = /(?:\bfrom|\bimport|\()\s*$/;
 /** @param {string} codeSoFar @returns {boolean} */
 function isExpressionPosition(codeSoFar) {
   const before = codeSoFar.trimEnd();
-  if (before === '') return true;
+  if (before === '')
+    return true;
   return !EXPRESSION_END.test(before.at(-1)) || EXPRESSION_KEYWORD.test(before);
 }
 
@@ -219,12 +224,17 @@ function endOfStringLiteral(source, start) {
   const quote = source[start];
   for (let i = start + 1; i < source.length; i++) {
     const char = source[i];
-    if (char === '\\') { i++; continue; }
-    if (char === quote) return i + 1;
+    if (char === '\\') {
+      i++;
+      continue;
+    }
+    if (char === quote)
+      return i + 1;
     // A raw newline cannot appear in a quoted string. Reaching one means the
     // scan mis-identified the opening quote, and guessing further is worse than
     // refusing.
-    if (char === '\n' && quote !== '`') return -1;
+    if (char === '\n' && quote !== '`')
+      return -1;
   }
   return -1;
 }
@@ -243,10 +253,13 @@ function endOfStringLiteral(source, start) {
  * refusal rather than a wrong answer.
  */
 function isRegexLiteralStart(codeSoFar, source, index) {
-  if (!isExpressionPosition(codeSoFar)) return false;
+  if (!isExpressionPosition(codeSoFar))
+    return false;
   const before = codeSoFar.trimEnd().at(-1);
-  if (before === '<' || before === '}') return false; // `</Tag>`, `{value} />`
-  if (source[index + 1] === '>') return false; // `<Tag />`
+  if (before === '<' || before === '}')
+    return false; // `</Tag>`, `{value} />`
+  if (source[index + 1] === '>')
+    return false; // `<Tag />`
   return true;
 }
 
@@ -255,11 +268,18 @@ function endOfRegexLiteral(source, start) {
   let inClass = false;
   for (let i = start + 1; i < source.length; i++) {
     const char = source[i];
-    if (char === '\\') { i++; continue; }
-    if (char === '[') inClass = true;
-    else if (char === ']') inClass = false;
-    else if (char === '/' && !inClass) return i + 1;
-    else if (char === '\n') return -1;
+    if (char === '\\') {
+      i++;
+      continue;
+    }
+    if (char === '[')
+      inClass = true;
+    else if (char === ']')
+      inClass = false;
+    else if (char === '/' && !inClass)
+      return i + 1;
+    else if (char === '\n')
+      return -1;
   }
   return -1;
 }
@@ -301,14 +321,16 @@ function stripNonCode(source, { blankStringContents = false } = {}) {
 
     if (char === '/' && next === '/') {
       const end = source.indexOf('\n', index);
-      if (end === -1) break;
+      if (end === -1)
+        break;
       index = end; // Keep the newline: line structure matters to the callers.
       continue;
     }
 
     if (char === '/' && next === '*') {
       const end = source.indexOf('*/', index + 2);
-      if (end === -1) return { unterminated: 'a block comment' };
+      if (end === -1)
+        return { unterminated: 'a block comment' };
       code += ' ';
       index = end + 2;
       continue;
@@ -316,7 +338,8 @@ function stripNonCode(source, { blankStringContents = false } = {}) {
 
     if (char === '/' && isRegexLiteralStart(code, source, index)) {
       const end = endOfRegexLiteral(source, index);
-      if (end === -1) return { unterminated: 'a regular expression literal' };
+      if (end === -1)
+        return { unterminated: 'a regular expression literal' };
       code += ' ';
       index = end;
       continue;
@@ -371,7 +394,7 @@ function readCode(pkgName, filePath, options) {
 // `import ... from '<spec>'` / `export ... from '<spec>'`. The clause is
 // captured so a type-only import can be told from a runtime one; the negated
 // class spans newlines, which multi-line named imports need.
-const FROM_IMPORT = /^[ \t]*(?:import|export)\b(?<clause>[^;'"]*?)\bfrom\s*['"](?<specifier>[^'"]+)['"]/gm;
+const FROM_IMPORT = /^[ \t]*(?:import|export)\b(?<clause>[^;'"]+?)\bfrom\s*['"](?<specifier>[^'"]+)['"]/gm;
 // `import '<spec>'` — a side-effect import, never erased.
 const SIDE_EFFECT_IMPORT = /^[ \t]*import\s*['"](?<specifier>[^'"]+)['"]/gm;
 // `import('<spec>')` — a runtime import by construction.
@@ -391,11 +414,14 @@ const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"](?<specifier>[^'"]+)['"]\s*\)/g;
  */
 function isTypeOnlyClause(clause) {
   const trimmed = clause.trim();
-  if (/^type\b/.test(trimmed)) return true;
+  if (/^type\b/.test(trimmed))
+    return true;
 
   const braceStart = trimmed.indexOf('{');
-  if (braceStart === -1) return false; // default or namespace binding: a value
-  if (trimmed.slice(0, braceStart).trim() !== '') return false; // `Default, { ... }`
+  if (braceStart === -1)
+    return false; // default or namespace binding: a value
+  if (trimmed.slice(0, braceStart).trim() !== '')
+    return false; // `Default, { ... }`
 
   const bindings = trimmed
     .slice(braceStart + 1, trimmed.lastIndexOf('}'))
@@ -432,7 +458,8 @@ const JSX_CANDIDATE = /<(?:>|[A-Za-z][\w.:-]*(?=[\s/>]))/g;
  */
 function hasJsxSyntax(source) {
   for (const match of source.matchAll(JSX_CANDIDATE)) {
-    if (isExpressionPosition(source.slice(0, match.index))) return true;
+    if (isExpressionPosition(source.slice(0, match.index)))
+      return true;
   }
   return false;
 }
@@ -468,7 +495,8 @@ const TYPE_STATEMENT = /^(?:export\s+|declare\s+)*(?:type|interface)\b/;
  */
 function isTypeQueryImport(source, matchIndex) {
   const statement = source.slice(source.lastIndexOf(';', matchIndex) + 1, matchIndex);
-  if (TYPE_STATEMENT.test(statement.trimStart())) return true;
+  if (TYPE_STATEMENT.test(statement.trimStart()))
+    return true;
   return statement.trimEnd().endsWith(':') && !statement.includes('=');
 }
 
@@ -478,8 +506,10 @@ function isTypeQueryImport(source, matchIndex) {
  * `node:fs` and any other protocol.
  */
 function isBareSpecifier(specifier) {
-  if (specifier.startsWith('.') || specifier.startsWith('/')) return false;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(specifier)) return false;
+  if (specifier.startsWith('.') || specifier.startsWith('/'))
+    return false;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(specifier))
+    return false;
   return !isBuiltin(specifier);
 }
 
@@ -493,8 +523,10 @@ function packageOfSpecifier(specifier) {
  * Every bare package name a source tree imports, split by whether the import
  * survives compilation.
  *
+ * @param {string} pkgName
  * @param {string[]} files absolute paths
- * @returns {{ imported: Set<string>, runtime: Set<string>, hasJsx: boolean }}
+ * @returns {{ imported: Set<string>, runtime: Set<string>, hasJsx: boolean }|null}
+ * null once a read failure has been reported
  */
 function collectSourceImports(pkgName, files) {
   const imported = new Set();
@@ -503,33 +535,40 @@ function collectSourceImports(pkgName, files) {
 
   for (const file of files) {
     const source = readCode(pkgName, file, { blankStringContents: true });
-    if (source === null) return null;
+    if (source === null)
+      return null;
 
-    if (JSX_EXTENSIONS.has(path.extname(file)) && hasJsxSyntax(source)) hasJsx = true;
+    if (JSX_EXTENSIONS.has(path.extname(file)) && hasJsxSyntax(source))
+      hasJsx = true;
 
     for (const match of source.matchAll(FROM_IMPORT)) {
       const { clause, specifier } = match.groups;
-      if (!isBareSpecifier(specifier)) continue;
+      if (!isBareSpecifier(specifier))
+        continue;
       const pkg = packageOfSpecifier(specifier);
       imported.add(pkg);
-      if (!isTypeOnlyClause(clause)) runtime.add(pkg);
+      if (!isTypeOnlyClause(clause))
+        runtime.add(pkg);
     }
 
     for (const match of source.matchAll(SIDE_EFFECT_IMPORT)) {
       const { specifier } = match.groups;
-      if (!isBareSpecifier(specifier)) continue;
+      if (!isBareSpecifier(specifier))
+        continue;
       imported.add(packageOfSpecifier(specifier));
       runtime.add(packageOfSpecifier(specifier));
     }
 
     for (const match of source.matchAll(DYNAMIC_IMPORT)) {
       const { specifier } = match.groups;
-      if (!isBareSpecifier(specifier)) continue;
+      if (!isBareSpecifier(specifier))
+        continue;
       const pkg = packageOfSpecifier(specifier);
       // A type query still ties this package to that module — it just does not
       // tie it at RUNTIME, so it belongs in `imported` and not in `runtime`.
       imported.add(pkg);
-      if (!isTypeQueryImport(source, match.index)) runtime.add(pkg);
+      if (!isTypeQueryImport(source, match.index))
+        runtime.add(pkg);
     }
   }
 
@@ -548,14 +587,16 @@ function collectSourceImports(pkgName, files) {
  */
 function collectBuiltImports(pkgName, entryPath) {
   const source = readCode(pkgName, entryPath, { blankStringContents: true });
-  if (source === null) return null;
+  if (source === null)
+    return null;
 
   const specifiers = new Set();
 
   for (const pattern of [FROM_IMPORT, SIDE_EFFECT_IMPORT, DYNAMIC_IMPORT]) {
     for (const match of source.matchAll(pattern)) {
       const { specifier } = match.groups;
-      if (isBareSpecifier(specifier)) specifiers.add(specifier);
+      if (isBareSpecifier(specifier))
+        specifiers.add(specifier);
     }
   }
 
@@ -581,7 +622,8 @@ const CSS_IMPORT
  * all) makes every mention of the word in a comment a false failure.
  *
  * @param {string} source
- * @returns {{ code: string } | { unterminated: string }}
+ * @returns {{ code: string } | { unterminated: string }} the blanked source, or
+ * the name of the comment form that never closed
  */
 function stripCssComments(source) {
   let code = '';
@@ -590,7 +632,8 @@ function stripCssComments(source) {
   while (index < source.length) {
     if (source[index] === '/' && source[index + 1] === '*') {
       const end = source.indexOf('*/', index + 2);
-      if (end === -1) return { unterminated: 'a block comment' };
+      if (end === -1)
+        return { unterminated: 'a block comment' };
       code += ' ';
       index = end + 2;
       continue;
@@ -632,7 +675,8 @@ function collectStylesheetImports(pkgName, pkgDir, files) {
 
     for (const match of stripped.code.matchAll(CSS_IMPORT)) {
       const specifier = match.groups.url ?? match.groups.quoted;
-      if (!isBareSpecifier(specifier)) continue;
+      if (!isBareSpecifier(specifier))
+        continue;
       const name = packageOfSpecifier(specifier);
       const sources = byPackage.get(name) ?? [];
       sources.push(path.relative(pkgDir, file));
@@ -657,13 +701,15 @@ function collectStylesheetImports(pkgName, pkgDir, files) {
  */
 function parseExternal(pkgName, configPath) {
   const source = readCode(pkgName, configPath);
-  if (source === null) return null;
+  if (source === null)
+    return null;
 
   // Negative lookbehind so `noExternal:` is not mistaken for `external:`.
   const keys = [...source.matchAll(/(?<![\w$])external\s*:/g)];
   const arrayMatch = source.match(/(?<![\w$])external\s*:\s*\[(?<body>[^\]]*)\]/);
 
-  if (keys.length === 0) return new Set(); // No externals declared: an empty list.
+  if (keys.length === 0)
+    return new Set(); // No externals declared: an empty list.
 
   if (keys.length > 1) {
     fail(
@@ -724,6 +770,7 @@ function parseExternal(pkgName, configPath) {
  *
  * @param {string} pkgDir absolute
  * @returns {{ options: { jsx?: string, jsxImportSource?: string } } | { unreadable: string }}
+ * the settings in force, or which file in the `extends` chain could not be read
  */
 function resolveJsxOptions(pkgDir) {
   /** @type {Record<string, unknown>} */
@@ -748,7 +795,8 @@ function resolveJsxOptions(pkgDir) {
         merged[key] = config.compilerOptions[key];
       }
     }
-    if (typeof config.extends !== 'string') break;
+    if (typeof config.extends !== 'string')
+      break;
 
     try {
       configPath = config.extends.startsWith('.')
@@ -814,7 +862,8 @@ function checkPackage(relDir) {
   }
 
   const external = parseExternal(pkgName, configPath);
-  if (external === null) return; // Already reported, and nothing below is meaningful.
+  if (external === null)
+    return; // Already reported, and nothing below is meaningful.
 
   const declared = new Map([
     ...Object.keys(manifest.peerDependencies ?? {}).map(name => [name, 'peerDependencies']),
@@ -830,7 +879,8 @@ function checkPackage(relDir) {
     : [];
 
   const collected = collectSourceImports(pkgName, sourceFiles);
-  if (collected === null) return; // Already reported.
+  if (collected === null)
+    return; // Already reported.
   const { imported, runtime, hasJsx } = collected;
 
   // The compiler-inserted JSX import. Without this, a package whose sources
@@ -864,7 +914,8 @@ function checkPackage(relDir) {
   }
 
   const built = collectBuiltImports(pkgName, entryPath);
-  if (built === null) return; // Already reported.
+  if (built === null)
+    return; // Already reported.
 
   // B and C compare at PACKAGE granularity: `@radix-ui/themes/helpers` and
   // `@radix-ui/themes` are one name here. That is what makes them true — a
@@ -880,8 +931,10 @@ function checkPackage(relDir) {
 
   // A. Declared + imported must be external.
   for (const [name, field] of declared) {
-    if (!imported.has(name)) continue;
-    if (external.has(name)) continue;
+    if (!imported.has(name))
+      continue;
+    if (external.has(name))
+      continue;
     const viaJsx = jsxIsSoleUse && name === jsxImportSource;
     fail(
       pkgName,
@@ -902,7 +955,8 @@ function checkPackage(relDir) {
 
   // D. Used at runtime must be declared by somebody.
   for (const name of [...runtime].sort()) {
-    if (declared.has(name)) continue;
+    if (declared.has(name))
+      continue;
     const viaJsx = jsxIsSoleUse && name === jsxImportSource;
     fail(
       pkgName,
@@ -921,8 +975,10 @@ function checkPackage(relDir) {
 
   // B. Externalised + used at runtime must survive into the built entry.
   for (const [name, field] of declared) {
-    if (!runtime.has(name) || !external.has(name)) continue;
-    if (builtPackages.has(name)) continue;
+    if (!runtime.has(name) || !external.has(name))
+      continue;
+    if (builtPackages.has(name))
+      continue;
     fail(
       pkgName,
       `${name} is declared in ${field}, used at runtime under ${SRC_DIR}/ and listed in `
@@ -939,7 +995,8 @@ function checkPackage(relDir) {
   // C. Everything the artifact imports must be declared.
   for (const specifier of built) {
     const name = packageOfSpecifier(specifier);
-    if (declared.has(name)) continue;
+    if (declared.has(name))
+      continue;
     fail(
       pkgName,
       `${BUILD_ENTRY} imports '${specifier}', but ${name} is in neither `
@@ -947,7 +1004,7 @@ function checkPackage(relDir) {
       `add "${name}" to peerDependencies (if the consumer supplies it) or dependencies `
       + '(if this package does) in package.json. An import that no manifest field names '
       + 'is a phantom dependency: npm installs nothing for it, the tarball passes every '
-      + "check here, and the consumer's app fails at the first import of this package.",
+      + 'check here, and the consumer\'s app fails at the first import of this package.',
     );
   }
 
@@ -966,10 +1023,12 @@ function checkPackage(relDir) {
   );
 
   const stylesheetImports = collectStylesheetImports(pkgName, pkgDir, stylesheetFiles);
-  if (stylesheetImports === null) return; // Already reported.
+  if (stylesheetImports === null)
+    return; // Already reported.
 
   for (const [name, sources] of [...stylesheetImports].sort()) {
-    if (declared.has(name)) continue;
+    if (declared.has(name))
+      continue;
     fail(
       pkgName,
       `${name} is pulled in with an \`@import\` by ${sources.join(' and ')}, but is in `
@@ -1009,7 +1068,8 @@ if (packageDirs.length === 0) {
 const checked = [];
 for (const relDir of packageDirs) {
   const result = checkPackage(relDir);
-  if (result) checked.push(result);
+  if (result)
+    checked.push(result);
 }
 
 if (failures.length > 0) {
@@ -1041,10 +1101,12 @@ const scannedStylesheets = checked.reduce((total, { stylesheets }) => total + st
 console.log(
   `check-peer-externals: ${checked.length} bundled package(s) OK\n`
   + `${checked.map(({ relDir, externals, stylesheets, stylesheetPackages }) =>
-    `  ${relDir}: external [${externals.join(', ') || 'none'}]`
-    + (stylesheets > 0
-      ? `, ${stylesheets} stylesheet(s) @importing [${stylesheetPackages.join(', ') || 'nothing'}]`
-      : '')).join('\n')}`
-  + `\n  ${scannedStylesheets} stylesheet(s) scanned for @import dependencies`
-  + (skipped.length > 0 ? `\n  ${skipped.length} workspace(s) build no dist/, skipped: ${skipped.join(', ')}` : ''),
+    `  ${relDir}: external [${externals.join(', ') || 'none'}]${
+      stylesheets > 0
+        ? `, ${stylesheets} stylesheet(s) @importing [${stylesheetPackages.join(', ') || 'nothing'}]`
+        : ''}`).join('\n')}`
+        + `\n  ${scannedStylesheets} stylesheet(s) scanned for @import dependencies${
+          skipped.length > 0
+            ? `\n  ${skipped.length} workspace(s) build no dist/, skipped: ${skipped.join(', ')}`
+            : ''}`,
 );
