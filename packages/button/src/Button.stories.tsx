@@ -1,5 +1,3 @@
-import { ACCENT_COLORS } from '@pineappleui/tokens';
-
 import { Button } from './Button';
 
 import type { ButtonProps } from './Button';
@@ -13,26 +11,26 @@ import type { Story } from '@ladle/react';
 // Interactive playground: every knob is wired to a Ladle control so you can
 // change variant/size/radius/etc. from the "Controls" form in the sidebar and
 // watch the button update live — useful while tuning the defaults.
+//
+// No `color` knob. `Button` still takes the prop — this is what the playground
+// OFFERS, not what the component supports — but the two surfaces that render
+// these stories both answer the accent question themselves: the docs site pins
+// one accent for the whole page, and the gallery has a picker in its own
+// toolbar that repaints the entire frame. A third control for the same thing,
+// scoped to one button, disagrees with both.
 interface PlaygroundArgs {
   label: string;
   variant: NonNullable<ButtonProps['variant']>;
   size: NonNullable<ButtonProps['size']>;
   radius: NonNullable<ButtonProps['radius']>;
-  color: string;
   highContrast: boolean;
   loading: boolean;
   disabled: boolean;
 }
 
-export const Playground: Story<PlaygroundArgs> = ({
-  label,
-  color,
-  ...rest
-}) => (
+export const Playground: Story<PlaygroundArgs> = ({ label, ...rest }) => (
   <div style={{ padding: 24 }}>
-    <Button {...rest} color={(color || undefined) as ButtonProps['color']}>
-      {label}
-    </Button>
+    <Button {...rest}>{label}</Button>
   </div>
 );
 
@@ -58,15 +56,6 @@ Playground.argTypes = {
     options: ['none', 'small', 'medium', 'large', 'full'],
     control: { type: 'select' },
     defaultValue: 'large',
-  },
-  // '' is "inherit the theme accent"; 'gray' is Radix's neutral scale, which is
-  // not an accent and so is not in ACCENT_COLORS. The accents themselves are
-  // read from @pineappleui/tokens rather than retyped — a hand-written copy of
-  // that list is what shipped a picker missing `bronze` upstream.
-  color: {
-    options: ['', 'gray', ...ACCENT_COLORS],
-    control: { type: 'select' },
-    defaultValue: '',
   },
 };
 

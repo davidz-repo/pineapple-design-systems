@@ -1,12 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pineapple UI">
   <title>Pineapple UI</title>
   <!--
-    Hand-authored, geometric, and deliberately low-detail so it survives 16px:
-    a three-blade crown, one rounded body, and a crosshatch that reads as
-    texture rather than as lines. Colours are literal hex on purpose — a
-    favicon is fetched outside the document, so no CSS custom property (and
-    therefore no design token) is in scope by the time it paints. They are
-    saturated mid-tones so the mark holds on both light and dark tab chrome.
+    The SAME drawing as apps/site/src/components/PineappleMark.tsx — three flat
+    layers, no gradients and no opacity, so it survives 16px: a three-blade
+    crown from one rotated triangle, one rounded body painted over it, and seven
+    diamond pips clipped to that body. Edit one and edit the other; the site's
+    header and its tab icon showing two different pineapples is the failure this
+    duplication has to be watched for.
+
+    Colours are literal hex on purpose — a favicon is fetched outside the
+    document, so no CSS custom property (and therefore no design token) is in
+    scope by the time it paints. They are the light-appearance values of the
+    three Radix steps the component reaches for through custom properties —
+    grass 9 (#46a758), amber 9 (#ffc53d) and amber 11 (#ab6400) — which are
+    saturated enough to hold on both light and dark tab chrome. (Written
+    without their leading dashes on purpose: an XML comment may not contain a
+    double hyphen, and a file that will not parse renders as nothing.)
 
     This file is the source for the sibling favicon.ico, which exists for the
     bare /favicon.ico request that agents make without reading the document.
@@ -21,32 +30,30 @@
   -->
   <defs>
     <clipPath id="pineapple-body">
-      <path d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+      <rect x="8" y="9" width="16" height="20" rx="7" />
     </clipPath>
+    <path id="pineapple-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
   </defs>
 
-  <!-- Crown first, body over it: the blade ends tuck under the body's edge. -->
-  <g fill="none" stroke="#2E9E6B" stroke-width="3" stroke-linecap="round">
-    <path d="M16 11V3" />
-    <path d="M12.5 11 9.5 5.5" />
-    <path d="M19.5 11 22.5 5.5" />
+  <!-- Crown first, body over it: the blade bases tuck under the body's edge. -->
+  <g fill="#46a758">
+    <path d="M16 2 L19 10 L13 10 Z" />
+    <path d="M16 2 L19 10 L13 10 Z" transform="rotate(-40 16 10)" />
+    <path d="M16 2 L19 10 L13 10 Z" transform="rotate(40 16 10)" />
   </g>
 
-  <path fill="#E9A33C" d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+  <rect x="8" y="9" width="16" height="20" rx="7" fill="#ffc53d" />
 
-  <g
-    clip-path="url(#pineapple-body)"
-    fill="none"
-    stroke="#8A5A16"
-    stroke-width="1.6"
-    stroke-linecap="round"
-    opacity=".45"
-  >
-    <path d="M4 6 28 30" />
-    <path d="M4 14 28 38" />
-    <path d="M4 -2 28 22" />
-    <path d="M28 6 4 30" />
-    <path d="M28 14 4 38" />
-    <path d="M28 -2 4 22" />
+  <!-- The outer pips of the middle row overhang the body; the clip shaves them,
+       which is what makes the lattice follow the curve instead of stopping
+       short of it in a straight line. -->
+  <g clip-path="url(#pineapple-body)" fill="#ab6400">
+    <use href="#pineapple-pip" x="12.5" y="14" />
+    <use href="#pineapple-pip" x="19.5" y="14" />
+    <use href="#pineapple-pip" x="10" y="19" />
+    <use href="#pineapple-pip" x="16" y="19" />
+    <use href="#pineapple-pip" x="22" y="19" />
+    <use href="#pineapple-pip" x="12.5" y="24" />
+    <use href="#pineapple-pip" x="19.5" y="24" />
   </g>
 </svg>

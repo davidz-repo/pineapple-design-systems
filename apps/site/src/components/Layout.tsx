@@ -8,6 +8,7 @@ import { Text } from '@pineappleui/text';
 import { Link, Outlet, useLocation } from 'react-router';
 
 import { pageKeyFor, pageTitleFor } from './pageIdentity';
+import { PineappleMark } from './PineappleMark';
 import { Sidebar } from './Sidebar';
 import { ThemeControls } from './ThemeControls';
 
@@ -94,7 +95,7 @@ export function Layout() {
       <a className="site-skip-link" href="#main">Skip to content</a>
       <header className="site-header">
         <Link to="/" className="site-header-brand">
-          <span className="accent-swatch" aria-hidden />
+          <PineappleMark />
           <Text size="3" weight="bold">Pineapple UI</Text>
           <Badge className="site-docs-badge" variant="soft" size="1">docs</Badge>
         </Link>
@@ -129,15 +130,26 @@ export function Layout() {
           </Button>
         </Inline>
       </header>
-      {/* closeMenu, not a bare close: following the link for the page you are
+      {/* The wrapper is the grid item; the <nav> is sticky INSIDE it. A sticky
+          box is clamped to its containing block, so anchoring the nav here —
+          in a plain div occupying the content row — ends it where that row
+          ends, at the top of the footer. Sticky directly on the grid item
+          instead clamps to the whole grid CONTAINER, and the nav's last rows
+          then paint over the footer at the bottom of a long page. site.css
+          collapses this wrapper to `display: contents` below 860px, where the
+          nav is a fixed panel and owns no slot at all.
+
+          closeMenu, not a bare close: following the link for the page you are
           already on hides the panel without changing the route, so nothing
           else would move focus and it would fall to <body>. Focusing the
           trigger is a no-op on desktop, where it is display:none. */}
-      <Sidebar
-        id={NAV_PANEL_ID}
-        isOpen={isMenuOpen}
-        onNavigate={closeMenu}
-      />
+      <div className="site-sidebar-column">
+        <Sidebar
+          id={NAV_PANEL_ID}
+          isOpen={isMenuOpen}
+          onNavigate={closeMenu}
+        />
+      </div>
       <main id="main" ref={mainRef} className="site-main" tabIndex={-1}>
         <div className="site-page">
           <Outlet />

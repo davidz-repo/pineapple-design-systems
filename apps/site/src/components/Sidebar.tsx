@@ -125,13 +125,18 @@ export function Sidebar({ id, isOpen, onNavigate }: SidebarProps) {
           const labelId = `${filterId}-${category.toLowerCase().replace(/[^a-z0-9]+/gu, '-')}`;
           return (
             <Stack key={category} gap="1" role="group" aria-labelledby={labelId}>
+              {/* Bigger and heavier than the links it names — a section header
+                  set SMALLER than its own contents reads as a link that does
+                  not work. No `color`: site.css owns it, and a `color="gray"`
+                  here would be a second claim on the same property in a second
+                  file, which is one more place for the header to go quiet
+                  again. */}
               <Text
                 as="p"
                 id={labelId}
                 className="site-nav-group-label"
-                size="1"
-                weight="medium"
-                color="gray"
+                size="2"
+                weight="bold"
               >
                 {category}
               </Text>

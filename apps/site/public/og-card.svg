@@ -12,46 +12,45 @@
 
       npx sharp-cli -i og-card.svg -o og-card.png
 
-    Both the geometry and the palette are duplicated from favicon.svg on
-    purpose: these are two static artworks, not one shared component, and the
-    card's mark is tuned for 300px where the favicon's is tuned for 16px. Hex is
-    literal for the same reason it is literal there — nothing here is rendered
-    by a browser with the theme's custom properties in scope.
+    Both the geometry and the palette are duplicated from favicon.svg (and from
+    apps/site/src/components/PineappleMark.tsx) on purpose: these are static
+    artworks, not one shared component, and nothing here is rendered by a
+    browser with the theme's custom properties in scope. The hexes are the
+    light-appearance values of the Radix steps the component reaches for
+    through custom properties — grass 9 (#46a758), amber 9 (#ffc53d), amber 11
+    (#ab6400) — so all three pineapples are one pineapple. (Written without
+    their leading dashes on purpose: an XML comment may not contain a double
+    hyphen, and a file that will not parse renders as nothing.)
   -->
   <rect width="1200" height="630" fill="#FBF5EC" />
-  <rect y="618" width="1200" height="12" fill="#E9A33C" />
+  <rect y="618" width="1200" height="12" fill="#ffc53d" />
 
   <g transform="translate(830 190) scale(9.4)">
-    <g fill="none" stroke="#2E9E6B" stroke-width="3" stroke-linecap="round">
-      <path d="M16 11V3" />
-      <path d="M12.5 11 9.5 5.5" />
-      <path d="M19.5 11 22.5 5.5" />
+    <g fill="#46a758">
+      <path d="M16 2 L19 10 L13 10 Z" />
+      <path d="M16 2 L19 10 L13 10 Z" transform="rotate(-40 16 10)" />
+      <path d="M16 2 L19 10 L13 10 Z" transform="rotate(40 16 10)" />
     </g>
-    <path fill="#E9A33C" d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
-    <g
-      clip-path="url(#og-pineapple-body)"
-      fill="none"
-      stroke="#8A5A16"
-      stroke-width="1.6"
-      stroke-linecap="round"
-      opacity=".45"
-    >
-      <path d="M4 6 28 30" />
-      <path d="M4 14 28 38" />
-      <path d="M4 -2 28 22" />
-      <path d="M28 6 4 30" />
-      <path d="M28 14 4 38" />
-      <path d="M28 -2 4 22" />
+    <rect x="8" y="9" width="16" height="20" rx="7" fill="#ffc53d" />
+    <g clip-path="url(#og-pineapple-body)" fill="#ab6400">
+      <use href="#og-pineapple-pip" x="12.5" y="14" />
+      <use href="#og-pineapple-pip" x="19.5" y="14" />
+      <use href="#og-pineapple-pip" x="10" y="19" />
+      <use href="#og-pineapple-pip" x="16" y="19" />
+      <use href="#og-pineapple-pip" x="22" y="19" />
+      <use href="#og-pineapple-pip" x="12.5" y="24" />
+      <use href="#og-pineapple-pip" x="19.5" y="24" />
     </g>
   </g>
   <defs>
     <clipPath id="og-pineapple-body">
-      <path d="M16 9c5.4 0 9 4.1 9 10.1S21 30 16 30 7 25.1 7 19.1 10.6 9 16 9Z" />
+      <rect x="8" y="9" width="16" height="20" rx="7" />
     </clipPath>
+    <path id="og-pineapple-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
   </defs>
 
   <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" fill="#1F1B16">
-    <text x="88" y="232" font-size="24" font-weight="700" letter-spacing="4" fill="#A9762F">
+    <text x="88" y="232" font-size="24" font-weight="700" letter-spacing="4" fill="#ab6400">
       REACT DESIGN SYSTEM
     </text>
     <text x="88" y="322" font-size="88" font-weight="700">Pineapple UI</text>
