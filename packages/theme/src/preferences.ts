@@ -25,7 +25,7 @@ export const STORAGE_KEY = 'pineappleui.theme.v1';
 /** What a first-time visitor gets, and the fallback for a record that no longer parses. */
 export const DEFAULT_PREFERENCES: ThemePreferences = {
   appearance: 'system',
-  accentColor: 'bronze',
+  accentColor: 'amber',
 };
 
 // Derived, not re-typed: the boot script needs the accent alone, and reading it
@@ -33,8 +33,10 @@ export const DEFAULT_PREFERENCES: ThemePreferences = {
 // default" one value rather than two that a test has to keep comparing.
 //
 // The record's own accent stays a literal on purpose. `ACCENT_COLORS` is a
-// vocabulary, not a ranking — `bronze` is the default while sitting LAST in that
+// vocabulary, not a ranking — `amber` is the default while sitting LAST in that
 // list (see the header of `packages/tokens/src/tokens.ts`), so deriving the
 // default from a position in it would re-couple the two things commit 5411352
-// separated: reorder the picker and the default silently moves with it.
+// separated: reorder the picker and the default silently moves with it. That it
+// is last today is what appending a new accent does, not a rule about defaults;
+// `bronze` was the default from that same position and is now mid-list.
 export const DEFAULT_ACCENT: AccentColor = DEFAULT_PREFERENCES.accentColor;

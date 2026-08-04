@@ -69,8 +69,14 @@ Playground.argTypes = {
     control: { type: 'select' },
     defaultValue: 'lg',
   },
+  // Radix scale steps, chosen to be five distinguishable hues — NOT a copy of
+  // ACCENT_COLORS, which is a different list for a different purpose. `blue`
+  // rather than `indigo` for exactly that reason: `indigo` and `amber` are both
+  // members of ACCENT_COLORS, and two members of one list in one file is the
+  // duplication scripts/check-token-drift.mjs fails on. `blue`, `red` and
+  // `green` are not accents here, so the row names one accent at most.
   color: {
-    options: ['', 'var(--indigo-11)', 'var(--red-11)', 'var(--green-11)', 'var(--amber-11)', 'var(--gray-11)'],
+    options: ['', 'var(--blue-11)', 'var(--red-11)', 'var(--green-11)', 'var(--amber-11)', 'var(--gray-11)'],
     control: { type: 'select' },
     defaultValue: '',
   },

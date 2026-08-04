@@ -6,6 +6,7 @@ import { DesignSystemProvider, ThemePreferencesProvider } from '@pineappleui/the
 import { BrowserRouter } from 'react-router';
 
 import { App } from './App';
+import { SITE_ACCENT_COLOR } from './site-accent';
 
 // The theme stylesheet is the ONLY design-system stylesheet import — it pulls
 // in Radix's own CSS and the Geist font itself.
@@ -24,8 +25,13 @@ if (rootElement === null) {
 createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter basename={basename}>
+      {/* The accent is pinned, the appearance is not: this site ships one
+          palette and no accent picker, but light/dark/system stays a real
+          preference and keeps coming from the stored record. vite.config.ts
+          hands the SAME constant to getFoucScript, so first paint and hydration
+          agree — see site-accent.ts. */}
       <ThemePreferencesProvider>
-        <DesignSystemProvider>
+        <DesignSystemProvider accentColor={SITE_ACCENT_COLOR}>
           <App />
         </DesignSystemProvider>
       </ThemePreferencesProvider>

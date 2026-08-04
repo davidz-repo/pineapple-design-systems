@@ -1,6 +1,97 @@
 /* Site chrome and markdown styling, entirely on Radix Themes variables so it
-   follows appearance and accent automatically. No token lists live here —
+   follows appearance automatically. No token lists live here —
    check-token-drift scans this file like any other. */
+
+/* ---- Pineapple palette ----------------------------------------------- */
+
+/* A yellow site with a green brand. The Radix accent is amber and is PINNED
+   (src/site-accent.ts — both the boot script and DesignSystemProvider are given
+   it), so `--accent-*` already resolves to the amber scale. These aliases exist
+   for the two things an accent cannot say: the canvas is not something an
+   accent choice moves, and the brand green is not the accent at all. Every rule
+   below reads a name from this block rather than a scale step, so a re-tune is
+   this block and not a search.
+
+   The selector is DOUBLED on purpose. Radix declares `--color-background` for
+   light under `:where(.radix-themes)` (specificity zero) and for dark under
+   `:is(.dark, .dark-theme)` (one class). A single `.radix-themes` here would
+   TIE with that dark block, leaving source order to decide — and source order
+   is not this file's to control: whether the theme's stylesheet or this one
+   lands last is the bundler's call. Two classes wins on specificity, which no
+   ordering can undo, and the dark block below stacks the appearance class on
+   top of that for the same reason.
+
+   Two figures here are measured, not chosen, and must not be "improved":
+   the light canvas cannot go deeper than amber-3 (at amber-4 the grass-11
+   wordmark drops to 4.33:1 and fails AA), and the brand is grass-11 rather than
+   grass-9 for that same contrast. */
+.radix-themes.radix-themes {
+  /* The page — and everything that paints the page's own colour behind itself:
+     the sticky header, the mobile nav panel, the footer. */
+  --color-background: var(--amber-3);
+
+  /* Surfaces that sit ON the canvas: code blocks, the playground's preview and
+     its controls, the example canvas. It inverts between appearances, because
+     "raised" is lighter than the page in light and lighter than the page in
+     dark — the constant is the contrast with the canvas, not the step. */
+  --site-panel: var(--amber-1);
+
+  /* Every rule, edge and divider this file draws. The `--gray-a5` these
+     replaced is the one place a neutral does not recede: a grey hairline over
+     yellow reads as dirty rather than as quiet. */
+  --site-border: var(--amber-8);
+
+  /* The brand green, in its two jobs. Step 11 is the readable end of the ramp
+     and is the one for TEXT and hairlines — the wordmark, the page h1, prose
+     links, the active nav link's edge marker. Step 9 is the one for a filled
+     SHAPE: the pineapple's crown, where step 11 would read as a dark silhouette
+     rather than as a leaf. Same green, two contrast jobs; the static favicon
+     and OG card carry step 9's light value as a literal hex. */
+  --site-brand: var(--grass-11);
+  --site-brand-solid: var(--grass-9);
+
+  /* The lattice inside the mark — darker than the body it sits on in both
+     appearances, because it is texture rather than an outline. */
+  --site-mark-texture: var(--amber-11);
+
+  /* A row under the pointer. On a yellow page the hover has to be MORE yellow:
+     a grey alpha wash reads as the row going out, not lighting up. */
+  --site-row-hover: var(--amber-7);
+
+  /* Where you are, in the other hue. Yellow-on-yellow cannot carry selection —
+     a step of the canvas's own scale over the canvas is around 1:1, which is
+     why the menu trigger's pressed state measured 1.06:1 before this. */
+  --site-selected-bg: var(--grass-3);
+  --site-selected-fg: var(--grass-12);
+
+  /* Disabled is the one state that drops the hue. Every live control on this
+     page is saturated, so a dimmed one still reads as a colour choice; going
+     neutral is the signal that needs no legend. */
+  --site-disabled-bg: var(--sand-3);
+  --site-disabled-fg: var(--sand-11);
+
+  /* Radix derives its focus ring from the accent, and amber's own ring measures
+     2.03:1 against this canvas — a WCAG 1.4.11 failure on every focusable thing
+     Radix draws, which no per-component outline rule here could have reached.
+     Overriding the two tokens fixes all of them at once. `--focus-a5` is the
+     ::selection wash. */
+  --focus-8: var(--grass-11);
+  --focus-a5: var(--grass-a8);
+}
+
+/* Only what actually differs. The brand, the selected foreground, the disabled
+   pair and the focus colour are appearance-independent by design — they are
+   already the readable step of their scale in both — so they are absent here
+   rather than restated, and a restatement is the thing that drifts. */
+.radix-themes.radix-themes:is(.dark, .dark-theme) {
+  --color-background: var(--amber-1);
+  --site-panel: var(--amber-3);
+  --site-border: var(--amber-7);
+  --site-mark-texture: var(--amber-8);
+  --site-row-hover: var(--amber-6);
+  --site-selected-bg: var(--grass-4);
+  --focus-a5: var(--grass-a7);
+}
 
 /* ---- App shell ------------------------------------------------------- */
 
@@ -48,8 +139,12 @@
   overflow: visible;
   clip-path: none;
   border-radius: var(--radius-2);
-  background: var(--accent-9);
-  color: var(--accent-contrast);
+  /* Pinned to the amber scale rather than to `--accent-*`: this is the first
+     thing a keyboard visitor sees, and it should be the site's yellow whatever
+     the accent token happens to resolve to. `--amber-contrast` is Radix's own
+     answer to "what is legible on amber-9", so the pair cannot come apart. */
+  background: var(--amber-9);
+  color: var(--amber-contrast);
   font-size: var(--font-size-2);
   text-decoration: none;
 }
@@ -68,7 +163,7 @@
      tallest control — and a wrapped header only ever grows past them. */
   min-height: var(--site-header-h);
   padding: var(--space-3) var(--space-5);
-  border-bottom: 1px solid var(--gray-a5);
+  border-bottom: 1px solid var(--site-border);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -80,7 +175,9 @@
   align-items: center;
   gap: var(--space-2);
   text-decoration: none;
-  color: inherit;
+  /* The wordmark is the brand, so it is the brand colour — grass-11, which
+     measures 4.62:1 on the amber-3 canvas. The badge beside it sets its own. */
+  color: var(--site-brand);
 }
 
 /* --space-5, the SAME token --site-header-h is derived from above, because the
@@ -111,9 +208,12 @@
 }
 
 /* Open reads as pressed. The label stays "Menu" — swapping it for "Close"
-   resizes the control under the finger that is about to tap it again. */
+   resizes the control under the finger that is about to tap it again.
+   `--accent-a5` was an amber wash on an amber page: 1.06:1, i.e. pressed and
+   unpressed were the same control. The selected surface is the other hue for
+   exactly that reason. */
 .site-menu-trigger[aria-expanded='true'] {
-  background-color: var(--accent-a5);
+  background-color: var(--site-selected-bg);
 }
 
 /* Wide enough for the longest of the three settings, so cycling the
@@ -135,7 +235,7 @@
 }
 
 .site-header-link:hover {
-  background: var(--gray-a3);
+  background: var(--site-row-hover);
   color: var(--gray-12);
 }
 
@@ -164,7 +264,7 @@
    rather than a number to keep in sync. The border comes with it: the rule is
    the column's edge, and it has to stop at the footer too. */
 .site-sidebar-column {
-  border-right: 1px solid var(--gray-a5);
+  border-right: 1px solid var(--site-border);
 }
 
 .site-sidebar {
@@ -220,20 +320,24 @@
 }
 
 .site-sidebar-link:hover {
-  background: var(--gray-a3);
+  background: var(--site-row-hover);
   color: var(--gray-12);
 }
 
-/* --accent-12, not --accent-11: over `--accent-a3` on `--color-background`,
-   step 11 measures 4.11:1 (teal) and 3.99:1 (orange) in light appearance —
-   under 4.5:1 for the one link on the page that has to read as *where you
-   are*. Step 12 clears it for every accent in both appearances (worst case
-   10.28:1). Radix's step-11 contrast promise is against steps 1-2, and this
-   link paints a step-3 surface behind it. */
+/* The one link on the page that has to read as *where you are*, so it carries
+   four cues rather than one: a green surface, a green foreground, extra weight,
+   and a rule down its leading edge. Yellow-vs-green alone is precisely the axis
+   a deuteranope loses, and weight plus an edge marker survive that; so does a
+   greyscale print-out.
+
+   `--site-selected-fg` is grass-12 rather than grass-11 because it is painted
+   ON `--site-selected-bg`, and Radix's step-11 contrast promise is against
+   steps 1-2, not against a step-3 surface. */
 .site-sidebar-link.active {
-  background: var(--accent-a3);
-  color: var(--accent-12);
-  font-weight: var(--font-weight-medium);
+  background: var(--site-selected-bg);
+  color: var(--site-selected-fg);
+  font-weight: var(--font-weight-bold);
+  box-shadow: inset 3px 0 0 0 var(--site-brand);
 }
 
 .site-main {
@@ -246,9 +350,19 @@
   margin: 0 auto;
 }
 
+/* The page's one h1 is the brand's second appearance, after the wordmark — the
+   same green, so the two read as one voice rather than as a logo and a heading
+   that happen to share a page. h2 and below stay --gray-12: a page where every
+   heading is the brand colour has no hierarchy left to spend. Descendant
+   selector so it reaches both the Radix <Heading> and the markdown pipeline's
+   own h1 without either having to know. */
+.site-page h1 {
+  color: var(--site-brand);
+}
+
 .site-footer {
   grid-column: 1 / -1;
-  border-top: 1px solid var(--gray-a5);
+  border-top: 1px solid var(--site-border);
   padding: var(--space-4) var(--space-5);
 }
 
@@ -314,7 +428,7 @@
     z-index: 1;
     max-height: calc(100dvh - var(--site-header-h));
     background: var(--color-background);
-    border-bottom: 1px solid var(--gray-a5);
+    border-bottom: 1px solid var(--site-border);
     box-shadow: var(--shadow-4);
   }
 
@@ -355,18 +469,40 @@
   }
 }
 
+/* ---- Controls -------------------------------------------------------- */
+
+/* Disabled, on a page where everything else is saturated. Radix's own disabled
+   treatment is a desaturating filter over the accent fill, and on this canvas
+   that lands on a paler yellow — which reads as "a different yellow button",
+   not as "off". Dropping the hue entirely is the signal that needs no legend,
+   and it is the one state on the site allowed to be grey.
+
+   Filled variants only: solid and classic are the ones with a fill to lose.
+   Soft, outline and ghost are already mostly canvas, so recolouring them would
+   paint a grey box where there was none. Both `:disabled` and `[data-disabled]`
+   because Radix uses the attribute wherever the element cannot be a real
+   disabled control — matching the theme package's own hover rule, which pairs
+   with this one. */
+.radix-themes .rt-BaseButton:where(.rt-variant-solid, .rt-variant-classic):disabled,
+.radix-themes .rt-BaseButton:where(.rt-variant-solid, .rt-variant-classic)[data-disabled] {
+  background-color: var(--site-disabled-bg);
+  color: var(--site-disabled-fg);
+}
+
 /* ---- Markdown -------------------------------------------------------- */
 
 .markdown {
   overflow-wrap: break-word;
 }
 
-/* --accent-a6 is a border alpha: as an underline it renders as a hairline
-   nobody can see, which is the same as prose links having no affordance
-   beyond color. a8 is the visible end of the same ramp. */
+/* The brand green, and required rather than decorative: `--accent-11` on this
+   canvas measures 4.25:1, which is an AA failure for body-size prose. The
+   underline is a border alpha at a6 and renders as a hairline nobody can see,
+   so a8 — the visible end of the same ramp — carries the affordance that colour
+   alone must not. */
 .markdown a {
-  color: var(--accent-11);
-  text-decoration-color: var(--accent-a8);
+  color: var(--site-brand);
+  text-decoration-color: var(--grass-a8);
   text-underline-offset: 2px;
 }
 
@@ -375,10 +511,15 @@
   text-decoration-color: currentcolor;
 }
 
+/* A panel, not a grey wash: an alpha grey over yellow tints towards olive, and
+   inline code stops looking like the code blocks it is the short form of. The
+   border is what keeps it legible where the panel and the canvas are only two
+   steps apart. */
 .markdown code {
   font-family: var(--code-font-family, ui-monospace, monospace);
   font-size: 0.9em;
-  background: var(--gray-a3);
+  background: var(--site-panel);
+  border: 1px solid var(--site-border);
   border-radius: var(--radius-1);
   padding: 0.1em 0.35em;
 }
@@ -405,7 +546,7 @@
 .markdown blockquote {
   margin: 0 0 var(--space-3);
   padding: var(--space-1) var(--space-4);
-  border-left: 3px solid var(--accent-a6);
+  border-left: 3px solid var(--site-brand);
   color: var(--gray-11);
 }
 
@@ -430,7 +571,7 @@
 .markdown td {
   text-align: left;
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--gray-a5);
+  border-bottom: 1px solid var(--site-border);
   vertical-align: top;
 }
 
@@ -446,7 +587,7 @@
 
 .markdown hr {
   border: none;
-  border-top: 1px solid var(--gray-a5);
+  border-top: 1px solid var(--site-border);
   margin: var(--space-5) 0;
 }
 
@@ -463,8 +604,8 @@
      padding is its gutter: without it a short line sits under the button, and
      a long one scrolls beneath it. */
   padding: var(--space-3) var(--space-8) var(--space-3) var(--space-4);
-  background: var(--gray-a2);
-  border: 1px solid var(--gray-a5);
+  background: var(--site-panel);
+  border: 1px solid var(--site-border);
   border-radius: var(--radius-3);
   overflow-x: auto;
   font-family: var(--code-font-family, ui-monospace, monospace);
@@ -555,8 +696,9 @@
 }
 
 .playground-preview {
-  border: 1px dashed var(--gray-a6);
+  border: 1px dashed var(--site-border);
   border-radius: var(--radius-3);
+  background: var(--site-panel);
   min-height: 160px;
   display: flex;
   align-items: center;
@@ -565,8 +707,9 @@
 }
 
 .playground-controls {
-  border: 1px solid var(--gray-a5);
+  border: 1px solid var(--site-border);
   border-radius: var(--radius-3);
+  background: var(--site-panel);
   padding: var(--space-4);
 }
 
@@ -629,8 +772,9 @@
 /* ---- Examples -------------------------------------------------------- */
 
 .example-canvas {
-  border: 1px dashed var(--gray-a6);
+  border: 1px dashed var(--site-border);
   border-radius: var(--radius-3);
+  background: var(--site-panel);
   overflow-x: auto;
 }
 

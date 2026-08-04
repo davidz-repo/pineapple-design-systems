@@ -5,6 +5,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
+// With the extension, and this file is the reason the shared tsconfig turns
+// `allowImportingTsExtensions` on: Vite's native config loader resolves this
+// import itself, and it will not add one. Extensionless, it loads today and
+// warns that it is scheduled to stop.
+import { SITE_ACCENT_COLOR } from './src/site-accent.ts';
+
 import type { Plugin } from 'vite';
 
 // `__dirname` does not exist in an ESM module, and this workspace is
@@ -21,12 +27,23 @@ const repoRoot = path.resolve(siteDir, '../..');
 // load-bearing: the script paints `#root` and returns silently when the
 // element is not parsed yet, so head placement would be a permanent no-op;
 // end-of-body still executes before the deferred module script.
+//
+// `accentColor` is passed here AND to <DesignSystemProvider> in main.tsx, from
+// the same constant: this script paints first and React paints second, so a
+// pair that disagrees is one frame of the wrong accent — the flash the script
+// exists to remove. Pinning it is what makes the site's palette reach a
+// returning visitor who still has another accent in localStorage from before
+// the picker was removed.
 function foucScriptPlugin(): Plugin {
   return {
     name: 'pineapple-fouc-script',
     async transformIndexHtml() {
       const { getFoucScript } = await import('@pineappleui/theme');
-      return [{ tag: 'script', children: getFoucScript(), injectTo: 'body' }];
+      return [{
+        tag: 'script',
+        children: getFoucScript({ accentColor: SITE_ACCENT_COLOR }),
+        injectTo: 'body',
+      }];
     },
   };
 }

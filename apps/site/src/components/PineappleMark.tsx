@@ -18,11 +18,13 @@
 //      overhang; the clip shaves them, which is what makes the texture follow
 //      the body's curve instead of stopping short of it in a straight line.
 //
-// Colours are custom properties, so the mark follows the theme (site.css owns
-// --site-brand and --site-mark-texture, and both have a dark-appearance value).
-// The favicon and the OG card are the same drawing in literal hex — nothing
-// fetched outside the document has a custom property in scope — so a change
-// here is a change in all three files.
+// Colours are custom properties, so the mark follows the theme: site.css owns
+// --site-brand-solid (the brand as a FILL, which is what a shape needs — the
+// readable text step is too dark to be a 24px silhouette) and
+// --site-mark-texture. The favicon and the OG card are the same drawing in
+// literal hex — nothing fetched outside the document has a custom property in
+// scope — so a change here is a change in all three files, and their hexes are
+// this palette's light-appearance values.
 //
 // The two ids are document-global, which is safe because they name geometry
 // rather than state: a second instance would resolve `url(#pineapple-mark-body)`
@@ -54,7 +56,7 @@ export function PineappleMark() {
         <path id="pineapple-mark-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
       </defs>
 
-      <g fill="var(--site-brand)">
+      <g fill="var(--site-brand-solid)">
         <path d={CROWN_BLADE} />
         <path d={CROWN_BLADE} transform="rotate(-40 16 10)" />
         <path d={CROWN_BLADE} transform="rotate(40 16 10)" />

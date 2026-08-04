@@ -11,7 +11,7 @@ import { ThemePreferencesProvider, useThemePreferences } from './ThemePreference
 // The provider's own default, written out rather than imported: it is the value
 // under test below, and an assertion against the constant it is asserting would
 // hold no matter what that constant said.
-const DEFAULT_ACCENT = 'bronze';
+const DEFAULT_ACCENT = 'amber';
 
 // Every OTHER accent used here is read off the real list instead of hand-typed.
 // Two accent names in one file is the copy `check-token-drift` exists to catch,
@@ -103,8 +103,8 @@ describe('useThemePreferences', () => {
   // `{ ...DEFAULT_PREFERENCES, appearance }` fails the second — and the second
   // mutation was green against every test in this file until the second test
   // was written, which is why the pair is here rather than the accent case
-  // alone. It is a user whose accent reverts to bronze the moment they switch
-  // to dark: the mirror of the accent case, and just as invisible.
+  // alone. It is a user whose accent reverts to the default the moment they
+  // switch to dark: the mirror of the accent case, and just as invisible.
   it('keeps the stored appearance when only the accent is set', () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -139,7 +139,7 @@ describe('useThemePreferences', () => {
     expect(result.current.accentColor).toBe(STORED_ACCENT);
   });
 
-  // Two setters in ONE tick, which is what a "reset to the light bronze theme"
+  // Two setters in ONE tick, which is what a "reset to the default theme"
   // button is. Each setter is created during a render and closes over that
   // render's preference record, so a setter that spreads what it captured
   // resolves against the state BEFORE both calls — the second write overwrites

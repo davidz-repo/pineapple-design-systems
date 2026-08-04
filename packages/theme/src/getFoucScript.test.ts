@@ -12,6 +12,8 @@ import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 import { DesignSystemProvider } from './providers/DesignSystemProvider';
 import { ThemePreferencesProvider, useThemePreferences } from './providers/ThemePreferencesProvider';
 
+import type { AccentColor } from '@pineappleui/tokens';
+
 // Called with NO arguments, which is how a consumer calls it: the key is the
 // provider's own, and the pairing the tests below assert is the one the default
 // gives you rather than one this file arranged by passing the same string twice.
@@ -19,9 +21,11 @@ const FOUC_SCRIPT = getFoucScript();
 
 // Some accent that is not the default, read off the real list rather than typed
 // a second time — two members of `ACCENT_COLORS` in one file is the copy
-// `check-token-drift` exists to catch. The literal `bronze` below stays: it is
+// `check-token-drift` exists to catch. The literal `amber` below stays: it is
 // the default, which is the value those tests are about.
-const [NON_DEFAULT_ACCENT] = ACCENT_COLORS.filter(accentColor => accentColor !== DEFAULT_ACCENT);
+const [NON_DEFAULT_ACCENT, OTHER_NON_DEFAULT_ACCENT] = ACCENT_COLORS.filter(
+  accentColor => accentColor !== DEFAULT_ACCENT,
+);
 
 // ── Running the boot script the way a browser does ──────────────────────────
 //
@@ -115,10 +119,14 @@ function readDataAttributes(el: Element): Record<string, string> {
   );
 }
 
-/** Boots the script against a fresh `#root` and returns every `data-*` it painted. */
-function readBootedDataAttributes(): Record<string, string> {
+/**
+ * Boots the script against a fresh `#root` and returns every `data-*` it
+ * painted. `script` defaults to the no-argument call every assertion below uses;
+ * the pinned-accent tests pass the script their own options produced.
+ */
+function readBootedDataAttributes(script: string = FOUC_SCRIPT): Record<string, string> {
   document.body.innerHTML = '<div id="root"></div>';
-  runInDocument(FOUC_SCRIPT);
+  runInDocument(script);
 
   const root = document.getElementById('root');
   if (root === null) {
@@ -134,10 +142,24 @@ function readBootedDataAttributes(): Record<string, string> {
   return attributes;
 }
 
-/** Renders the real provider tree and returns every `data-*` Radix's <Theme> put on its root. */
-function readRenderedThemeAttributes(): { data: Record<string, string>; className: string } {
+/**
+ * Renders the real provider tree and returns every `data-*` Radix's <Theme> put
+ * on its root. `pinnedAccent` is the provider's `accentColor` prop — the half of
+ * the pinning pair that lives in React; the other half is the script option of
+ * the same name, and comparing the two is the whole point of passing it here.
+ */
+function readRenderedThemeAttributes(
+  pinnedAccent?: AccentColor,
+): { data: Record<string, string>; className: string } {
   const { container, unmount } = render(
-    createElement(ThemePreferencesProvider, null, createElement(DesignSystemProvider, null, null)),
+    createElement(
+      ThemePreferencesProvider,
+      null,
+      // `children` in the props object rather than as a third argument: given a
+      // props object at all, createElement's typing wants the component's WHOLE
+      // prop type, `children` included.
+      createElement(DesignSystemProvider, { accentColor: pinnedAccent, children: null }),
+    ),
   );
   try {
     const themed = container.querySelector('.radix-themes');
@@ -286,12 +308,12 @@ describe('getFoucScript', () => {
     }
   });
 
-  it('paints bronze on sand when storage is empty', () => {
-    expect(bootFoucScript()).toEqual({ accentColor: 'bronze', grayColor: 'sand' });
+  it('paints amber on sand when storage is empty', () => {
+    expect(bootFoucScript()).toEqual({ accentColor: 'amber', grayColor: 'sand' });
   });
 
-  it('paints bronze on sand when the stored accent is not a known accent', () => {
-    expect(bootFallbackAccent()).toEqual({ accentColor: 'bronze', grayColor: 'sand' });
+  it('paints amber on sand when the stored accent is not a known accent', () => {
+    expect(bootFallbackAccent()).toEqual({ accentColor: 'amber', grayColor: 'sand' });
   });
 
   // The bug this pairing already shipped once: the provider's default moved
@@ -336,5 +358,67 @@ describe('getFoucScript', () => {
   // otherwise be the one part of the element still unguarded.
   it('paints the same class DesignSystemProvider renders', () => {
     expect(readBootedClassName()).toBe(readRenderedThemeAttributes().className);
+  });
+
+  // ── The pinned accent ─────────────────────────────────────────────────────
+  //
+  // For the app that ships one palette and offers no picker. Its returning
+  // visitors still have an accent in storage — one they can no longer change —
+  // so "change the default" does not reach them: a stored accent that is still
+  // a valid accent is still honoured, which is the point of storing it.
+  //
+  // The pin is therefore only correct if it beats a VALID stored accent, and it
+  // has to beat it on both surfaces or the app gets exactly the flash this file
+  // exists to prevent. Every test below seeds a real accent first.
+
+  it('paints the pinned accent over a valid stored one', () => {
+    seedStoredPreferences({ appearance: 'system', accentColor: NON_DEFAULT_ACCENT });
+    document.body.innerHTML = '<div id="root"></div>';
+    runInDocument(getFoucScript({ accentColor: OTHER_NON_DEFAULT_ACCENT }));
+
+    expect(document.getElementById('root')?.getAttribute('data-accent-color'))
+      .toBe(OTHER_NON_DEFAULT_ACCENT);
+  });
+
+  // The gray is derived FROM the accent, so pinning one and leaving the other
+  // to be looked up off the stored value would be a mismatched pair that
+  // renders — Radix simply paints an accent on someone else's gray.
+  it('pairs the pinned accent with its own Radix gray, not the stored accent\'s', () => {
+    seedStoredPreferences({ appearance: 'system', accentColor: NON_DEFAULT_ACCENT });
+    document.body.innerHTML = '<div id="root"></div>';
+    runInDocument(getFoucScript({ accentColor: OTHER_NON_DEFAULT_ACCENT }));
+
+    expect(document.getElementById('root')?.getAttribute('data-gray-color'))
+      .toBe(getMatchingGrayColor(OTHER_NON_DEFAULT_ACCENT));
+  });
+
+  // The same whole-attribute-set diff as above, with BOTH halves of the pair
+  // set: the script's `accentColor` option and DesignSystemProvider's
+  // `accentColor` prop. This is the assertion that fails if one surface learns
+  // to pin and the other does not.
+  it('paints exactly the data-* attributes a pinned DesignSystemProvider renders', () => {
+    for (const accentColor of ACCENT_COLORS) {
+      // Something OTHER than the pin in storage, so a surface that quietly
+      // ignored its pin would read this instead and fail rather than coincide.
+      seedBothStores({ appearance: 'system', accentColor: NON_DEFAULT_ACCENT });
+
+      expect(
+        readBootedDataAttributes(getFoucScript({ accentColor })),
+        `Boot script vs DesignSystemProvider disagree with accentColor="${accentColor}" pinned.`,
+      ).toEqual(readRenderedThemeAttributes(accentColor).data);
+    }
+  });
+
+  // Pinning the accent must not pin anything else. The appearance is a
+  // preference about the reader's environment rather than the product's
+  // palette, and an app that drops its accent picker keeps its light/dark one —
+  // a pin that reset appearance to the default would silently relight every
+  // returning visitor's dark page.
+  it('leaves the stored appearance alone when the accent is pinned', () => {
+    seedStoredPreferences({ appearance: 'dark', accentColor: NON_DEFAULT_ACCENT });
+    document.body.innerHTML = '<div id="root"></div>';
+    runInDocument(getFoucScript({ accentColor: OTHER_NON_DEFAULT_ACCENT }));
+
+    expect(document.getElementById('root')?.className).toBe('radix-themes dark');
   });
 });

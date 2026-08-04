@@ -3,6 +3,8 @@ import { getMatchingGrayColor } from '@radix-ui/themes/helpers';
 
 import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 
+import type { AccentColor } from '@pineappleui/tokens';
+
 // Returns the first-paint script body as a string. Consumers inline it in
 // <script>...</script> at the END of their <body>, AFTER the element the
 // provider tree mounts into, so the page paints the stored theme instead of
@@ -11,7 +13,7 @@ import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 // and it is the only placement that does anything at all: see
 // DEFAULT_ROOT_ELEMENT_ID below for why an earlier one is a silent no-op.
 //
-// Both options default, and the defaults are the only values that work unless
+// Every option defaults, and the defaults are the only values that work unless
 // the consumer changes both surfaces: the key is the one
 // ThemePreferencesProvider reads, imported from `./preferences` rather than
 // asked for, and the element is the one the provider tree mounts into.
@@ -23,6 +25,11 @@ import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 // persisting under a key of their own — that consumer sets the SAME string
 // here and on `ThemePreferencesProvider`'s `storageKey` prop, with
 // `THEME_STORAGE_KEY` exported as what they are replacing.
+//
+// `accentColor` is the third of those must-move-together pairs, and its partner
+// is `DesignSystemProvider`'s prop of the same name rather than the preferences
+// provider's: it pins what gets PAINTED, not what gets stored. Same failure if
+// only one side is set, and it is the one this file is for.
 //
 // The snippet mirrors ThemePreferencesProvider's storage schema +
 // DesignSystemProvider's Radix <Theme> attribute output. Both surfaces MUST
@@ -56,6 +63,19 @@ interface GetFoucScriptOptions {
   storageKey?: string;
   /** Defaults to `root`, the element the provider tree is mounted into. */
   rootElementId?: string;
+  /**
+   * Pins the accent the script paints, ignoring the stored one.
+   *
+   * The pair for `DesignSystemProvider`'s `accentColor` prop, and the same rule
+   * as `storageKey`: set BOTH to the same value or neither. This is the accent
+   * at first paint and that is the accent on hydration; a pair that disagrees
+   * paints one frame of the wrong accent and snaps, which is what this script
+   * exists to prevent and which nothing else reports.
+   *
+   * Omit it (the default) and the script reads the stored accent, falling back
+   * to the package default — which is what an app with an accent picker wants.
+   */
+  accentColor?: AccentColor;
 }
 
 // The element the script paints. It is `#root` because that is what the
@@ -97,7 +117,23 @@ function toInlineSafeLiteral(value: unknown): string {
 export function getFoucScript({
   storageKey = STORAGE_KEY,
   rootElementId = DEFAULT_ROOT_ELEMENT_ID,
+  accentColor,
 }: GetFoucScriptOptions = {}): string {
+  // A pinned accent is not a preference, so it does not consult the stored
+  // record at all — the app that pins one has no picker, and its returning
+  // visitors are carrying an accent they can no longer change. Resolved HERE,
+  // in the generator, rather than by shipping the pin to the browser and
+  // branching there: the emitted script should say what it paints.
+  //
+  // The accent list is still emitted either way. It costs a line, it keeps one
+  // template instead of two, and the guard that reads it (getFoucScript.test.ts)
+  // reads the default call, which is the one every consumer without a pin gets.
+  const accentExpression = accentColor === undefined
+    ? `ACCENT_COLORS.indexOf(prefs.accentColor) >= 0
+    ? prefs.accentColor
+    : ${toInlineSafeLiteral(DEFAULT_ACCENT)}`
+    : toInlineSafeLiteral(accentColor);
+
   return `(function () {
   var ACCENT_COLORS = ${toInlineSafeLiteral([...ACCENT_COLORS])};
   var GRAY_BY_ACCENT = ${toInlineSafeLiteral(GRAY_BY_ACCENT)};
@@ -123,9 +159,7 @@ export function getFoucScript({
   } else {
     appearance = storedAppearance;
   }
-  var accent = ACCENT_COLORS.indexOf(prefs.accentColor) >= 0
-    ? prefs.accentColor
-    : ${toInlineSafeLiteral(DEFAULT_ACCENT)};
+  var accent = ${accentExpression};
   var gray = GRAY_BY_ACCENT[accent] || ${toInlineSafeLiteral(GRAY_BY_ACCENT[DEFAULT_ACCENT])};
   var el = document.getElementById(${toInlineSafeLiteral(rootElementId)});
   if (!el) return;
