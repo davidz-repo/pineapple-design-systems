@@ -6,8 +6,10 @@ import { Heading } from '@pineappleui/heading';
 import { Text } from '@pineappleui/text';
 import Markdown from 'react-markdown';
 
+import { Link } from 'react-router';
 import remarkGfm from 'remark-gfm';
 
+import { internalRouteFor } from '../packageLinks';
 import { CodeBlock } from './CodeBlock';
 
 import type { Components } from 'react-markdown';
@@ -54,9 +56,18 @@ const components: Components = {
   h3: ({ children }) => <Heading as="h3" size="4" mt="5" mb="2">{children}</Heading>,
   h4: ({ children }) => <Heading as="h4" size="3" mt="4" mb="2">{children}</Heading>,
   p: ({ children }) => <Text as="p" size="3" mb="3">{children}</Text>,
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer">{children}</a>
-  ),
+  // A README is written to be read on npm and on GitHub, so a link to a sibling
+  // package has to be that package's URL on GitHub. Read here, that link leaves
+  // the site to show a source tree for a package whose docs page is one route
+  // away — so those, and only those, become internal navigations. Everything
+  // else (Radix, Lucide, the repo itself) is genuinely elsewhere and opens in a
+  // new tab, which is what keeps the reader's place in the page they are on.
+  a: ({ href, children }) => {
+    const route = href === undefined ? undefined : internalRouteFor(href);
+    return route === undefined
+      ? <a href={href} target="_blank" rel="noreferrer">{children}</a>
+      : <Link to={route}>{children}</Link>;
+  },
   pre: ({ children }) => {
     const fence = fenceOf(children);
     return fence === undefined

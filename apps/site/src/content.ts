@@ -8,6 +8,8 @@ interface PackageManifest {
   name: string;
   version: string;
   description?: string;
+  /** What npm renders as "Repository" — see packageLinks.ts. */
+  repository?: { url?: string; directory?: string };
 }
 
 // Lazy: each package page pulls only its own markdown chunk.
@@ -36,7 +38,11 @@ export function forSlug<T>(record: Record<string, T>, slug: string): T | undefin
 // `use` needs the same promise instance across render retries, so the
 // returned function MUST stay synchronous: an async wrapper would mint a
 // fresh (uncached) promise per call and the component would suspend forever.
-function cachedLoader<T>(
+//
+// Exported because stories.ts loads the packages' stories the same way, and a
+// second hand-written cache is a second place for that `async` to creep back
+// in. Every lazily loaded per-package thing on this site comes through here.
+export function cachedLoader<T>(
   loaders: Record<string, () => Promise<T>>,
 ): (slug: string) => Promise<T | null> {
   const cache = new Map<string, Promise<T | null>>();
