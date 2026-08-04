@@ -62,13 +62,22 @@ export const SUSPENSE_TIMEOUT = { timeout: 10_000 };
  * render is wrapped in an awaited `act`: package pages suspend on their story
  * and markdown imports, and React 19 only retries a suspended tree once the
  * async act scope has flushed.
+ *
+ * `basename` is for the tests that are about addresses the app BUILDS rather
+ * than routes it serves — an `href` written through `useHref` is
+ * indistinguishable from a hard-coded one until the app is served from a
+ * subpath. `path` includes the basename, the way a real URL does.
  */
-export async function renderApp(path: string, extra?: ReactNode): Promise<void> {
+export async function renderApp(
+  path: string,
+  extra?: ReactNode,
+  basename?: string,
+): Promise<void> {
   await act(async () => {
     render(
       <ThemePreferencesProvider>
         <DesignSystemProvider>
-          <MemoryRouter initialEntries={[path]}>
+          <MemoryRouter basename={basename} initialEntries={[path]}>
             <App />
             {extra}
           </MemoryRouter>

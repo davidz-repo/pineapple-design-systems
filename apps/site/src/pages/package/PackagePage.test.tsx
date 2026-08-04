@@ -298,6 +298,11 @@ describe('package links', () => {
     for (const link of links.getAllByRole('link')) {
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAccessibleName(/\(opens in a new tab\)$/);
+      // Announced, NOT drawn. Nothing else here would notice the class going
+      // missing: the name would still be right and the row would silently read
+      // "View source (opens in a new tab) npm (opens in a new tab)".
+      expect(within(link).getByText(/opens in a new tab/))
+        .toHaveClass('site-visually-hidden');
     }
   });
 
@@ -474,7 +479,11 @@ describe('tabs', () => {
     });
 
     const announcement = await screen.findByText('Button changelog', undefined, SUSPENSE_TIMEOUT);
-    // In a region a screen reader is watching, not just somewhere on the page.
-    expect(announcement.closest('[aria-live]')).not.toBeNull();
+    // In a region a screen reader is watching, not just somewhere on the page —
+    // and only there: the region is for hearing, and without the class it
+    // prints "Button changelog" under the tab strip for everyone else.
+    const region = announcement.closest('[aria-live]');
+    expect(region).not.toBeNull();
+    expect(region).toHaveClass('site-visually-hidden');
   });
 });

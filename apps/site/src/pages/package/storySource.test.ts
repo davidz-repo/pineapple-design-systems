@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -140,6 +140,46 @@ describe('sourceOfExport', () => {
 
     // Nothing follows the Playground, so it keeps its args and argTypes.
     expect(sourceOfExport(source, 'Playground')).toContain('Playground.argTypes');
+  });
+
+  // One file proves the shape; this proves the CORPUS. A story file written in
+  // a shape nobody here has used yet — or a repo-wide reformat — costs a
+  // disclosure that silently stops appearing, or worse, one that appears
+  // showing the declaration next door. Every top-level export of every story
+  // file has to come back, and to come back holding no other declaration's
+  // head. It fails on an empty match too: a glob that stops matching is the
+  // way a sweep like this quietly becomes a test of nothing.
+  it('cuts every export of every story file in the repo, and leaks no neighbour', () => {
+    const files = readdirSync(path.join(repoRoot, 'packages'), {
+      recursive: true,
+      encoding: 'utf8',
+    }).filter(entry => /^[^/]+\/src\/.*\.stories\.tsx?$/.test(entry));
+    expect(files.length).toBeGreaterThan(0);
+
+    let exportsChecked = 0;
+    for (const file of files) {
+      const source = readFileSync(path.join(repoRoot, 'packages', file), 'utf8');
+      // Every top-level declaration head in the file, exported or not — the
+      // second half is what a slice must not contain any of.
+      const heads = [...source.matchAll(
+        /^(?:export )?(?:async )?(?:function|const|let|var|class|interface|type|enum) (\w+)/gm,
+      )].map(head => ({ head: head[0], name: head[1], isExported: head[0].startsWith('export') }));
+
+      for (const declaration of heads.filter(one => one.isExported)) {
+        const cut = sourceOfExport(source, declaration.name);
+        expect(cut, `${file} declares ${declaration.name}`).toBeDefined();
+        expect(cut, `${file} #${declaration.name}`).toContain(declaration.head);
+        for (const other of heads) {
+          if (other.head !== declaration.head) {
+            expect(cut, `${file} #${declaration.name} swallowed ${other.head}`)
+              .not
+              .toContain(other.head);
+          }
+        }
+        exportsChecked += 1;
+      }
+    }
+    expect(exportsChecked).toBeGreaterThan(files.length);
   });
 });
 
