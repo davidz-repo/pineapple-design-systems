@@ -10,6 +10,8 @@ interface ArgControlProps {
   name: string;
   argType: StoryArgType | undefined;
   value: unknown;
+  /** Hint for a free-text arg whose default is empty — see arg-placeholders. */
+  placeholder?: string;
   onChange: (value: unknown) => void;
 }
 
@@ -18,7 +20,7 @@ interface ArgControlProps {
 // (booleans live only in `args`, never in `argTypes`, in this repo's
 // stories). A native <select> on purpose: the stories use '' as a real
 // option value ("inherit the theme accent"), which Radix's Select rejects.
-export function ArgControl({ name, argType, value, onChange }: ArgControlProps) {
+export function ArgControl({ name, argType, value, placeholder, onChange }: ArgControlProps) {
   const id = `arg-${name}`;
 
   let control;
@@ -47,6 +49,7 @@ export function ArgControl({ name, argType, value, onChange }: ArgControlProps) 
         id={id}
         size="1"
         type="number"
+        placeholder={placeholder}
         value={String(value)}
         onChange={event => onChange(Number(event.target.value))}
       />
@@ -57,6 +60,7 @@ export function ArgControl({ name, argType, value, onChange }: ArgControlProps) 
       <TextField.Root
         id={id}
         size="1"
+        placeholder={placeholder}
         value={String(value ?? '')}
         onChange={event => onChange(event.target.value)}
       />
@@ -66,7 +70,7 @@ export function ArgControl({ name, argType, value, onChange }: ArgControlProps) 
   return (
     <Stack gap="1">
       <label htmlFor={id}>
-        <Text size="1" color="gray">{name}</Text>
+        <Text size="1" weight="medium" color="gray">{name}</Text>
       </label>
       {control}
     </Stack>
