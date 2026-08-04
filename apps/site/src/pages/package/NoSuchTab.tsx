@@ -1,7 +1,12 @@
+import { Fragment } from 'react';
+
 import { Heading } from '@pineappleui/heading';
 import { Stack } from '@pineappleui/stack';
 import { Text } from '@pineappleui/text';
-import { useParams } from 'react-router';
+import { Link as ThemeLink } from '@radix-ui/themes';
+import { Link, useParams } from 'react-router';
+
+import { tabPath } from '../../packageTabs';
 
 import type { PackageTab } from '../../packageTabs';
 import type { RegistryEntry } from '../../registry';
@@ -19,6 +24,21 @@ import type { RegistryEntry } from '../../registry';
 // The document title still reads "Page not found": the address genuinely names
 // no page, and a bookmark or a history entry that claimed otherwise would be
 // the lie. What changed is the recovery, not the fact.
+
+/**
+ * The tab labels as prose — "Overview and Changelog", "Overview, Playground,
+ * and Changelog". English, hard-coded, like every other string on this page.
+ */
+function joinBefore(index: number, count: number): string {
+  if (index === 0) {
+    return '';
+  }
+  if (index === count - 1) {
+    return count === 2 ? ' and ' : ', and ';
+  }
+  return ', ';
+}
+
 export function NoSuchTab({
   entry,
   tabs,
@@ -27,13 +47,32 @@ export function NoSuchTab({
   tabs: readonly PackageTab[];
 }) {
   const { '*': tail = '' } = useParams();
-  const labels = tabs.map(tab => tab.label).join(', ');
 
   return (
     <Stack gap="2">
-      <Heading as="h2" size="4">No such tab</Heading>
+      {/* The heading says what happened and the body says what to do about it.
+          They used to say the same thing twice — a heading reading "No such
+          tab" above a sentence that also said there was no such tab — and the
+          way out was a list of names in plain text, which reads as an
+          instruction to go and find them. */}
+      <Heading as="h2" size="4">{`${entry.name} has no “${tail}” tab`}</Heading>
       <Text as="p" size="3" color="gray">
-        {`${entry.name} has no “${tail}” tab. Its tabs are: ${labels}.`}
+        Try
+        {' '}
+        {tabs.map((tab, index) => (
+          // Keyed by the segment, which is the tab's identity in the router.
+          // Radix's Link (over react-router's, through `asChild`) because these
+          // are words in a sentence: it brings the prose link's colour,
+          // underline and focus ring, where `.package-link` is chrome padding
+          // for a row of controls.
+          <Fragment key={tab.segment}>
+            {joinBefore(index, tabs.length)}
+            <ThemeLink asChild>
+              <Link to={tabPath(entry.slug, tab.segment)}>{tab.label}</Link>
+            </ThemeLink>
+          </Fragment>
+        ))}
+        .
       </Text>
     </Stack>
   );

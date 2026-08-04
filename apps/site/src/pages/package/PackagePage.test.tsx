@@ -342,10 +342,22 @@ describe('tabs', () => {
   it('answers an unknown tab inside the page, not with a full-page 404', async () => {
     await renderApp('/components/button/nope');
 
-    expect(await screen.findByRole('heading', { name: 'No such tab' }, SUSPENSE_TIMEOUT))
-      .toBeInTheDocument();
-    expect(screen.getByText(/Button has no “nope” tab/)).toBeInTheDocument();
-    expect(screen.getByText(/Overview, Playground, Changelog/)).toBeInTheDocument();
+    // The heading names the miss and the body is the way out — not the same
+    // sentence twice, which is what "No such tab" over "has no such tab" was.
+    expect(await screen.findByRole(
+      'heading',
+      { name: 'Button has no “nope” tab' },
+      SUSPENSE_TIMEOUT,
+    )).toBeInTheDocument();
+    const recovery = screen.getByText(/^Try/);
+    expect(recovery).toHaveTextContent('Try Overview, Playground, and Changelog.');
+    // Every tab it names is a link to that tab, so the recovery is a click
+    // rather than a list of names to go and find.
+    expect(within(recovery).getByRole('link', { name: 'Playground' }))
+      .toHaveAttribute('href', '/components/button/playground');
+    expect(within(recovery).getByRole('link', { name: 'Overview' }))
+      .toHaveAttribute('href', '/components/button');
+
     // Scoped: the package is still on the screen, tabs included.
     expect(screen.getByRole('heading', { name: 'Button', level: 1 })).toBeInTheDocument();
     expect(await findTabStrip()).toBeInTheDocument();
@@ -357,10 +369,13 @@ describe('tabs', () => {
     // to land on a tab that does not exist, and not a typo at all.
     await renderApp('/components/tokens/playground');
 
-    expect(await screen.findByRole('heading', { name: 'No such tab' }, SUSPENSE_TIMEOUT))
-      .toBeInTheDocument();
-    expect(screen.getByText(/Tokens has no “playground” tab/)).toBeInTheDocument();
-    expect(screen.getByText(/Overview, Changelog/)).toBeInTheDocument();
+    expect(await screen.findByRole(
+      'heading',
+      { name: 'Tokens has no “playground” tab' },
+      SUSPENSE_TIMEOUT,
+    )).toBeInTheDocument();
+    // Two tabs take no serial comma; three do.
+    expect(screen.getByText(/^Try/)).toHaveTextContent('Try Overview and Changelog.');
   });
 
   it('announces the tab it switched to, and says nothing on arrival', async () => {
