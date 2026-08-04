@@ -1,5 +1,7 @@
 import type { ComponentType } from 'react';
 
+import { cachedLoader } from './content';
+
 // The site renders the packages' own Ladle stories: named exports become the
 // Examples section, and the `Playground` export (args + argTypes attached)
 // drives the playground. The types below are a local mirror of the slice of
@@ -28,23 +30,20 @@ const storyModules = import.meta.glob<StoryModule>(
   '../../../packages/*/src/**/*.stories.{ts,tsx}',
 );
 
-// Stable per-slug promises so components can `use()` them under Suspense.
-// Synchronous on purpose: `use` needs the same promise instance across render
-// retries, and an async wrapper would mint a fresh (uncached) promise per
-// call, suspending the component forever.
-const storyCache = new Map<string, Promise<StoryModule | null>>();
+// The same files again, as text, for the "Show code" disclosure under each
+// example. Two globs of one pattern rather than one: `?raw` is a different
+// module (the source string) from the compiled one, and a page that only ever
+// renders the examples must not pay for the text of stories nobody expanded.
+// Vite emits each as its own lazy chunk.
+const storySources = import.meta.glob<string>(
+  '../../../packages/*/src/**/*.stories.{ts,tsx}',
+  { query: '?raw', import: 'default' },
+);
 
-// eslint-disable-next-line ts/promise-function-async -- hands back the cached promise itself; async would break `use()` identity
-export function storyModuleFor(slug: string): Promise<StoryModule | null> {
-  let promise = storyCache.get(slug);
-  if (promise === undefined) {
-    const loader = Object.entries(storyModules)
-      .find(([p]) => p.includes(`/packages/${slug}/src/`))?.[1];
-    promise = loader === undefined ? Promise.resolve(null) : loader();
-    storyCache.set(slug, promise);
-  }
-  return promise;
-}
+// Stable per-slug promises so components can `use()` them under Suspense —
+// see content.ts for why the returned function must stay synchronous.
+export const storyModuleFor = cachedLoader(storyModules);
+export const storySourceFor = cachedLoader(storySources);
 
 // Filters out non-story exports such as live-region's `export default
 // { title }` object — a story is always a render function.
