@@ -32,6 +32,7 @@ packages/
   theme/              @pineappleui/theme              PUBLIC    theme providers + stylesheet + first-paint snippet
 apps/
   gallery/            @pineappleui/gallery            private   Ladle gallery; renders every package's stories
+  site/               @pineappleui/site               private   reference site (docs, examples, playground) → GitHub Pages
 scripts/
   check-publish-contract.mjs                                    publish + task-coverage guard
   check-token-drift.mjs                                         no hand-typed copies of a token list

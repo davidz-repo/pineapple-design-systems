@@ -387,6 +387,55 @@ It would not have *failed*, though, which is the part this PR corrects rather th
 `apps/gallery/scripts/build.mjs` reads the build's output and its artifacts and exits 1 on either
 — see *The gallery workspace* above, point 1.
 
+### The reference site (`apps/site`)
+
+`apps/site` — private, `0.0.0`, ESM — is the public face of the system: a docs site in the
+Radix/Chakra shape (landing page, sidebar, per-package pages with overview / examples /
+playground / versions tabs), deployed to GitHub Pages at `/pineapple-design-systems/` by
+`.github/workflows/deploy-site.yml` on every push to `main`. It is deliberately **derived
+almost entirely from content that already exists**: overviews are the packages' own READMEs,
+versions are their changesets CHANGELOGs, examples and the playground render the packages' own
+Ladle stories. A new package brings its docs with it; the site's registry test fails until the
+one hand-written thing — a registry entry (slug, blurb, snippet) — is added.
+
+Decisions worth recording, in the same spirit as the gallery section above:
+
+- **Plain Vite 8 SPA, no meta-framework.** The root manifest owns the hoisted `vite@^8.1.5`
+  slot and `check-toolchain-hoist.mjs` fails the build if that slot changes hands. Any
+  meta-framework pins its own vite major and fights the root for the slot; a plain
+  `vite build` consumes the root's copy. The site dogfoods @pineappleui components for its
+  own chrome, which is itself a small integration test.
+- **The gallery's alias fences, replayed — but guarded locally.** `vite.config.ts` and
+  `tsconfig.json` carry the same `// @pineappleui-aliases:start/:end` fenced lists as the
+  gallery (subpath key first, for the same `styles.css` reason), and all 16 public packages
+  are `*` devDependencies for the same turbo reason: the stories and READMEs this site
+  compiles live outside its own directory, so the edges are what make a story edit
+  invalidate the site build's hash. `scripts/check-alias-fences.mjs` stays gallery-only;
+  the site asserts its own three lists agree (and cover every public package on disk) in
+  `src/alias-fences.test.ts`, a real `test` task rather than a root guard.
+- **The playground reuses the stories, without depending on Ladle.** Examples and playground
+  load `packages/*/src/**/*.stories.{ts,tsx}` lazily via `import.meta.glob`; the `Playground`
+  export's `.args`/`.argTypes` drive the controls. The site declares **no `@ladle/react`
+  dependency** — stories import it type-only today (verified), and the site keeps local
+  `StoryExport`/`StoryModule` types in `src/stories.ts`. The standing risk: a future story
+  importing a **value** from `@ladle/react` would pull Ladle's runtime into the site bundle.
+  If that happens, the fix is in the story, not the site.
+- **First-paint theming reads `dist/`, not `src/`.** The FOUC plugin calls
+  `getFoucScript` from `@pineappleui/theme` resolved through node_modules — the built copy —
+  while the app graph reads source through the aliases. Stale dist is a dev-only hazard
+  (the `dev` script pre-builds theme via turbo; CI's `^build` always covers it). The
+  script is injected with `injectTo: 'body'` so it runs after `#root` exists — it no-ops
+  against a `#root` that has not been parsed, so head placement would silently do nothing.
+- **Deep links on Pages are a copy, not a rewrite.** GitHub Pages has no SPA fallback
+  config; the build copies `index.html` to `404.html`, which Pages serves for any unknown
+  path. The router then renders the right page client-side. The HTTP status is still 404 —
+  cosmetic/SEO cost, accepted.
+- **The deploy workflow is `--filter`ed, and that is safe only because CI is not.**
+  `deploy-site.yml` builds `--filter=@pineappleui/site` (with `^build` pulling the 16
+  packages first) and ships `apps/site/dist`. Verification stays ci.yml's unfiltered run;
+  the deploy workflow assumes it. **One-time manual step:** repo Settings → Pages →
+  Source: "GitHub Actions" — a workflow cannot flip that switch itself.
+
 ### Deferred
 
 `form` — needs a decision on how much validation behavior belongs in a presentational shell.
