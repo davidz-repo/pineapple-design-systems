@@ -206,11 +206,17 @@
    accent the reader picked instead of pinning one theme's colours into the
    page. Five hues on purpose: comments recede, and the four that remain each
    answer a different question about a token — is it syntax, a value, a name,
-   or a key? Every scope not listed inherits the code colour; that omission is
-   the restraint, not an oversight. */
+   or a key?
 
-.code-block .hljs-comment,
-.code-block .hljs-quote {
+   Every selector below is a scope the four registered grammars (bash, json,
+   typescript, xml) actually emit — checked against their sources and against
+   lowlight's output, not copied from a highlight.js theme, which carries the
+   scopes of ~190 languages this site does not register. The scopes they emit
+   and this does NOT colour — `tag`, `params`, `subst`, `punctuation`,
+   `doctag` — inherit the code colour on purpose; that omission is the
+   restraint, not an oversight. */
+
+.code-block .hljs-comment {
   color: var(--gray-a11);
   font-style: italic;
 }
@@ -224,22 +230,18 @@
 }
 
 .code-block .hljs-string,
-.code-block .hljs-regexp,
-.code-block .hljs-char.escape_ {
+.code-block .hljs-regexp {
   color: var(--green-11);
 }
 
 .code-block .hljs-title,
-.code-block .hljs-name,
-.code-block .hljs-section {
+.code-block .hljs-name {
   color: var(--blue-11);
 }
 
 .code-block .hljs-attr,
-.code-block .hljs-attribute,
 .code-block .hljs-property,
 .code-block .hljs-variable,
-.code-block .hljs-template-variable,
 .code-block .hljs-number,
 .code-block .hljs-symbol {
   color: var(--purple-11);
