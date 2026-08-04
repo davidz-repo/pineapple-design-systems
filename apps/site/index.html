@@ -4,6 +4,51 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pineapple UI</title>
+    <meta
+      name="description"
+      content="A presentational React design system: thin, typed wrappers over Radix Themes, published independently under the @pineappleui scope."
+    />
+
+    <!-- The .ico is listed first and the SVG second on purpose: a browser that
+         understands `type="image/svg+xml"` prefers the later, more specific
+         declaration, and one that does not falls back to the .ico. The .ico
+         also answers the bare /favicon.ico request that agents make without
+         reading this document at all — without the file, GitHub Pages serves
+         them 404.html, i.e. the SPA shell, as an image. -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Site-wide and static by design. This is a plain SPA with no
+         prerendering, so there is no build step that could vary these per
+         route; a deep link therefore unfurls as the site, not as the page.
+         The alternative (per-page cards) needs prerendering first, and is a
+         much larger change than a link preview justifies. og:image is an
+         absolute URL because scrapers resolve it without a document base, and
+         a PNG because none of them rasterize SVG — apps/site/public/og-card.svg
+         is its source. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Pineapple UI" />
+    <meta property="og:title" content="Pineapple UI" />
+    <meta
+      property="og:description"
+      content="A presentational React design system: thin, typed wrappers over Radix Themes, published independently under the @pineappleui scope."
+    />
+    <meta property="og:url" content="https://designpineapple.com/" />
+    <meta property="og:image" content="https://designpineapple.com/og-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Pineapple UI — thin, typed wrappers over Radix Themes, published under the @pineappleui scope."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pineapple UI" />
+    <meta
+      name="twitter:description"
+      content="A presentational React design system: thin, typed wrappers over Radix Themes, published independently under the @pineappleui scope."
+    />
+    <meta name="twitter:image" content="https://designpineapple.com/og-card.png" />
   </head>
   <body>
     <div id="root"></div>
