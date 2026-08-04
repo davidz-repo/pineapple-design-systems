@@ -4,9 +4,12 @@ import { getMatchingGrayColor } from '@radix-ui/themes/helpers';
 import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 
 // Returns the first-paint script body as a string. Consumers inline it in
-// <script>...</script> in their HTML head BEFORE any stylesheet or React module
-// loads, so the page paints the stored theme instead of painting the default
-// and snapping to it.
+// <script>...</script> at the END of their <body>, AFTER the element the
+// provider tree mounts into, so the page paints the stored theme instead of
+// painting the default and snapping to it. That is still ahead of React — the
+// module script that mounts the tree is deferred, so it runs after this one —
+// and it is the only placement that does anything at all: see
+// DEFAULT_ROOT_ELEMENT_ID below for why an earlier one is a silent no-op.
 //
 // Both options default, and the defaults are the only values that work unless
 // the consumer changes both surfaces: the key is the one
@@ -58,9 +61,11 @@ interface GetFoucScriptOptions {
 // The element the script paints. It is `#root` because that is what the
 // provider tree renders into and therefore what Radix's <Theme> will claim on
 // hydration; painting anything else is a first paint that hydration does not
-// agree with. Absent, the script returns silently — a page that has not created
-// its mount point yet is the ordinary case for a snippet that runs in <head>,
-// and throwing there would take the rest of the page's inline scripts with it.
+// agree with. Absent, the script returns silently rather than throwing —
+// throwing inside an inline script would take the rest of the page's inline
+// scripts down with it. That silence is what makes the placement above
+// load-bearing: run this before its mount point is parsed (from <head>, say)
+// and it finds nothing, paints nothing, and reports nothing while it does.
 const DEFAULT_ROOT_ELEMENT_ID = 'root';
 
 // Radix derives the gray scale from the accent, and <Theme> here is never given

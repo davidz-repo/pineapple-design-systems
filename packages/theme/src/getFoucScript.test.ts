@@ -25,9 +25,15 @@ const [NON_DEFAULT_ACCENT] = ACCENT_COLORS.filter(accentColor => accentColor !==
 
 // ── Running the boot script the way a browser does ──────────────────────────
 //
-// The script is a string meant for an inline <script> in <head>, so the only
-// faithful way to exercise it is to let jsdom execute it. Two consequences,
-// both load-bearing for every helper below:
+// The script is a string meant for an inline <script> at the end of the
+// consumer's <body>, so the only faithful way to exercise it is to let jsdom
+// execute it. The helpers below reproduce that ordering the way it matters —
+// `#root` is written into <body> BEFORE the script is injected — while the
+// <script> node itself goes into <head>, which is a jsdom mechanic and not the
+// documented placement: jsdom runs a script wherever it is inserted, and
+// keeping it out of <body> keeps it out of the markup the assertions read.
+//
+// Two consequences, both load-bearing for every helper below:
 //
 //   1. Globals the script assigns are NOT visible to test code — jsdom runs it
 //      against its own window, which is a different object from the `window`
