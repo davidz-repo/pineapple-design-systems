@@ -1,6 +1,7 @@
 import { act } from 'react';
 
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -87,6 +88,13 @@ vi.mock('../../stories', async (importOriginal) => {
     storyModuleFor: (slug: string) => stubbed.get(slug) ?? actual.storyModuleFor(slug),
   };
 });
+
+// The address itself, on screen, for the test that is about the address.
+// MemoryRouter keeps no `window.location` to read.
+function CurrentPath() {
+  const { pathname } = useLocation();
+  return <p>{`test-only: at ${pathname}`}</p>;
+}
 
 describe('overview tab', () => {
   it('opens with the examples, above the README', async () => {
@@ -350,6 +358,21 @@ describe('tabs', () => {
     // them the way the Overview demotes the README's.
     expect(await screen.findByRole('heading', { name: '0.1.0', level: 2 }, SUSPENSE_TIMEOUT))
       .toBeInTheDocument();
+  });
+
+  it('sends the tab\'s old address to the changelog', async () => {
+    await renderApp('/components/button/versions', <CurrentPath />);
+
+    // A navigation, so it is waited for: React Router runs one inside a
+    // transition, and the render right after the click is still the old page.
+    await waitFor(() => {
+      expect(screen.getByText('test-only: at /components/button/changelog')).toBeInTheDocument();
+    }, SUSPENSE_TIMEOUT);
+    // The address moved AND the tab drew: a redirect that lands on "no such
+    // tab" would satisfy half of this.
+    expect(await screen.findByRole('heading', { name: '0.1.0', level: 2 }, SUSPENSE_TIMEOUT))
+      .toBeInTheDocument();
+    expect(screen.queryByText(/has no “versions” tab/)).not.toBeInTheDocument();
   });
 
   it('answers an unknown tab inside the page, not with a full-page 404', async () => {

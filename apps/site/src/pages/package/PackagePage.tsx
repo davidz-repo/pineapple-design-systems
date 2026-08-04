@@ -9,7 +9,7 @@ import { LiveRegion } from '@pineappleui/live-region';
 import { Stack } from '@pineappleui/stack';
 import { Text } from '@pineappleui/text';
 import { TabNav } from '@radix-ui/themes';
-import { Route, Routes, useHref, useParams } from 'react-router';
+import { Navigate, Route, Routes, useHref, useParams } from 'react-router';
 
 import { CodeBlock } from '../../components/CodeBlock';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -88,6 +88,15 @@ function PackageContent({ entry }: { entry: RegistryEntry }) {
             />
           )}
           <Route path="changelog" element={<ChangelogTab slug={entry.slug} />} />
+          {/* This tab was `versions` until PR #44 renamed it, and the address
+              is in whatever anyone had bookmarked, linked or left in their
+              history. `replace`, so the dead address does not sit in the
+              reader's Back stack. Delete it once those referrers have dried
+              up — it is here to survive a rename, not forever. */}
+          <Route
+            path="versions"
+            element={<Navigate to={tabPath(entry.slug, 'changelog')} replace />}
+          />
           <Route path="*" element={<NoSuchTab entry={entry} tabs={tabs} />} />
         </Routes>
       </Suspense>
