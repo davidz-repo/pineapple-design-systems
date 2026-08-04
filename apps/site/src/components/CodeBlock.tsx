@@ -67,9 +67,16 @@ interface CodeBlockProps {
    * by the rules of a language it is not written in.
    */
   language?: string;
+  /**
+   * What this code is FOR — an example's name. It names the copy button ("Copy
+   * code for Variants"), because a page carrying a dozen fences otherwise hands
+   * a screen reader a dozen identical "Copy code" buttons and no way to tell
+   * which one copies what. Omitted, the button reads "Copy code".
+   */
+  subject?: string;
 }
 
-export function CodeBlock({ code, language }: CodeBlockProps) {
+export function CodeBlock({ code, language, subject }: CodeBlockProps) {
   const [copyState, setCopyState] = useState<CopyState>('idle');
 
   // Typed `ReactElement`, NOT `ReactNode`: React 19's ReactNode includes
@@ -100,7 +107,7 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
     <div className="code-block">
       <pre><code>{highlighted ?? code}</code></pre>
       <IconButton
-        aria-label="Copy code"
+        aria-label={subject === undefined ? 'Copy code' : `Copy code for ${subject}`}
         className="code-block-copy"
         variant="ghost"
         color={copyState === 'failed' ? 'red' : 'gray'}

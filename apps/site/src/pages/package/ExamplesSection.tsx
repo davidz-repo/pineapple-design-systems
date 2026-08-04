@@ -63,10 +63,11 @@ function Example({
 }) {
   const [isSourceShown, setIsSourceShown] = useState(false);
   const sourceId = useId();
+  const title = humanizeExportName(name);
 
   return (
     <Stack gap="2">
-      <Heading as="h3" size="3">{humanizeExportName(name)}</Heading>
+      <Heading as="h3" size="3">{title}</Heading>
       {/* A boundary per example, not per page: these are other packages' story
           files rendering live, and one of them throwing must cost its own
           canvas rather than every example below it and the README under those. */}
@@ -89,12 +90,18 @@ function Example({
           {/* Inline so the button keeps its own width: a Stack is a flex column
               and would stretch it across the page. */}
           <Inline gap="2">
+            {/* The visible text is the same on every one of these, and a reader
+                pulling up the page's buttons got a list of identical "Show
+                code"s. The name says which example — starting with the visible
+                text, so a voice-control user can still say what they read
+                (WCAG 2.5.3). */}
             <Button
               size="1"
               variant="ghost"
               color="gray"
               aria-expanded={isSourceShown}
               aria-controls={sourceId}
+              aria-label={`${isSourceShown ? 'Hide' : 'Show'} code for ${title}`}
               onClick={() => setIsSourceShown(shown => !shown)}
             >
               {isSourceShown ? 'Hide code' : 'Show code'}
@@ -104,7 +111,7 @@ function Example({
               something real; what it costs to draw — a full syntax highlight
               per example — happens only once someone asks for it. */}
           <div id={sourceId}>
-            {isSourceShown && <CodeBlock code={source} language="tsx" />}
+            {isSourceShown && <CodeBlock code={source} language="tsx" subject={title} />}
           </div>
         </>
       )}

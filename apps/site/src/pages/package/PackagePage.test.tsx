@@ -117,7 +117,7 @@ describe('overview tab', () => {
     // something real.
     const toggles = await screen.findAllByRole(
       'button',
-      { name: 'Show code' },
+      { name: /^Show code for / },
       SUSPENSE_TIMEOUT,
     );
     expect(toggles.length).toBeGreaterThan(1);
@@ -145,6 +145,28 @@ describe('overview tab', () => {
     });
     expect(toggle).toHaveTextContent('Show code');
     expect(region?.textContent).toBe('');
+  });
+
+  it('names the example each code control acts on', async () => {
+    await renderApp('/components/button');
+    await screen.findByRole('heading', { name: 'Examples' }, SUSPENSE_TIMEOUT);
+
+    // A dozen buttons reading "Show code" is a list a screen-reader user
+    // cannot choose from. The visible text stays the START of the name, so
+    // "click Show code" still works by voice (WCAG 2.5.3).
+    const toggle = screen.getByRole('button', { name: 'Show code for Variants' });
+    expect(toggle).toHaveTextContent('Show code');
+
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+
+    expect(toggle).toHaveAccessibleName('Hide code for Variants');
+    // The fence it revealed carries the same name onto its copy button.
+    expect(screen.getByRole('button', { name: 'Copy code for Variants' })).toBeInTheDocument();
+    // The fences that are nobody's example — the install command, the README's
+    // own — keep the plain label.
+    expect(screen.getAllByRole('button', { name: 'Copy code' }).length).toBeGreaterThan(0);
   });
 
   it('keeps a broken example inside its own canvas', async () => {
