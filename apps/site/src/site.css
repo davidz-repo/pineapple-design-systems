@@ -131,10 +131,19 @@
   color: var(--gray-11);
 }
 
-.markdown table {
-  width: 100%;
-  border-collapse: collapse;
+/* README prop tables are wider than a narrow viewport; the wrapper scrolls the
+   table rather than letting it push the page sideways. `min-width: 100%` (not
+   `width`) so a table still fills a wide column but may grow past a narrow one,
+   and the first column gets a floor so the name never wraps a character at a
+   time to buy a 60-word description room it still would not have. */
+.markdown-table-scroll {
+  overflow-x: auto;
   margin: 0 0 var(--space-4);
+}
+
+.markdown table {
+  min-width: 100%;
+  border-collapse: collapse;
   font-size: var(--font-size-2);
   line-height: var(--line-height-2);
 }
@@ -145,6 +154,11 @@
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--gray-a5);
   vertical-align: top;
+}
+
+.markdown th:first-child,
+.markdown td:first-child {
+  min-width: 8rem;
 }
 
 .markdown th {
@@ -167,7 +181,10 @@
 
 .code-block pre {
   margin: 0;
-  padding: var(--space-3) var(--space-4);
+  /* The copy button is absolutely positioned over this box, so the right
+     padding is its gutter: without it a short line sits under the button, and
+     a long one scrolls beneath it. */
+  padding: var(--space-3) var(--space-8) var(--space-3) var(--space-4);
   background: var(--gray-a2);
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
@@ -181,6 +198,53 @@
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
+}
+
+/* Syntax highlighting (highlight.js scopes, emitted by lowlight in CodeBlock).
+   The palette is Radix scale variables and nothing else — no hex, no imported
+   highlight.js theme file — so a token re-resolves with the appearance and the
+   accent the reader picked instead of pinning one theme's colours into the
+   page. Five hues on purpose: comments recede, and the four that remain each
+   answer a different question about a token — is it syntax, a value, a name,
+   or a key?
+
+   Every selector below is a scope the four registered grammars (bash, json,
+   typescript, xml) actually emit — checked against their sources and against
+   lowlight's output, not copied from a highlight.js theme, which carries the
+   scopes of ~190 languages this site does not register. The scopes they emit
+   and this does NOT colour — `tag`, `params`, `subst`, `punctuation`,
+   `doctag` — inherit the code colour on purpose; that omission is the
+   restraint, not an oversight. */
+
+.code-block .hljs-comment {
+  color: var(--gray-a11);
+  font-style: italic;
+}
+
+.code-block .hljs-keyword,
+.code-block .hljs-built_in,
+.code-block .hljs-literal,
+.code-block .hljs-type,
+.code-block .hljs-meta {
+  color: var(--accent-11);
+}
+
+.code-block .hljs-string,
+.code-block .hljs-regexp {
+  color: var(--green-11);
+}
+
+.code-block .hljs-title,
+.code-block .hljs-name {
+  color: var(--blue-11);
+}
+
+.code-block .hljs-attr,
+.code-block .hljs-property,
+.code-block .hljs-variable,
+.code-block .hljs-number,
+.code-block .hljs-symbol {
+  color: var(--purple-11);
 }
 
 /* ---- Playground ------------------------------------------------------ */
