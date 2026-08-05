@@ -5,9 +5,10 @@
   "private": true,
   "description": "Reference site for @pineappleui — per-package docs, live examples and playgrounds, rendered from each package's own README, CHANGELOG and stories.",
   "scripts": {
-    "dev": "npx turbo run build --filter=@pineappleui/theme && vite",
+    "dev": "npx turbo run props --filter=@pineappleui/site && vite",
     "build": "vite build",
     "lint": "eslint .",
+    "props": "node scripts/generate-props.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
