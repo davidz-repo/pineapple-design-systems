@@ -315,6 +315,16 @@ body {
   top: 0;
   z-index: 2;
   background: var(--color-background);
+  /* A query container, so the wordmark's clamp below can be sized from THIS
+     BOX instead of from the viewport — see .site-header-wordmark for why `vw`
+     was the wrong ruler. `inline-size`, not `size`: it contains the INLINE axis
+     only, so block size still follows the content and everything the paragraph
+     above depends on survives — measured, one row is 62.6px as before and a
+     wrapped header still grows to hold both (105.6px at 320px), and the sticky
+     box still pins at top 0 at every width. Layout and style containment come
+     with it; PAINT containment does not, so the bottom border and the focus
+     rings on the controls inside still draw where they always did. */
+  container-type: inline-size;
 }
 
 .site-header-brand {
@@ -656,30 +666,66 @@ body {
      header, which is the trade chosen deliberately: the name stays readable on
      every screen, and it is small.
 
-     Fluid rather than one step down, so it is only ever as small as the
-     viewport actually forces — about 10.4px at 390px, 13.5px at 430px, and
-     back to the full --font-size-3 by 484px, where the name fits on its own.
+     Fluid rather than one step down, so it is only ever as small as the row
+     actually forces — measured 10.4px at 390px, 13.5px at 430px, and back to
+     the full --font-size-3 by 484px, where the name fits on its own.
 
-     The slope leaves ~12px of slack rather than filling the row exactly. Sized
-     to the millimetre it DID fit at 390px in the layout engine's arithmetic and
+     THE RULER IS THE HEADER, NOT THE VIEWPORT. This was `7.69vw - 19.6px`, and
+     `vw` counts a classic scrollbar that the layout never gets: in a desktop
+     window narrow enough to reach this block, 15px of scrollbar meant the label
+     was sized for 15px of width it did not have. That is MORE than the ~12px of
+     slack the slope buys, so the row wrapped in exactly the case the slack
+     exists to prevent — measured at 390/430/484px with a 15px scrollbar, the
+     slack ran -2.97/-2.85/-2.61px and the header rendered 106.56px against its
+     62.6px token, parking every sticky rail that reads --site-header-h 44px too
+     high. `100cqi` is the header's own content box (.site-header above is the
+     query container), which is scrollbar-exact by construction: the same three
+     widths now measure +2.09/+11.97/+12.06px and hold one row, i.e. a window
+     with a 15px scrollbar behaves as the phone 15px narrower that it is.
+
+     Same line, re-expressed, not a new slope: 7.69vw is 100/13.0, and
+     19.6 x 13.0 = 254.8 = 219.6 + 35.2 — where 35.2px is the header's two
+     --space-4 paddings at the pinned 110% scale. Subtracting them before the
+     divide makes that padding DERIVED rather than baked into a constant, so a
+     change to --space-4 or --scaling no longer silently invalidates the number.
+     On a phone it renders identically, to a hundredth of a pixel: 10.40/13.48/
+     17.6px at 390/430/484, against 10.39/13.47/17.6 before.
+
+     The slope leaves ~12px of slack rather than filling the row exactly —
+     measured 11.9px at 390, 12.0px at 430, 12.4px at 484. Sized to the
+     millimetre it DID fit at 390px in the layout engine's arithmetic and
      wrapped anyway: the label is measured in fractional pixels and the row it
      sits in is rounded, so a fit with nothing spare is a fit that depends on
      rounding going its way. The slack is the difference between one row and
      two on the commonest phone width there is.
 
-     The bound is 10px and it is a LEGIBILITY floor, not a fit one: below about
-     373px even this is too narrow, and there the header wraps to two rows,
-     which .site-header is built to survive (flex-wrap plus min-height, not
-     height). One row at any cost would mean single digits.
+     The bound is 10px and it is a LEGIBILITY floor, not a fit one. At that
+     floor the row needs 337.7px of header content (brand 165.1 + gap 17.6 +
+     controls 155.0), so below that — a 373px window with no scrollbar, a 388px
+     one with 15px of scrollbar — the header wraps to two rows, which
+     .site-header is built to survive (flex-wrap plus min-height, not height).
+     One row at any cost would mean single digits.
 
      Literal px here, against this file's habit of tokens, for two reasons: the
-     thing being fitted INTO is the viewport, which is px and does not scale;
-     and a floor for legibility is a physical size, so a floor that grew with
-     --scaling would stop being a floor. The slope is measured at the pinned
-     110% scale — the row is the mark, this label, the cycler and Menu, and it
-     is re-derived if any of those change. */
+     thing being fitted INTO is a box measured in px; and a floor for legibility
+     is a physical size, so a floor that grew with --scaling would stop being a
+     floor.
+
+     219.6 IS A CONVENTION, NOT AN INVARIANT. Nothing here measures the row:
+     the constant was derived at the pinned 110% scale against a row holding the
+     mark, this label, the appearance cycler and Menu, and CSS cannot notice
+     when that set changes — add a fourth control and the header just starts
+     wrapping. app.test.tsx pins the control set for exactly this reason and its
+     failure message points back at this rule; that test is the whole tripwire.
+
+     line-height is overridden because it does NOT follow font-size: Radix's
+     rt-r-size-3 hands .rt-Text a --line-height of 26.4px, leading measured for
+     the 17.6px this rule replaces, which is a 2.5x line box on a 10.4px label.
+     1.5 is Radix's own size-3 ratio (26.4/17.6), so at the top of the clamp
+     this is the identical 26.4px and below it the leading follows the type. */
   .site-header-wordmark {
-    font-size: clamp(10px, 7.69vw - 19.6px, var(--font-size-3));
+    font-size: clamp(10px, calc((100cqi - 219.6px) / 13), var(--font-size-3));
+    line-height: 1.5;
     white-space: nowrap;
   }
 
