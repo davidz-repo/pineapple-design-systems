@@ -27,8 +27,10 @@ import type { BoxProps } from '@pineappleui/box';
 | `Box` | The element. Takes every prop Radix's `Box` takes, including `ref`. |
 | `BoxProps` | Its props — `ComponentPropsWithRef<typeof Box>` from Radix, re-exported so consumers do not import the type from Radix either. |
 
-The prop set is deliberately not reproduced here. `BoxProps` is the authoritative one, your
+This README does not hand-write the prop set: `BoxProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.
+The docs site generates the full table from those same types —
+https://designpineapple.com/components/box.
 
 ## The contract
 

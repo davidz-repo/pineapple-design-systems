@@ -30,8 +30,10 @@ import type { IconButtonProps } from '@pineappleui/icon-button';
 | `IconButton` | The element. Takes every prop Radix's `IconButton` takes, including `ref`. |
 | `IconButtonProps` | Its props — `ComponentPropsWithRef<typeof IconButton>` from Radix, re-exported so consumers do not import the type from Radix either. |
 
-The prop set is deliberately not reproduced here. `IconButtonProps` is the authoritative one, your
+This README does not hand-write the prop set: `IconButtonProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.
+The docs site generates the full table from those same types —
+https://designpineapple.com/components/icon-button.
 
 ## The contract
 

@@ -28,9 +28,11 @@ import type { IconName, IconProps, IconSize } from '@pineappleui/icons';
 | `IconSize` | The union of size tokens — `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'`. |
 | `IconProps` | The full prop type. |
 
-The glyph list is deliberately not reproduced here. `IconName` is the authoritative set, and a
+This README does not hand-write the glyph list. `IconName` is the authoritative set, and a
 second copy in prose is a copy that can fall out of date — your editor completes it from the
-type, and `tsc` rejects a name that does not exist.
+type, and `tsc` rejects a name that does not exist. The docs site prints the whole set, as
+`Icon`'s `name` type, generated from that same union —
+https://designpineapple.com/components/icons.
 
 ## Enumerating the set
 
