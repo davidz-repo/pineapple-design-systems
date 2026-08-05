@@ -775,7 +775,7 @@ body {
    until about 1031px, so 861–1030px is a second band where a described table
    still scrolls. That one is not this breakpoint's to fix — the levers are the
    column floors themselves, or the page's own width — and it is named here so
-   it is a known gap rather than a surprise. */
+   it is a known gap rather than a surprise.
 
    Applied to `.markdown table` as well as `.props-table`, because they are the
    same object and share every rule above. The theme package's options table
