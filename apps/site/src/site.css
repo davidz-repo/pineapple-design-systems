@@ -660,15 +660,18 @@ body {
     padding-inline: var(--space-4);
   }
 
-  /* "Pineapple Design Systems" is 229px at the desktop size and the row has
-     147px for it at 390px, so on a phone the name does not fit and something
-     has to give. This scales the wordmark instead of hiding it or wrapping the
-     header, which is the trade chosen deliberately: the name stays readable on
-     every screen, and it is small.
+  /* "Pineapple Design" is 149.9px at the desktop size and the row has 147px for
+     it at 390px, so on a phone the name STILL does not fit — by 2.9px — and
+     something has to give. Shortening the name from "Pineapple Design Systems"
+     (229px) did not retire this rule, it only moved where it bites: measured
+     with the clamp removed, the header wraps to two rows at 320, 360 and 390px,
+     the last of those by that same 2.9px. So the wordmark still scales rather
+     than hiding or wrapping the header, which is the trade chosen deliberately:
+     the name stays readable on every screen, and it is small.
 
      Fluid rather than one step down, so it is only ever as small as the row
-     actually forces — measured 10.4px at 390px, 13.5px at 430px, and back to
-     the full --font-size-3 by 484px, where the name fits on its own.
+     actually forces — measured 15.9px at 390px, and back to the full
+     --font-size-3 by 405px, where the name fits on its own.
 
      THE RULER IS THE HEADER, NOT THE VIEWPORT. This was `7.69vw - 19.6px`, and
      `vw` counts a classic scrollbar that the layout never gets: in a desktop
@@ -683,40 +686,53 @@ body {
      widths now measure +2.09/+11.97/+12.06px and hold one row, i.e. a window
      with a 15px scrollbar behaves as the phone 15px narrower that it is.
 
-     Same line, re-expressed, not a new slope: 7.69vw is 100/13.0, and
-     19.6 x 13.0 = 254.8 = 219.6 + 35.2 — where 35.2px is the header's two
-     --space-4 paddings at the pinned 110% scale. Subtracting them before the
-     divide makes that padding DERIVED rather than baked into a constant, so a
-     change to --space-4 or --scaling no longer silently invalidates the number.
-     On a phone it renders identically, to a hundredth of a pixel: 10.40/13.48/
-     17.6px at 390/430/484, against 10.39/13.47/17.6 before.
+     THE TWO CONSTANTS ARE DIFFERENT KINDS OF THING, and only one of them
+     followed the name. 219.6 is everything on the row that is NOT the wordmark
+     plus the slack below — measured 207.8px of brand-minus-label, gap and
+     controls, and ~11.8px of cushion — so it is a property of the header's
+     control set and survived the rename untouched (confirmed at two widths:
+     the same 207.8 falls out at 390px and at 484px). The divisor is the LABEL:
+     it is that string's px of width per px of type, so it is the one number a
+     new name invalidates. "Pineapple Design Systems" was 229/17.6 = 13.01, and
+     the rule divided by 13; "Pineapple Design" is 149.9/17.6 = 8.51, so it
+     divides by 8.5. Left at 13 the clamp went on sizing the row for a name a
+     third longer than the one in it — 10.4px at 390px with 58px of the row
+     standing empty.
+
+     Rounding the divisor DOWN (8.51 to 8.5, as 13.01 was to 13) sizes the label
+     a hair large and spends a hair of the slack, which is the safe direction:
+     it errs toward filling the row rather than toward a gap that reads as a
+     mistake.
 
      The slope leaves ~12px of slack rather than filling the row exactly —
-     measured 11.9px at 390, 12.0px at 430, 12.4px at 484. Sized to the
-     millimetre it DID fit at 390px in the layout engine's arithmetic and
+     measured 11.65px at 340 and 360, 11.59px at 390, 12.12px at 405. Sized to
+     the millimetre it DID fit at 390px in the layout engine's arithmetic and
      wrapped anyway: the label is measured in fractional pixels and the row it
      sits in is rounded, so a fit with nothing spare is a fit that depends on
      rounding going its way. The slack is the difference between one row and
      two on the commonest phone width there is.
 
-     The bound is 10px and it is a LEGIBILITY floor, not a fit one. At that
-     floor the row needs 337.7px of header content (brand 165.1 + gap 17.6 +
-     controls 155.0), so below that — a 373px window with no scrollbar, a 388px
-     one with 15px of scrollbar — the header wraps to two rows, which
-     .site-header is built to survive (flex-wrap plus min-height, not height).
-     One row at any cost would mean single digits.
+     The bound is 10px and it is a LEGIBILITY floor, not a fit one. The shorter
+     name reaches it later than the long one did: below about 340px of window
+     (325px of header content) the clamp is pinned at 10px and the row wraps to
+     two, against 373px before. .site-header is built to survive that (flex-wrap
+     plus min-height, not height). One row at any cost would mean single digits.
 
      Literal px here, against this file's habit of tokens, for two reasons: the
      thing being fitted INTO is a box measured in px; and a floor for legibility
      is a physical size, so a floor that grew with --scaling would stop being a
      floor.
 
-     219.6 IS A CONVENTION, NOT AN INVARIANT. Nothing here measures the row:
-     the constant was derived at the pinned 110% scale against a row holding the
+     BOTH NUMBERS ARE CONVENTIONS, NOT INVARIANTS. Nothing here measures the
+     row: 219.6 was derived at the pinned 110% scale against a row holding the
      mark, this label, the appearance cycler and Menu, and CSS cannot notice
      when that set changes — add a fourth control and the header just starts
      wrapping. app.test.tsx pins the control set for exactly this reason and its
      failure message points back at this rule; that test is the whole tripwire.
+     8.5 has a weaker one still: nothing at all connects it to the string in
+     Layout.tsx, so editing the wordmark's text silently invalidates it in
+     either direction — a longer name wraps the header, a shorter one strands
+     empty row. Re-measure the label when you rename the site.
 
      line-height is overridden because it does NOT follow font-size: Radix's
      rt-r-size-3 hands .rt-Text a --line-height of 26.4px, leading measured for
@@ -724,7 +740,7 @@ body {
      1.5 is Radix's own size-3 ratio (26.4/17.6), so at the top of the clamp
      this is the identical 26.4px and below it the leading follows the type. */
   .site-header-wordmark {
-    font-size: clamp(10px, calc((100cqi - 219.6px) / 13), var(--font-size-3));
+    font-size: clamp(10px, calc((100cqi - 219.6px) / 8.5), var(--font-size-3));
     line-height: 1.5;
     white-space: nowrap;
   }

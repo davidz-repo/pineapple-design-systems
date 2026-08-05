@@ -5,6 +5,12 @@ import { useNavigate } from 'react-router';
 
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
+// The stylesheet as TEXT, not as styling: jsdom applies none of this, and the
+// wordmark test below reads one constant back out of it. `?raw` is how the rest
+// of this app already reads source it means to inspect rather than run — see
+// stories.ts and content.ts.
+import siteCss from './site.css?raw';
+
 import {
   expectTitle,
   findTabLink,
@@ -57,7 +63,7 @@ function BackButton() {
 
 it('renders the home page with a card per registry entry', async () => {
   await renderAt('/');
-  expect(screen.getByRole('heading', { name: 'Pineapple Design Systems', level: 1 })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Pineapple Design', level: 1 })).toBeInTheDocument();
   // The Button card (the sidebar link has no blurb text).
   expect(screen.getByText('The action trigger, in six variants.')).toBeInTheDocument();
 });
@@ -169,31 +175,72 @@ it('renders exactly the header controls the wordmark clamp was derived from', as
   expect(named, WORDMARK_CLAMP).toEqual(HEADER_CONTROLS);
 });
 
+// The clamp's OTHER constant, and the one the control list above cannot see.
+// 219.6 is the row MINUS the label, so it belongs to that list; the divisor is
+// the LABEL — the wordmark's own px of width per px of type, measured 149.86 at
+// 17.6px, so 8.51 rounded down to 8.5 the way the old name's 13.01 was rounded
+// to 13. Nothing at runtime connects it to the string Layout.tsx renders, and
+// getting it wrong fails silently in whichever direction the edit went: a
+// longer name wraps the phone header to two rows, a shorter one shrinks the
+// label for room it is no longer using (the rename this test was added for left
+// the divisor at 13 and rendered 10.4px at 390px with 58px of the row empty).
+//
+// jsdom measures no text, so this cannot re-derive the number — it pins the
+// PAIR, which is enough to make the edit that invalidates it loud.
+const WORDMARK_TEXT = 'Pineapple Design';
+const WORDMARK_DIVISOR = '8.5';
+
+const WORDMARK_DIVISOR_MESSAGE = [
+  `The header wordmark and the divisor in its clamp disagree. The clamp —`,
+  '`.site-header-wordmark` in site.css\'s `@media (max-width: 860px)` block —',
+  'divides by the LABEL\'s width per px of type, so it is only correct for the',
+  'exact string the header renders.',
+  '',
+  'If you changed the wordmark, re-measure it: render the header wide enough',
+  'that the clamp is at its --font-size-3 ceiling, take the text\'s width, and',
+  'divide by that font size (17.6px at the pinned 110% scale). Round DOWN to',
+  'one decimal. Then update the clamp, this constant, and the measurements',
+  'quoted in that rule\'s comment.',
+].join('\n');
+
+it('keeps the wordmark clamp divisor in step with the wordmark itself', async () => {
+  await renderAt('/');
+  const wordmark = document.querySelector('.site-header-wordmark');
+  expect(wordmark?.textContent, WORDMARK_DIVISOR_MESSAGE).toBe(WORDMARK_TEXT);
+
+  const clamp = siteCss.match(
+    /\.site-header-wordmark\s*\{[^}]*?clamp\(\s*10px\s*,\s*calc\(\(100cqi - 219\.6px\)\s*\/\s*([\d.]+)\)/,
+  );
+  const shape = 'the .site-header-wordmark clamp is no longer in the shape this test reads';
+  expect(clamp, shape).not.toBeNull();
+  expect(clamp?.[1], WORDMARK_DIVISOR_MESSAGE).toBe(WORDMARK_DIVISOR);
+});
+
 it('retitles the document per page and per tab', async () => {
   await renderAt('/');
-  await expectTitle('Pineapple Design Systems — React components on Radix Themes');
+  await expectTitle('Pineapple Design — React components on Radix Themes');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Button' }));
   });
-  await expectTitle('Button — Pineapple Design Systems');
+  await expectTitle('Button — Pineapple Design');
 
   // A tab is not a new page, but it is a new history entry — three of them
-  // reading "Button — Pineapple Design Systems" is three entries nobody can tell apart.
+  // reading "Button — Pineapple Design" is three entries nobody can tell apart.
   await act(async () => {
     fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button changelog — Pineapple Design Systems');
+  await expectTitle('Button changelog — Pineapple Design');
 
   await act(async () => {
     fireEvent.click(await findTabLink(/Playground/));
   });
-  await expectTitle('Button playground — Pineapple Design Systems');
+  await expectTitle('Button playground — Pineapple Design');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Getting started' }));
   });
-  await expectTitle('Getting started — Pineapple Design Systems');
+  await expectTitle('Getting started — Pineapple Design');
 });
 
 it('scrolls to the top and focuses the main region on a page change only', async () => {
@@ -204,7 +251,7 @@ it('scrolls to the top and focuses the main region on a page change only', async
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Button' }));
   });
-  await expectTitle('Button — Pineapple Design Systems');
+  await expectTitle('Button — Pineapple Design');
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0 });
   expect(document.activeElement).toBe(document.getElementById('main'));
 
@@ -214,7 +261,7 @@ it('scrolls to the top and focuses the main region on a page change only', async
   await act(async () => {
     fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button changelog — Pineapple Design Systems');
+  await expectTitle('Button changelog — Pineapple Design');
   expect(scrollTo).not.toHaveBeenCalled();
 });
 
@@ -274,7 +321,7 @@ it('discloses the nav panel from the header and closes it on navigation', async 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Getting started' }));
   });
-  await expectTitle('Getting started — Pineapple Design Systems');
+  await expectTitle('Getting started — Pineapple Design');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
   expect(panel).toHaveAttribute('data-open', 'false');
 });
@@ -311,13 +358,13 @@ it('does not reopen the panel when history returns to the page it was opened on'
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: /The action trigger/ }));
   });
-  await expectTitle('Button — Pineapple Design Systems');
+  await expectTitle('Button — Pineapple Design');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'test-only: back' }));
   });
-  await expectTitle('Pineapple Design Systems — React components on Radix Themes');
+  await expectTitle('Pineapple Design — React components on Radix Themes');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
 

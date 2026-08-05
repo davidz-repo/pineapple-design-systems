@@ -96,11 +96,13 @@ export function Layout() {
       <header className="site-header">
         <Link to="/" className="site-header-brand">
           <PineappleMark />
-          {/* Classed because the name is long enough that the phone header
-              cannot hold it at this size — site.css scales it down below
-              860px. size="3" stays the desktop value; the class only ever
-              overrides it where the row would otherwise wrap. */}
-          <Text className="site-header-wordmark" size="3" weight="bold">Pineapple Design Systems</Text>
+          {/* Classed because the phone header still cannot hold the name at
+              this size — only just, by 2.9px at 390px — so site.css scales it
+              down below 860px. size="3" stays the desktop value; the class only
+              ever overrides it where the row would otherwise wrap. CHANGING
+              THIS STRING invalidates the divisor in that rule, which is the
+              label's own width per px of type; site.css says so at length. */}
+          <Text className="site-header-wordmark" size="3" weight="bold">Pineapple Design</Text>
           <Badge className="site-docs-badge" variant="soft" size="1">docs</Badge>
         </Link>
         <Inline gap="4" align="center">

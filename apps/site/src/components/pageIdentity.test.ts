@@ -32,32 +32,32 @@ describe('pageKeyFor', () => {
 
 describe('pageTitleFor', () => {
   it('names the site on the home page and the page on every other', () => {
-    expect(pageTitleFor('/')).toBe('Pineapple Design Systems — React components on Radix Themes');
-    expect(pageTitleFor('/getting-started')).toBe('Getting started — Pineapple Design Systems');
+    expect(pageTitleFor('/')).toBe('Pineapple Design — React components on Radix Themes');
+    expect(pageTitleFor('/getting-started')).toBe('Getting started — Pineapple Design');
     expect(pageTitleFor(`/components/${firstEntry.slug}`))
-      .toBe(`${firstEntry.name} — Pineapple Design Systems`);
+      .toBe(`${firstEntry.name} — Pineapple Design`);
   });
 
   // The key deliberately collapses the tabs; the title deliberately does not.
-  // Three history entries reading "Button — Pineapple Design Systems" are three entries
+  // Three history entries reading "Button — Pineapple Design" are three entries
   // nobody can tell apart. Driven off the tab list so a tab added there with no
   // title of its own fails here rather than titling as not found.
   it('names every tab, unlike the page key', () => {
     for (const tab of PACKAGE_TABS) {
       expect(pageTitleFor(tabPath(firstEntry.slug, tab.segment)))
-        .toBe(`${firstEntry.name}${tab.titleSuffix} — Pineapple Design Systems`);
+        .toBe(`${firstEntry.name}${tab.titleSuffix} — Pineapple Design`);
     }
     expect(pageTitleFor(`/components/${firstEntry.slug}/`))
-      .toBe(`${firstEntry.name} — Pineapple Design Systems`);
+      .toBe(`${firstEntry.name} — Pineapple Design`);
   });
 
   it('titles anything unrouted as not found', () => {
-    expect(pageTitleFor('/nope')).toBe('Page not found — Pineapple Design Systems');
-    expect(pageTitleFor('/components/nope')).toBe('Page not found — Pineapple Design Systems');
+    expect(pageTitleFor('/nope')).toBe('Page not found — Pineapple Design');
+    expect(pageTitleFor('/components/nope')).toBe('Page not found — Pineapple Design');
     // A tab segment no route serves, and a path deeper than any route.
     expect(pageTitleFor(`/components/${firstEntry.slug}/nope`))
-      .toBe('Page not found — Pineapple Design Systems');
+      .toBe('Page not found — Pineapple Design');
     expect(pageTitleFor(`/components/${firstEntry.slug}/changelog/nope`))
-      .toBe('Page not found — Pineapple Design Systems');
+      .toBe('Page not found — Pineapple Design');
   });
 });
