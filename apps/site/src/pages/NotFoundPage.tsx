@@ -11,7 +11,12 @@ export function NotFoundPage() {
       <Text as="p" size="3">
         Nothing lives at this address. Head back to the
         {' '}
-        <Link to="/">introduction</Link>
+        {/* Classed, because an unclassed <Link> matches none of this site's
+            link rules and falls all the way through to the UA's #0000EE with
+            its own underline — which on a page whose palette is green and
+            amber is the loudest thing on the site, and is wrong on any
+            canvas. This is prose, so it takes the prose link treatment. */}
+        <Link to="/" className="site-prose-link">introduction</Link>
         .
       </Text>
     </Stack>

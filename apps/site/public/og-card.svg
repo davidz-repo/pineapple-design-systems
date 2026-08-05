@@ -25,13 +25,18 @@
   <rect width="1200" height="630" fill="#FBF5EC" />
   <rect y="618" width="1200" height="12" fill="#ffc53d" />
 
-  <g transform="translate(830 190) scale(9.4)">
+  <!-- The reframe from favicon.svg, composed onto this card's own placement so
+       all three files stay the same drawing. See that file for the geometry. -->
+  <g transform="translate(830 190) scale(9.4) translate(-1.7778 -1.2222) scale(1.1111)">
     <g fill="#46a758">
       <path d="M16 2 L19 10 L13 10 Z" />
       <path d="M16 2 L19 10 L13 10 Z" transform="rotate(-40 16 10)" />
       <path d="M16 2 L19 10 L13 10 Z" transform="rotate(40 16 10)" />
     </g>
-    <rect x="8" y="9" width="16" height="20" rx="7" fill="#ffc53d" />
+    <rect
+      x="8" y="9" width="16" height="20" rx="7"
+      fill="#ffc53d" stroke="#ab6400" stroke-width="1"
+    />
     <g clip-path="url(#og-pineapple-body)" fill="#ab6400">
       <use href="#og-pineapple-pip" x="12.5" y="14" />
       <use href="#og-pineapple-pip" x="19.5" y="14" />

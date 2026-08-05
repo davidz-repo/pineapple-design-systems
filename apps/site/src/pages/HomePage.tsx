@@ -62,8 +62,14 @@ function VariantShowcase() {
     <Stack gap="2">
       <Inline gap="4" align="center">
         <Text id={VARIANT_LABEL_ID} size="2" color="gray">Pick a variant:</Text>
+        {/* `align="center"` because the ghost variant is the odd box in this
+            row: Radix gives it `height: fit-content` plus negative margins, so
+            its layout box is its TEXT and its ink hangs outside. Without a
+            cross-axis rule a definite height opts out of stretch and it pins to
+            the top, sitting ~7px high against the other five. */}
         <Inline
           gap="2"
+          align="center"
           className="home-variants"
           role="group"
           aria-labelledby={VARIANT_LABEL_ID}
@@ -95,7 +101,12 @@ export function HomePage() {
     <Stack gap="6">
       <div className="home-hero">
         <Stack gap="4">
-          <Heading as="h1" size="9">Pineapple UI</Heading>
+          {/* Responsive, because size 9 is 66px at every width: on a 390px
+              phone that filled the line edge to edge with about 16px to spare,
+              so one more character in the wordmark would have wrapped it
+              badly. Nothing else on the site needs this — it is the only type
+              on the page set large enough for the viewport to matter. */}
+          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple UI</Heading>
           <Text as="p" size="4" color="gray">
             A presentational React design system: thin, typed wrappers over
             Radix Themes. Every package is a shell — props in, callbacks out —
@@ -141,7 +152,11 @@ export function HomePage() {
               this page, so the browser scrolls to it (and sets the sequential
               focus point) without a route change.
             */}
-            <Button asChild size="3" variant="soft" color="gray">
+            {/* Outline on the accent, not soft-on-gray. A grey chip beside an
+                amber solid read as NEUTRAL on the yellow page; on a white one
+                the same chip reads as INACTIVE, and this is a real action, not
+                a disabled twin of the button next to it. */}
+            <Button asChild size="3" variant="outline">
               <a href={`#${COMPONENTS_ANCHOR}`}>Browse components</a>
             </Button>
           </Inline>

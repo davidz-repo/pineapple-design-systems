@@ -33,10 +33,12 @@ export function ThemedTextAndButton() {
         Radix accent color and appearance (light/dark) come from ThemePreferencesProvider via
         DesignSystemProvider, which persists both under one localStorage key (
         {STORAGE_KEY}
-        ). The accent picker in the top-right writes it, and it survives a reload — an edit made
-        by hand in DevTools → Application sticks too. Appearance does not: in the gallery Ladle's
-        toolbar owns it, and the decorator's bridge writes the toolbar's value back over the
-        stored one at mount.
+        ). Whether anything on screen WRITES it depends on where you are reading this: the
+        gallery mounts an accent picker top-right, and the docs site does not — it ships one
+        palette and pins the accent on both painting surfaces, so there the stored value is
+        read and overridden rather than followed. Either way an edit made by hand in DevTools
+        → Application sticks. Appearance does not: in the gallery Ladle's toolbar owns it, and
+        the decorator's bridge writes the toolbar's value back over the stored one at mount.
       </Text>
       <Button>Accent-colored button</Button>
     </div>

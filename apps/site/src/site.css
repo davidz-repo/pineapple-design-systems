@@ -5,7 +5,7 @@
 /* ---- Pineapple palette ----------------------------------------------- */
 
 /* A yellow site with a green brand. The Radix accent is amber and is PINNED
-   (src/site-accent.ts — both the boot script and DesignSystemProvider are given
+   (src/site-theme.ts — both the boot script and DesignSystemProvider are given
    it), so `--accent-*` already resolves to the amber scale. These aliases exist
    for the two things an accent cannot say: the canvas is not something an
    accent choice moves, and the brand green is not the accent at all. Every rule
@@ -21,25 +21,56 @@
    ordering can undo, and the dark block below stacks the appearance class on
    top of that for the same reason.
 
-   Two figures here are measured, not chosen, and must not be "improved":
-   the light canvas cannot go deeper than amber-3 (at amber-4 the grass-11
-   wordmark drops to 4.33:1 and fails AA), and the brand is grass-11 rather than
-   grass-9 for that same contrast. */
+   THE TWO APPEARANCES ARE NO LONGER THE SAME PALETTE IN TWO KEYS. Light is a
+   white page with near-black text, because the yellow canvas read as too much
+   colour to work against all day; dark keeps the amber canvas, which is the one
+   people liked. That inverts the panel rule between them: on a yellow page a
+   raised surface was LIGHTER than the canvas, and on a white one it can only be
+   darker or equal — see --site-panel, where "equal" turns out to be forced.
+
+   One figure here is measured, not chosen, and must not be "improved": the
+   brand is grass-11 rather than grass-9, because the wordmark is bold 17.6px
+   and WCAG "large text" starts at 18.66px bold, so it needs the full 4.5:1.
+   grass-11 on white is 5.07:1; grass-9 is 3.03:1 and fails. */
 .radix-themes.radix-themes {
   /* The page — and everything that paints the page's own colour behind itself:
-     the sticky header, the mobile nav panel, the footer. */
-  --color-background: var(--amber-3);
+     the sticky header, the mobile nav panel, the footer. Plain white, which is
+     also Radix's own light default: this line states the intent rather than
+     fighting the framework. Body text is --gray-12 on it, 16.30:1. That gray
+     is SAND, because Radix pairs the gray scale to the accent — so "black" here
+     is a warm near-black that keeps a whisper of the brand. */
+  --color-background: white;
 
-  /* Surfaces that sit ON the canvas: code blocks, the playground's preview and
-     its controls, the example canvas. It inverts between appearances, because
-     "raised" is lighter than the page in light and lighter than the page in
-     dark — the constant is the contrast with the canvas, not the step. */
-  --site-panel: var(--amber-1);
+  /* Surfaces that sit ON the canvas: code blocks and the playground's controls.
+     Step 1 is not a taste call, it is forced: the code block carries five
+     step-11 hues as body-size text, and Radix's step-11 contrast promise holds
+     against steps 1-2 of a scale, not step 3. Measured on this panel every hue
+     clears AA (amber-11 4.53, green-11 4.63, blue-11 4.68); one step darker and
+     all three fail. Which means the fill does almost nothing against white
+     (1.02:1) and THE BORDER IS WHAT MAKES A BLOCK A BLOCK — the inverse of the
+     yellow palette, where the fill carried it and the border was a hairline. */
+  --site-panel: var(--gray-1);
 
-  /* Every rule, edge and divider this file draws. The `--gray-a5` these
-     replaced is the one place a neutral does not recede: a grey hairline over
-     yellow reads as dirty rather than as quiet. */
-  --site-border: var(--amber-8);
+  /* The example canvas is the opposite job and therefore no longer the same
+     token: it is a FIELD, something for a component with a white or translucent
+     surface of its own (Card, TextField) to sit on, so it has to be a step off
+     the page. No step-11 body text lives on it, so it is free to be one. */
+  --site-example-bg: var(--gray-3);
+
+  /* Every rule, edge and divider this file draws. Amber-8 was here because a
+     neutral hairline over yellow reads as dirty; on white that reason is gone,
+     and amber-8 measures 2.20:1 — a fully saturated orange, the loudest thing
+     on the page, reading as a validation error rather than a container edge.
+     gray-6 is Radix's subtle-border step: 1.41:1 on the canvas, and it is now
+     load-bearing rather than decorative (see --site-panel). */
+  --site-border: var(--gray-6);
+
+  /* The inline-code chip's edge. Transparent in light, where the chip's own
+     fill separates it from white; a real border in dark, where the chip is
+     amber-3 on an amber-1 canvas (1.19:1) and needs the help. A token rather
+     than a border in one block and an unset in the other, so the two
+     appearances state their answer in the same place. */
+  --site-code-border: transparent;
 
   /* The brand green, in its two jobs. Step 11 is the readable end of the ramp
      and is the one for TEXT and hairlines — the wordmark, the page h1, prose
@@ -54,47 +85,87 @@
      appearances, because it is texture rather than an outline. */
   --site-mark-texture: var(--amber-11);
 
-  /* A row under the pointer. On a yellow page the hover has to be MORE yellow:
-     a grey alpha wash reads as the row going out, not lighting up. Step 5,
-     not 7: at amber-7 (1.58:1 on the canvas, and heavily saturated) the row
-     under the pointer out-shouted the row you are actually on, so the nav
-     read as though the pointer selected things. Hover is the weaker signal of
-     the two and has to measure that way — see --site-selected-bg. */
-  --site-row-hover: var(--amber-5);
+  /* A row under the pointer, and the amber that survives into light mode. The
+     ORDER is the whole point and it has to be re-derived per canvas: hover is
+     the weaker signal, selection the stronger. On white the old pair collapsed
+     — amber-5 measured 1.27:1 and grass-5 1.32:1, the same weight, so the nav
+     read as two selections. Step 4 restores the gap: 1.17:1 against selection's
+     1.51:1, a 2.5x ordering. Not step 3 (1.09:1): the same token paints the
+     header and package link chips, which are small on a white header, and 3
+     disappears at that size. --gray-12 on it is 13.95:1. */
+  --site-row-hover: var(--amber-4);
 
-  /* Where you are, in the other hue. Yellow-on-yellow cannot carry selection —
-     a step of the canvas's own scale over the canvas is around 1:1, which is
-     why the menu trigger's pressed state measured 1.06:1 before this. Step 5,
-     not 3: grass-3 measured 1.03:1 against this canvas, so the fill was doing
-     nothing on its own and the row relied entirely on its foreground and edge
-     marker. At step 5 it is 1.22:1 — visible as a surface — and stays above
-     the hover behind it. grass-12 on it is 9.15:1. */
-  --site-selected-bg: var(--grass-5);
+  /* Where you are, in the other hue — the one place colour still does the
+     talking, and the user asked for MORE of it. Step 6, up from 5: 1.51:1 on
+     white, and in perceptual terms the lightness gap from the page goes 10.9 to
+     15.8, which is 45% more apparent weight. grass-12 on it is 8.02:1.
+     Step 6 is the CEILING, not a preference. At grass-7 the leading-edge marker
+     (grass-11 on this fill) drops to 2.79:1 and breaks WCAG 1.4.11; holding the
+     marker's contrast would mean moving it to grass-12, which is the label's
+     own colour, and the row would lose one of its four cues to gain nothing. */
+  --site-selected-bg: var(--grass-6);
   --site-selected-fg: var(--grass-12);
 
-  /* Disabled is the one state that drops the hue. Every live control on this
-     page is saturated, so a dimmed one still reads as a colour choice; going
-     neutral is the signal that needs no legend. */
-  --site-disabled-bg: var(--sand-3);
-  --site-disabled-fg: var(--sand-11);
+  /* Disabled. Radix's own ALPHA pair, not a solid: --sand-3 resolved to the
+     same value as the example field, so a loading button inside an example
+     canvas was an invisible button on an invisible surface. An alpha
+     composites over whatever surface it lands on and cannot collide with one.
+     (The note this replaces argued that neutral reads as "off" because every
+     live control is saturated — true of a yellow page, not of a white one.) */
+  --site-disabled-bg: var(--gray-a3);
+  --site-disabled-fg: var(--gray-a8);
+
+  /* The sidebar group headings. Neutral in light because the page is now white
+     and black — amber-12 passes (11.37:1) but reads visibly BROWN, which is the
+     colour the user asked to take out. Dark keeps the amber. */
+  --site-nav-group-fg: var(--gray-12);
+
+  /* Loading placeholders. Amber-5 on white is a saturated yellow bar that reads
+     as a highlight — something the page wants you to look at — rather than as
+     an absence. */
+  --site-skeleton: var(--gray-4);
+
+  /* Radix draws the active tab-strip underline from --accent-9, which on white
+     is 1.58:1. It is the ONLY cue for which tab you are on, so that is a WCAG
+     1.4.11 failure on a non-text indicator. Step 11 is 4.61:1. */
+  --accent-indicator: var(--amber-11);
 
   /* Radix derives its focus ring from the accent, and amber's own ring measures
-     2.03:1 against this canvas — a WCAG 1.4.11 failure on every focusable thing
+     2.20:1 against this canvas — a WCAG 1.4.11 failure on every focusable thing
      Radix draws, which no per-component outline rule here could have reached.
      Overriding the two tokens fixes all of them at once. `--focus-a5` is the
-     ::selection wash. */
+     ::selection wash. The white canvas did NOT fix this: it moved the number
+     from 2.03:1 to 2.20:1, both failures. grass-11 is 5.07:1. */
   --focus-8: var(--grass-11);
   --focus-a5: var(--grass-a8);
 }
 
-/* Only what actually differs. The brand, the selected foreground, the disabled
-   pair and the focus colour are appearance-independent by design — they are
-   already the readable step of their scale in both — so they are absent here
-   rather than restated, and a restatement is the thing that drifts. */
+/* Only what actually differs — but "differs" grew, because light stopped being
+   the same palette in another key. What is still absent here is absent for the
+   original reason: --site-brand, --site-brand-solid, --site-selected-fg and
+   --focus-8 are the readable step of their scale in BOTH appearances, and Radix
+   resolves each per appearance, so restating them is how they drift. Replacing
+   any of the four with a literal hex is the one edit that breaks dark.
+
+   Everything else below is a RESTATEMENT of what dark already rendered before
+   the light canvas turned white: this is the appearance the reader said they
+   preferred, and it is not what was being changed. Verified by resolving all
+   15 site colour tokens in a browser against a pre-change build — 0 of 15
+   differ in dark, 8 differ in light, which are exactly the ones re-specced
+   above. NOT a pixel comparison: every page differs by design, because the
+   scale moved to 110%, and one RULE (`.markdown a code`) intentionally drops
+   the chip from inline code that is also a link in both appearances. */
 .radix-themes.radix-themes:is(.dark, .dark-theme) {
   --color-background: var(--amber-1);
   --site-panel: var(--amber-3);
+  --site-example-bg: var(--amber-3);
   --site-border: var(--amber-7);
+  --site-code-border: var(--site-border);
+  --site-nav-group-fg: var(--amber-12);
+  --site-skeleton: var(--amber-5);
+  --accent-indicator: var(--amber-9);
+  --site-disabled-bg: var(--sand-3);
+  --site-disabled-fg: var(--sand-11);
   --site-mark-texture: var(--amber-8);
   --site-row-hover: var(--amber-6);
   --site-selected-bg: var(--grass-4);
@@ -317,7 +388,9 @@ body {
      (and a bright one down the near-black), which is the tallest piece of
      chrome on the screen wearing none of the site's colour. */
   scrollbar-width: thin;
-  scrollbar-color: var(--site-border) transparent;
+  /* Not --site-border: that step is tuned to be a quiet hairline (1.41:1 in
+     light), and a scrollbar is a control you have to find. */
+  scrollbar-color: var(--gray-8) transparent;
   /* Scrolling past the end of the nav must not carry on into the page behind
      it — as the mobile panel, that would scroll the content the panel is
      covering. */
@@ -354,7 +427,7 @@ body {
   /* Binds the label to the group under it rather than floating it between two
      groups — the Stack's own gap is the only other space in the column. */
   margin-block-start: var(--space-2);
-  color: var(--amber-12);
+  color: var(--site-nav-group-fg);
   text-transform: uppercase;
   /* Tracking is a small-type remedy; at 16px caps 0.08em reads as gappy
      rather than as a heading. */
@@ -449,7 +522,8 @@ body {
 .site-sidebar-link:focus-visible,
 .site-footer-link:focus-visible,
 .package-link:focus-visible,
-.markdown a:focus-visible {
+.markdown a:focus-visible,
+.site-prose-link:focus-visible {
   outline: 2px solid var(--focus-8);
   outline-offset: 2px;
 }
@@ -556,39 +630,75 @@ body {
   overflow-wrap: break-word;
 }
 
-/* The brand green, and required rather than decorative: `--accent-11` on this
-   canvas measures 4.25:1, which is an AA failure for body-size prose. The
-   underline is a border alpha at a6 and renders as a hairline nobody can see,
-   so a8 — the visible end of the same ramp — carries the affordance that colour
-   alone must not. */
-.markdown a {
+/* The brand green. It was required rather than decorative on the yellow canvas,
+   where `--accent-11` measured 4.25:1 and failed AA for body-size prose; on
+   white that same accent is 4.61:1 and would now pass, so this is a brand
+   choice again rather than a contrast rescue. grass-11 is 5.07:1 either way.
+   The underline is a border alpha at a6 and renders as a hairline nobody can
+   see, so a8 — the visible end of the same ramp — carries the affordance that
+   colour alone must not.
+
+   `.site-prose-link` is the same treatment for prose OUTSIDE a markdown body
+   (the 404's sentence). An unclassed <a> or <Link> there matches nothing and
+   falls through to the UA's #0000EE, which is how the 404 shipped. */
+.markdown a,
+.site-prose-link {
   color: var(--site-brand);
   text-decoration-color: var(--grass-a8);
   text-underline-offset: 2px;
 }
 
 .markdown a:hover,
-.markdown a:focus-visible {
+.markdown a:focus-visible,
+.site-prose-link:hover,
+.site-prose-link:focus-visible {
   text-decoration-color: currentcolor;
 }
 
-/* A panel, not a grey wash: an alpha grey over yellow tints towards olive, and
-   inline code stops looking like the code blocks it is the short form of. The
-   border is what keeps it legible where the panel and the canvas are only two
-   steps apart. */
+/* A chip, so inline code looks like the short form of the blocks below it.
+   It takes the EXAMPLE field rather than the code panel: the panel is step 1
+   and would be invisible against white (see the palette block), and no
+   step-11 syntax colour lands on an inline chip, so the constraint that forces
+   step 1 there does not apply here. --site-code-border is transparent in light,
+   where the fill separates it, and a real edge in dark, where it does not. */
 .markdown code {
   font-family: var(--code-font-family, ui-monospace, monospace);
   font-size: 0.9em;
-  background: var(--site-panel);
-  border: 1px solid var(--site-border);
+  background: var(--site-example-bg);
+  border: 1px solid var(--site-code-border);
   border-radius: var(--radius-1);
   padding: 0.1em 0.35em;
 }
 
+/* A chip that is also a link is two affordances fighting over one word, and
+   most inline code in these READMEs is a link — which is what made a
+   contract-heavy page read as a grid of boxes rather than as prose. Dropping
+   the chip also lifts the link off the field: --site-brand on it is 4.45:1 and
+   fails AA by a hair, while on the page itself it is 5.07:1. */
+.markdown a code {
+  background: none;
+  border-color: transparent;
+  padding-inline: 0;
+}
+
+/* Block code is NOT inline code, and this reset has to undo everything the rule
+   above sets — not the three properties that were once visible. A `border` left
+   behind drew a 1px rectangle tight around the text INSIDE the block's own
+   rounded panel (a box in a box, on every README fence); a `font-size` left
+   behind rendered README code 10% smaller than the same fence outside
+   `.markdown`, and off the line-height grid its own <pre> declares.
+   `font-family` is restated rather than inherited because the UA stylesheet
+   sets `code { font-family: monospace }` on the ELEMENT, which beats inheriting
+   from <pre> — invisible on macOS, where Chrome's `monospace` is the same font
+   this token asks for, and two different fonts on one page on Windows. */
 .markdown pre code,
 .code-block code {
   background: none;
+  border: none;
+  border-radius: 0;
   padding: 0;
+  font-size: inherit;
+  font-family: var(--code-font-family, ui-monospace, monospace);
 }
 
 .markdown ul,
@@ -674,10 +784,16 @@ body {
   line-height: var(--line-height-3);
 }
 
+/* Opaque, and carrying a ring of the panel's own colour: the right padding on
+   the <pre> is a gutter at the END of the scroll content, so it holds nothing
+   back at the initial scroll position of a line longer than the box — which on
+   a phone is most of them. Without this the code runs under the button. */
 .code-block-copy {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
+  background: var(--site-panel);
+  box-shadow: 0 0 0 4px var(--site-panel);
 }
 
 /* Syntax highlighting (highlight.js scopes, emitted by lowlight in CodeBlock).
@@ -729,11 +845,17 @@ body {
 
 /* ---- Playground ------------------------------------------------------ */
 
+/* `stretch`, not `start`: the controls column is as tall as the component has
+   arguments, and with `start` the preview kept its own content height beside
+   it — a 162px box next to a 618px one, and the bottom 60% of the page empty.
+   The preview is the thing the page is FOR, so it takes the height the row
+   already occupies. min-height below becomes a floor for the short case rather
+   than the height. */
 .playground {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: var(--space-4);
-  align-items: start;
+  align-items: stretch;
 }
 
 /* A titled column: the heading names what the box below it is, so neither
@@ -757,13 +879,13 @@ body {
 }
 
 /* Same surface as an example canvas, and for the same reason — see
-   `.example-canvas`, including why it is --site-panel and not
+   `.example-canvas`, including why it is --site-example-bg and not
    --color-panel-solid. The preview is the one box on the page whose contents
    are a component rather than the site's own chrome. */
 .playground-preview {
   border: 1px solid var(--site-border);
   border-radius: var(--radius-3);
-  background: var(--site-panel);
+  background: var(--site-example-bg);
   min-height: 160px;
   display: flex;
   align-items: center;
@@ -889,14 +1011,11 @@ body {
   gap: var(--space-3);
 }
 
-/* Amber, not the grey alpha these were: a grey wash over yellow does not read
-   as neutral, it tints the bar olive. Same reason the row hover is amber — see
-   the palette block. */
 .skeleton-line,
 .skeleton-tabs {
   display: block;
   border-radius: var(--radius-2);
-  background: var(--amber-5);
+  background: var(--site-skeleton);
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
 
@@ -944,14 +1063,17 @@ body {
    something to sit on and reads the same here as in an app. The dashed border
    it replaced said "drop zone"; a surface says "this is running".
 
-   --site-panel, not --color-panel-solid: that variable is plain white in light
-   appearance, which on this page is not a step off --color-background at all —
-   so the "surface" would be the page, and the canvas would be the hole it is
-   drawn not to be. --site-panel is a step off the page in both. */
+   --site-example-bg, not --color-panel-solid and NOT --site-panel. The Radix
+   variable is plain white in light, which is exactly the canvas, so the
+   "surface" would be the page and this would be the hole it is drawn not to
+   be. --site-panel has the same problem for a different reason: it is pinned to
+   step 1 by the syntax colours the code block carries (see the palette block),
+   which is 1.02:1 against white. This token exists precisely so the field can
+   be a step off the page while the code panel cannot. */
 .example-canvas {
   border: 1px solid var(--site-border);
   border-radius: var(--radius-3);
-  background: var(--site-panel);
+  background: var(--site-example-bg);
   overflow-x: auto;
 }
 

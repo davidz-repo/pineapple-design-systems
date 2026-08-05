@@ -56,22 +56,37 @@ export function PineappleMark() {
         <path id="pineapple-mark-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
       </defs>
 
-      <g fill="var(--site-brand-solid)">
-        <path d={CROWN_BLADE} />
-        <path d={CROWN_BLADE} transform="rotate(-40 16 10)" />
-        <path d={CROWN_BLADE} transform="rotate(40 16 10)" />
-      </g>
+      {/* The reframe — see favicon.svg for the geometry and why it is a
+          transform rather than rewritten coordinates. The <svg> box does not
+          change, only the ink inside it, so --site-header-h is unaffected: the
+          tallest control in the header row is still the header link. */}
+      <g transform="translate(16 16) scale(1.1111) translate(-16 -15.5)">
+        <g fill="var(--site-brand-solid)">
+          <path d={CROWN_BLADE} />
+          <path d={CROWN_BLADE} transform="rotate(-40 16 10)" />
+          <path d={CROWN_BLADE} transform="rotate(40 16 10)" />
+        </g>
 
-      <rect {...BODY} fill="var(--amber-9)" />
+        {/* Stroked, so the silhouette survives a white header: amber-9 is
+            1.58:1 on white and the body dissolved, leaving a green crown over
+            a faint blob. The stroke is the pips' own colour, so this buys an
+            edge without a fourth hue. */}
+        <rect
+          {...BODY}
+          fill="var(--amber-9)"
+          stroke="var(--site-mark-texture)"
+          strokeWidth="1"
+        />
 
-      <g clipPath="url(#pineapple-mark-body)" fill="var(--site-mark-texture)">
-        <use href="#pineapple-mark-pip" x="12.5" y="14" />
-        <use href="#pineapple-mark-pip" x="19.5" y="14" />
-        <use href="#pineapple-mark-pip" x="10" y="19" />
-        <use href="#pineapple-mark-pip" x="16" y="19" />
-        <use href="#pineapple-mark-pip" x="22" y="19" />
-        <use href="#pineapple-mark-pip" x="12.5" y="24" />
-        <use href="#pineapple-mark-pip" x="19.5" y="24" />
+        <g clipPath="url(#pineapple-mark-body)" fill="var(--site-mark-texture)">
+          <use href="#pineapple-mark-pip" x="12.5" y="14" />
+          <use href="#pineapple-mark-pip" x="19.5" y="14" />
+          <use href="#pineapple-mark-pip" x="10" y="19" />
+          <use href="#pineapple-mark-pip" x="16" y="19" />
+          <use href="#pineapple-mark-pip" x="22" y="19" />
+          <use href="#pineapple-mark-pip" x="12.5" y="24" />
+          <use href="#pineapple-mark-pip" x="19.5" y="24" />
+        </g>
       </g>
     </svg>
   );
