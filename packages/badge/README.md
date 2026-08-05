@@ -25,7 +25,7 @@ import type { BadgeProps } from '@pineappleui/badge';
 | Export | What it is |
 | --- | --- |
 | `Badge` | The element. Takes every prop Radix's `Badge` takes, including `ref`. |
-| `BadgeProps` | Its props — `ComponentPropsWithRef<typeof Badge>` from Radix, re-exported so consumers do not import the type from Radix either. |
+| `BadgeProps` | Its props — `ComponentPropsWithRef<typeof Badge>` from Radix, re-exported so consumers do not import the type from Radix either, and described here in this package's own words. |
 
 This README does not hand-write the prop set: `BadgeProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.

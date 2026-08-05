@@ -554,6 +554,21 @@ Decisions worth recording, in the same spirit as the gallery section above:
   into its `.d.ts` as literal types because its prop defs are `as const`; the package's own,
   read off the destructuring parameter (`{ direction = 'column' }`), which leaves no trace
   in the props type; and JSDoc, from either side.
+  **The wrapper packages describe their own props by re-declaring them, and that is the one
+  pattern this table asks of a package.** Radix ships JSDoc on its *shared* prop modules and
+  on `Box`/`Flex`, and none at all on the per-component prop defs behind `Button`, `Text`,
+  `Heading`, `Card`, `Badge`, `IconButton` and `TextArea` — so a wrapper written as
+  `export type ButtonProps = ComponentPropsWithRef<typeof RadixButton>` has nowhere to put a
+  sentence, and every row of its table came out blank. Each of those seven now intersects a
+  block of members that re-state the prop with the *same* type read back off the Radix props
+  (`variant?: RadixButtonProps['variant']`) purely to carry a description. Nothing is
+  narrowed, renamed or defaulted: the checker resolves the identical type, Radix's declared
+  default still comes through because `propDefDefault` reads *every* declaration of the
+  symbol and the Radix one is still in the intersection, and a prop Radix adds later still
+  arrives without being listed. Only `text-field` is left undescribed, and structurally: it
+  re-exports Radix's compound namespace whole (`export { TextField } from '@radix-ui/themes'`)
+  so that `TextField.RootProps` and `TextField.SlotProps` resolve for consumers, and there is
+  no props type of its own to hang JSDoc on without breaking those.
   Two omissions are deliberate and are stated **on the page** rather than left silent: the
   ~295 standard DOM attributes React declares for every element (`TextField.Root` resolves
   311 properties, 14 of which are anyone's), and `children`/`ref`, which are React mechanics

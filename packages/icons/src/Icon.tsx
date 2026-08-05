@@ -17,6 +17,15 @@ export interface IconProps
    * icon is then hidden from the accessibility tree.
    */
   label?: string;
+  // Lucide's own prop, re-declared with the same type read straight back off
+  // `LucideProps` — nothing here narrows it or gives it a default. It is
+  // re-stated only so that it has a description: Lucide ships none, and this is
+  // the one row of this package's generated props table that came out blank.
+  /**
+   * Hold the stroke at its literal width as the glyph scales, instead of letting it thin out at
+   * the small sizes and thicken at the large ones.
+   */
+  absoluteStrokeWidth?: LucideProps['absoluteStrokeWidth'];
 }
 
 /**

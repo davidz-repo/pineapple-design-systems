@@ -157,12 +157,14 @@ function PropsBody({ slug }: { slug: string }) {
           not worth reading first. */}
       {(hasLayoutProps || radix !== undefined) && (
         <Text as="p" size="2" color="gray">
-          {/* Written by the KIND of prop rather than by a count, because the
-              counts are about to move: the JSDoc this repo has yet to write
-              onto its own wrapper props is a separate stream, and when it lands
-              this sentence is still the true one — a prop that comes from Radix
-              still carries Radix's description, and a prop the package declares
-              carries the package's.
+          {/* Written by the KIND of prop rather than by a count, and that is
+              what has kept it true through the stream that has since landed:
+              every wrapper package now DECLARES the props it passes through —
+              same types, same defaults, re-stated only to carry a description —
+              so those rows are the package's own words, and the shared layout
+              props behind the disclosure are the ones still coming from Radix
+              and still carrying Radix's. A count here would have been rewritten
+              twice; this sentence has not moved.
 
               "Corrected where" rather than "verbatim", because they are not
               verbatim: extract-props.mjs overrides `gapX` and `gapY`, whose
@@ -317,10 +319,11 @@ function LayoutPropsToggle({
 function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
   const captionId = useId();
 
-  // Per TABLE, not per section: 68 of the 98 non-layout props in the artifact
-  // carry no JSDoc at all, and on eight of the sixteen packages — Button, Text,
-  // Heading, Card, Badge among them — that is every row of the own-props table.
-  // A Description header over four empty cells is a column that says the page
+  // Per TABLE, not per section: 13 of the 98 non-layout props in the artifact
+  // carry no JSDoc, and all 13 are `text-field`'s — the one package that
+  // re-exports Radix's compound namespace whole rather than declaring a props
+  // type it could describe them in, so both its tables are entirely undescribed.
+  // A Description header over seven empty cells is a column that says the page
   // is missing something; worse, it holds a 14rem floor that is exactly what
   // starves the Type column beside it on a phone. The layout tables keep theirs,
   // because Radix documents all 41.

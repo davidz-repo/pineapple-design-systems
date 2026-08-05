@@ -27,7 +27,7 @@ import type { ButtonProps } from '@pineappleui/button';
 | Export | What it is |
 | --- | --- |
 | `Button` | The element. Takes every prop Radix's `Button` takes, including `ref`. |
-| `ButtonProps` | Its props — `ComponentPropsWithRef<typeof Button>` from Radix, re-exported so consumers do not import the type from Radix either. |
+| `ButtonProps` | Its props — `ComponentPropsWithRef<typeof Button>` from Radix, re-exported so consumers do not import the type from Radix either, and described here in this package's own words. |
 
 This README does not hand-write the prop set: `ButtonProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.

@@ -26,7 +26,7 @@ import type { TextAreaProps } from '@pineappleui/text-area';
 | Export | What it is |
 | --- | --- |
 | `TextArea` | The field. Takes every prop Radix's `TextArea` takes, including `ref`. |
-| `TextAreaProps` | Its props — `ComponentPropsWithRef<typeof TextArea>` from Radix, re-exported so consumers do not import the type from Radix either. |
+| `TextAreaProps` | Its props — `ComponentPropsWithRef<typeof TextArea>` from Radix, re-exported so consumers do not import the type from Radix either, and described here in this package's own words. |
 
 This README does not hand-write the prop set: `TextAreaProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.

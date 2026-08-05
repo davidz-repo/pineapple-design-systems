@@ -419,10 +419,14 @@ describe('the layout props', () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();
 
-    // Per TABLE. 68 of the artifact's 98 own props carry no JSDoc, and on
-    // eight of the sixteen packages that is EVERY row — a Description header
+    // Per TABLE. 13 of the artifact's 98 own props carry no JSDoc, and all 13
+    // are `text-field`'s — every row of both its tables — a Description header
     // over nothing, holding a 14rem floor that starves the Type column beside
     // it on a phone. The same component's other table keeps its column.
+    //
+    // Still a FIXTURE rather than text-field, deliberately: this asserts the
+    // rule, and a real package is one JSDoc comment away from stopping being an
+    // example of it.
     const [own] = within(props).getAllByRole('table');
     expect(within(own).getAllByRole('columnheader').map(cell => cell.textContent))
       .toEqual(['Prop', 'Type', 'Default', 'Description']);

@@ -27,7 +27,16 @@ export interface LiveRegionProps {
   as?: ElementType;
   /** Optional `role` (e.g. `status`, which implies polite semantics for AT that maps it). */
   role?: string;
+  /**
+   * Forwarded to the rendered element. This primitive ships no styles, so hiding the region
+   * visually is the caller's — and it has to be the kind of hiding that leaves the text in the
+   * accessibility tree, since `display: none` announces nothing.
+   */
   className?: string;
+  /**
+   * Forwarded to the rendered element, for an `aria-describedby` elsewhere on the page, or for
+   * a test that has to pick this region out of the several an app keeps mounted.
+   */
   id?: string;
 }
 
