@@ -33,7 +33,7 @@ export type ButtonProps = RadixButtonProps & {
   asChild?: RadixButtonProps['asChild'];
   /** An accent name that overrides the theme's for this button — a destructive action, say. */
   color?: RadixButtonProps['color'];
-  /** Deepen the label against the button's own fill, for a tint that reads lightly. */
+  /** Deepen the label against the button's own fill, for when the tint underneath leaves it too light. */
   highContrast?: RadixButtonProps['highContrast'];
   /**
    * Swap the label for a spinner and disable the button, so a second click cannot fire

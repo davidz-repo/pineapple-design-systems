@@ -24,9 +24,9 @@ type RadixBadgeProps = ComponentPropsWithRef<typeof RadixBadge>;
 export type BadgeProps = RadixBadgeProps & {
   /** Render the child element instead of the `<span>`, with the badge's styling on it. */
   asChild?: RadixBadgeProps['asChild'];
-  /** An accent name that overrides the theme's for this badge; omit it to inherit the app's. */
+  /** An accent name that overrides the theme's for this badge — a status colour, say, red for a failure. */
   color?: RadixBadgeProps['color'];
-  /** Deepen the label against the badge's own fill, for a tint that reads lightly. */
+  /** Deepen the label against the badge's own fill, for when the tint underneath leaves it too light. */
   highContrast?: RadixBadgeProps['highContrast'];
   /** Override the theme's corner rounding for this badge alone. */
   radius?: RadixBadgeProps['radius'];

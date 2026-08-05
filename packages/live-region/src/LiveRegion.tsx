@@ -28,8 +28,8 @@ export interface LiveRegionProps {
   /** Optional `role` (e.g. `status`, which implies polite semantics for AT that maps it). */
   role?: string;
   /**
-   * Forwarded to the rendered element. This primitive ships no styles, so hiding the region
-   * visually is the caller's — and it has to be the kind of hiding that leaves the text in the
+   * Forwarded to the rendered element. This primitive ships no styles, so hiding it visually is
+   * the caller's job — and it has to be the kind of hiding that leaves the text in the
    * accessibility tree, since `display: none` announces nothing.
    */
   className?: string;

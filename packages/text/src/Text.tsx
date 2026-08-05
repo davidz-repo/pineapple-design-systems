@@ -32,11 +32,14 @@ export type TextProps = RadixTextProps & {
    * a paragraph of body copy wants `p`, and a form caption wants `label`.
    */
   as?: RadixTextProps['as'];
-  /** Render the child element instead of the tag, with the type styles on it. */
+  /**
+   * Render the child element instead of the element this would render, keeping the type styles
+   * on it — how a link or an abbreviation carries body copy's styling without a wrapper.
+   */
   asChild?: RadixTextProps['asChild'];
   /** An accent name that overrides the theme's for this text; omit it for the usual foreground. */
   color?: RadixTextProps['color'];
-  /** Deepen the text against the surface behind it, for a colour that reads lightly. */
+  /** Deepen the text against the surface behind it, for when the accent leaves it too light. */
   highContrast?: RadixTextProps['highContrast'];
   /**
    * A step on the type scale, not a CSS length — so body copy across an app moves in the same

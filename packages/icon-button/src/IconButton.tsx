@@ -30,11 +30,14 @@ type RadixIconButtonProps = ComponentPropsWithRef<typeof RadixIconButton>;
 // glyph reads as nothing — is React's own `aria-label`, so it is not in the
 // table below and the README's contract is where it is stated.
 export type IconButtonProps = RadixIconButtonProps & {
-  /** Render the child element instead of a `<button>`, for a glyph-only control that navigates. */
+  /**
+   * Render the child element instead of a `<button>`, so a glyph-only control that navigates is
+   * a real link — middle-click and copy-link included.
+   */
   asChild?: RadixIconButtonProps['asChild'];
   /** An accent name that overrides the theme's for this control — a destructive action, say. */
   color?: RadixIconButtonProps['color'];
-  /** Deepen the glyph against the control's own fill, for a tint that reads lightly. */
+  /** Deepen the glyph against the control's own fill, for when the tint underneath leaves it too light. */
   highContrast?: RadixIconButtonProps['highContrast'];
   /**
    * Swap the glyph for a spinner and disable the control, so a second click cannot fire

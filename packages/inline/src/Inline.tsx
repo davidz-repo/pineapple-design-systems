@@ -8,8 +8,9 @@ import { Flex } from '@radix-ui/themes';
 type FlexProps = ComponentPropsWithRef<typeof Flex>;
 export type InlineProps = Omit<FlexProps, 'direction'> & {
   /**
-   * Across the line, or back along it. A column is not on offer here — that is what keeps this
-   * primitive's name honest, and `@pineappleui/stack` is the one that goes down the page.
+   * Along the reading direction, or back against it. A column is not on offer here — that is
+   * what keeps this primitive's name honest, and `@pineappleui/stack` is the one that goes down
+   * the page.
    */
   direction?: 'row' | 'row-reverse';
 };

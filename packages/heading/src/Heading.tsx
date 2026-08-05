@@ -33,8 +33,8 @@ export type HeadingProps = RadixHeadingProps & {
   /** Text alignment inside the heading's own box; it does not move the box. */
   align?: RadixHeadingProps['align'];
   /**
-   * The outline level a screen reader walks — and, unless `size` says otherwise, the type-scale
-   * step this package renders it at. Radix's `as` sets the tag alone, which is why an unstyled
+   * The outline level a screen reader walks — and, unless you pass a size, the type-scale step
+   * this package renders it at. The Radix component sets the tag alone, which is why an unstyled
    * h1 through h6 all come out the same size.
    */
   as?: RadixHeadingProps['as'];
@@ -42,11 +42,12 @@ export type HeadingProps = RadixHeadingProps & {
   asChild?: RadixHeadingProps['asChild'];
   /** An accent name that overrides the theme's for this heading; omit it for the usual foreground. */
   color?: RadixHeadingProps['color'];
-  /** Deepen the heading against the page behind it, for a colour that reads lightly. */
+  /** Deepen the heading against the page behind it, for when the accent leaves it too light. */
   highContrast?: RadixHeadingProps['highContrast'];
   /**
-   * A step on the type scale. Pass one when a level has to look bigger or smaller than its rank —
-   * it overrides the size derived from `as` and leaves the semantic level alone.
+   * A step on the type scale. Left out, this package derives it from the heading level — h1 at 8
+   * down to h6 at 3. Pass one when a level has to look bigger or smaller than its rank; the
+   * semantic level is untouched.
    */
   size?: RadixHeadingProps['size'];
   /** Trim the leading above or below the text, so a heading aligns optically with what sits beside it. */
