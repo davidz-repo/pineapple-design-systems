@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/heading",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Heading primitive for @pineappleui — a thin wrapper around the @radix-ui/themes Heading.",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/stack",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Stack primitive for @pineappleui — vertical layout, a Radix Flex with a direction='column' default.",
   "license": "MIT",
   "type": "module",

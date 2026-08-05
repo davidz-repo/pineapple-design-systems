@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/text-field",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TextField primitive for @pineappleui — a thin wrapper around the @radix-ui/themes TextField.",
   "license": "MIT",
   "type": "module",

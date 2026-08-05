@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/text-area",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TextArea primitive for @pineappleui — a thin wrapper around the @radix-ui/themes TextArea.",
   "license": "MIT",
   "type": "module",

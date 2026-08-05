@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/icons",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Icon primitive for @pineappleui — a wrapper over Lucide with design-system size tokens and decorative-by-default a11y.",
   "license": "MIT",
   "type": "module",

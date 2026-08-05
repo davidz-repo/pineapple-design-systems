@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/icon-button",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "IconButton primitive for @pineappleui — a thin wrapper around the @radix-ui/themes IconButton.",
   "license": "MIT",
   "type": "module",
