@@ -34,7 +34,7 @@ The prop types ride along on the namespace as `TextField.RootProps` and `TextFie
 consumers do not import those from Radix either. This README does not hand-write the prop set:
 those types are the authoritative ones, your editor completes from them, and a second copy in prose
 is a copy that goes stale without failing. The docs site generates the full table from those same
-types — https://designpineapple.com/components/text-field.
+types — [TextField on designpineapple.com](https://designpineapple.com/components/text-field).
 
 ## The contract
 

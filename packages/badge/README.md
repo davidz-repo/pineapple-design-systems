@@ -30,7 +30,7 @@ import type { BadgeProps } from '@pineappleui/badge';
 This README does not hand-write the prop set: `BadgeProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.
 The docs site generates the full table from those same types —
-https://designpineapple.com/components/badge.
+[Badge on designpineapple.com](https://designpineapple.com/components/badge).
 
 ## The contract
 

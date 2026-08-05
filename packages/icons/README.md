@@ -32,7 +32,7 @@ This README does not hand-write the glyph list. `IconName` is the authoritative 
 second copy in prose is a copy that can fall out of date — your editor completes it from the
 type, and `tsc` rejects a name that does not exist. The docs site prints the whole set, as
 `Icon`'s `name` type, generated from that same union —
-https://designpineapple.com/components/icons.
+[Icon on designpineapple.com](https://designpineapple.com/components/icons).
 
 ## Enumerating the set
 

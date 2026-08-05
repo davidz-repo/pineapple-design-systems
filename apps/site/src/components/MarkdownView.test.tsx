@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { MarkdownView } from './MarkdownView';
@@ -52,6 +53,36 @@ describe('markdownView', () => {
   it('stops demoting at h6, the deepest level HTML has', () => {
     const { container } = render(<MarkdownView markdown="###### Deep" headingOffset={2} />);
     expect(container.querySelector('h6')).toHaveTextContent('Deep');
+  });
+
+  it('navigates in place when a README links a page of this site', () => {
+    // Ten package READMEs now point at their own docs page. Those links have to
+    // be absolute — a README is read on npm and on GitHub as well — and read
+    // HERE they are the page the reader is already on. Untranslated they went
+    // through the `target="_blank"` branch below: a second tab, onto this.
+    const { getByRole } = render(
+      <MemoryRouter>
+        <MarkdownView
+          markdown="See [Button on designpineapple.com](https://designpineapple.com/components/button)."
+        />
+      </MemoryRouter>,
+    );
+
+    const link = getByRole('link', { name: 'Button on designpineapple.com' });
+    expect(link).toHaveAttribute('href', '/components/button');
+    expect(link).not.toHaveAttribute('target');
+  });
+
+  it('still opens a genuinely external link in a new tab', () => {
+    const { getByRole } = render(
+      <MemoryRouter>
+        <MarkdownView markdown="See [Radix](https://www.radix-ui.com/themes/docs/components/box)." />
+      </MemoryRouter>,
+    );
+
+    const link = getByRole('link', { name: 'Radix' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer');
   });
 
   it('wraps a table in a horizontal scroll container, named and reachable', () => {
