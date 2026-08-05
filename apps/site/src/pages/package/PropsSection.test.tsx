@@ -279,13 +279,16 @@ describe('the props table', () => {
     const props = await findPropsSection();
 
     // Most of the prose on a Radix wrapper's page is Radix's, in a
-    // pineapple-branded table. Phrased by the KIND of prop rather than by a
-    // count, so it survives this repo writing JSDoc onto its own wrapper props:
-    // a prop that comes from Radix still carries Radix's words afterwards.
-    // "Corrected where" rather than "verbatim" because the extractor overrides
-    // `gapX` and `gapY`, which upstream documents as the opposite axis.
+    // pineapple-branded table. Phrased by the DECLARATION SITE rather than by
+    // where a prop comes from: every wrapper package now re-states the props it
+    // passes through purely to describe them, so "the props that come from
+    // Radix" is precisely the set whose sentences the package wrote. Whoever
+    // wrote the sentence owns it, which is the one line that stays true as more
+    // of them get written. "Corrected where" rather than "verbatim" because the
+    // extractor overrides `gapX` and `gapY`, which upstream documents as the
+    // opposite axis.
     const note = within(props).getByText(
-      /Descriptions for the props that come from Radix are Radix's own words, corrected where its own documentation describes a prop wrongly\./,
+      /Where a package describes a prop itself, the words here are the package's\. The rest are Radix's own, corrected where its own documentation describes a prop wrongly\./,
     );
 
     // BELOW the tables. Above them it pushed the one sentence a reader needs
@@ -308,8 +311,13 @@ describe('the props table', () => {
 
     expect(within(props).queryByText(/shared layout props/)).not.toBeInTheDocument();
     // And nothing is credited to Radix, because none of these descriptions are
-    // Radix's — the same signal decides both sentences.
-    expect(within(props).queryByText(/Radix's own words/)).not.toBeInTheDocument();
+    // Radix's — the same signal decides both sentences. Matched on the opening
+    // clause rather than on the words "Radix's own", which appear in the
+    // paragraph above this one too: a negative assertion that cannot match the
+    // sentence it is about passes whether the sentence renders or not.
+    expect(within(props).queryByText(/Where a package describes a prop itself/))
+      .not
+      .toBeInTheDocument();
     const [table] = within(props).getAllByRole('table');
     expect(within(table).getByRole('rowheader', { name: /^className\b/ })).toBeInTheDocument();
   });

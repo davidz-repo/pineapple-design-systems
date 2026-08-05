@@ -714,9 +714,16 @@ body {
   min-width: 12rem;
 }
 
-/* Descriptions are Radix's own JSDoc, up to about 20 words. A floor so the
-   column is not squeezed to one word per line by the type beside it, and a
-   ceiling so it does not take the whole page on a wide screen.
+/* Descriptions are mostly the packages' OWN sentences now — 85 of the 98 own
+   props — and they run well past the ~20 words of Radix JSDoc these two numbers
+   were first reasoned about. The distribution: ~40 words at the top of the
+   wrapper packages (`live-region.className`, 237 characters), and two outliers
+   at 173 and 149 (`theme.accentColor`, `theme.storageKey`) that were already
+   this long and are the reason for the ceiling as much as the floor.
+
+   A floor so the column is not squeezed to one word per line by the type beside
+   it, and a ceiling so it does not take the whole page on a wide screen. Both
+   still hold — what moved is the population, not the shape of the problem.
 
    Addressed by position, not by `:last-child`: the Description column is the
    fourth one, and a table that has no descriptions to show does not draw it —

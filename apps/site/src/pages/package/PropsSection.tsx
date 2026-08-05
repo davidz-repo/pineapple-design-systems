@@ -157,21 +157,33 @@ function PropsBody({ slug }: { slug: string }) {
           not worth reading first. */}
       {(hasLayoutProps || radix !== undefined) && (
         <Text as="p" size="2" color="gray">
-          {/* Written by the KIND of prop rather than by a count, and that is
-              what has kept it true through the stream that has since landed:
-              every wrapper package now DECLARES the props it passes through —
+          {/* Written by the KIND of prop rather than by a count, which is the
+              property worth keeping: it survives text-field gaining
+              descriptions, Radix shipping JSDoc, and another wrapper being
+              added. What it can NOT be written by is where a prop comes from.
+              Every wrapper package now DECLARES the props it passes through —
               same types, same defaults, re-stated only to carry a description —
-              so those rows are the package's own words, and the shared layout
-              props behind the disclosure are the ones still coming from Radix
-              and still carrying Radix's. A count here would have been rewritten
-              twice; this sentence has not moved.
+              so a prop that "comes from Radix" is exactly a prop whose sentence
+              is the package's, which is the opposite of what a provenance
+              sentence phrased that way says. The declaration site is the line
+              that holds: whoever wrote the sentence owns it.
+
+              And Radix-worded rows are NOT confined to the disclosure, which is
+              what an earlier draft of this claimed. `inline.json` and
+              `stack.json` each carry nine of them in the MAIN table — align,
+              as, asChild, display, gap, gapX, gapY, justify, wrap — and all
+              three of box's own props likewise. `hasLayoutProps` is still the
+              right gate for a different reason: every page with layout props has
+              Radix-worded rows somewhere, and the three without (icons,
+              live-region, theme) are 100% this repo's own words, where silence
+              reads as "these are ours".
 
               "Corrected where" rather than "verbatim", because they are not
               verbatim: extract-props.mjs overrides `gapX` and `gapY`, whose
               upstream JSDoc describes the opposite axis from the one they set.
               "Its own documentation" rather than "its types", which reads as a
               reference to the Type column beside it. */}
-          {hasLayoutProps && 'Descriptions for the props that come from Radix are Radix\'s own words, corrected where its own documentation describes a prop wrongly.'}
+          {hasLayoutProps && 'Where a package describes a prop itself, the words here are the package\'s. The rest are Radix\'s own, corrected where its own documentation describes a prop wrongly.'}
           {radix !== undefined && (
             <>
               {' '}
