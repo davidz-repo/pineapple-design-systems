@@ -322,6 +322,44 @@ describe('the props table', () => {
     expect(within(table).getByRole('rowheader', { name: /^className\b/ })).toBeInTheDocument();
   });
 
+  it('says a table has no Description column BEFORE the reader meets it', async () => {
+    // Real artifact. `text-field` is the one package whose own props carry no
+    // JSDoc — it re-exports Radix's compound namespace whole, so there is no
+    // props type of its own to write one into — and since every sibling gained
+    // descriptions it went from 9-of-16 tables without the column to the only
+    // one, which reads as an unfinished page rather than as a decision.
+    //
+    // In the INTRO paragraph, which is the claim: after the column-less table
+    // an explanation is worth nothing.
+    await renderApp('/components/text-field');
+    const props = await findPropsSection();
+
+    const note = within(props).getByText(/These tables carry no Description column/);
+    // Named from the registry, the same field the Radix link is built from.
+    expect(note).toHaveTextContent(
+      'These tables carry no Description column: this package passes Radix\'s TextField through '
+      + 'whole, so there is no props type of its own to describe them in. Radix\'s own '
+      + 'documentation, linked below, is where they are described.',
+    );
+
+    const [table] = within(props).getAllByRole('table');
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Prop', 'Type', 'Default']);
+    expect(table.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_PRECEDING)
+      .toBeTruthy();
+  });
+
+  it('leaves that sentence off a package whose own props are described', async () => {
+    // DERIVED from the artifact and the registry, never from the slug: it
+    // disappears the day text-field's props are described, and would reappear if
+    // another package regressed. Hardcoding the slug would have made it a
+    // sentence about one page rather than about a condition.
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+
+    expect(within(props).queryByText(/no Description column/)).not.toBeInTheDocument();
+  });
+
   it('links the primitive underneath, from the registry rather than a written URL', async () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();

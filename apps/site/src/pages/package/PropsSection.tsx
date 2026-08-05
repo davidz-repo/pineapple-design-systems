@@ -126,6 +126,24 @@ function PropsBody({ slug }: { slug: string }) {
     component => component.props.some(prop => prop.isLayout),
   );
 
+  // Whether any table on this page will DROP its Description column — the same
+  // `prop.description !== ''` test `PropsTable` makes, asked across the page so
+  // the omission can be stated before a reader meets it rather than after.
+  //
+  // Derived from the artifact and from the registry, never from the slug. It
+  // disappears the day `text-field`'s props are described and reappears if
+  // another package ever regresses, which is the whole reason it is not written
+  // as `slug === 'text-field'`. Both halves are needed: a package with own props
+  // and no descriptions is the visible gap, and `radix !== undefined` is what
+  // makes the last sentence true — it is the link this paragraph promises, and
+  // it is rendered below by the same signal.
+  const ownProps = doc.components.flatMap(
+    component => component.props.filter(prop => !prop.isLayout),
+  );
+  const hasUndescribedOwnTable = radix !== undefined
+    && ownProps.length > 0
+    && ownProps.every(prop => prop.description === '');
+
   return (
     <>
       <Text as="p" size="2" color="gray">
@@ -146,6 +164,31 @@ function PropsBody({ slug }: { slug: string }) {
             term and that page, and it does it without lengthening the button's
             own label, which would drag its accessible name along too. */}
         {hasLayoutProps && ' Every component here also takes Radix Themes\' shared layout props — margin, padding, width, height and position — listed separately under each one below.'}
+        {/* The third omission this paragraph declares, and the only one a
+            reader will actually notice: a missing Description column used to be
+            the norm (9 tables of 16 lacked one) and is now the sole exception,
+            so arriving from Button and getting three columns reads as an
+            unfinished page. Section header, line 25: what the table does NOT
+            list is stated on the page rather than left silent.
+
+            In the INTRO rather than beside the table, because an explanation
+            that arrives after the column-less table has already been read is
+            worth nothing.
+
+            The primitive is NAMED from the registry, the same field the link
+            below is built from, so the sentence cannot come to name the wrong
+            component on a page it was not written for. And it cannot arrive on
+            an unexpected page either: `scripts/check-props-coverage.mjs` fails
+            the build on an undescribed own prop unless the package is
+            allow-listed there with its reason, so the only page this can render
+            on is one where that reason has been written down. */}
+        {hasUndescribedOwnTable && (
+          <>
+            {' These tables carry no Description column: this package passes Radix\'s '}
+            {radix.name}
+            {' through whole, so there is no props type of its own to describe them in. Radix\'s own documentation, linked below, is where they are described.'}
+          </>
+        )}
       </Text>
       {doc.components.map(component => (
         <ComponentProps key={component.name} component={component} />
