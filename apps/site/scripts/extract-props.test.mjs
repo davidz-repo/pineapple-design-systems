@@ -168,7 +168,22 @@ describe('the shapes a table has to render', () => {
 
   it('puts the required props first, then goes alphabetical', () => {
     expect(doc.components[0].props.map(prop => prop.name))
-      .toEqual(['count', 'isLoud', 'label', 'tone']);
+      .toEqual(['count', 'isLoud', 'label', 'spread', 'tone']);
+  });
+
+  it('sorts an expanded union rather than printing it in the checker\'s order', () => {
+    // `UnionType.types` is id-ordered, so the printed order was a function of
+    // the whole PROGRAM: adding a package could reshuffle every enum cell in
+    // all sixteen artifacts. `typeText` sorts, which makes the order a function
+    // of the members alone.
+    //
+    // On a union declared REVERSE alphabetical, because that is the only shape
+    // that can tell the sort from the absence of one. `tone` above is declared
+    // alphabetically already and passes either way — and Radix-derived values
+    // are the wrong place to pin this, since an upgrade would redden them for
+    // reasons of its own.
+    expect(propNamed(doc.components[0], 'spread')?.type)
+      .toBe('"auto" | "narrow" | "wide"');
   });
 
   it('reads the required flag, the type, the default and the JSDoc', () => {

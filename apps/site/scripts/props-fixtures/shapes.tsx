@@ -42,6 +42,13 @@ export interface WidgetProps {
   count: number;
   /** Which tone to draw it in. */
   tone?: Tone;
+  /**
+   * How far it spreads. Declared in REVERSE alphabetical order on purpose:
+   * `typeText` sorts an expanded literal union, and the union above it is
+   * declared alphabetically already, so it would pass whether the sort ran or
+   * not. This one passes only if it does.
+   */
+  spread?: 'wide' | 'narrow' | 'auto';
   /** Whether it says so **loudly** — the `data-loud` attribute, not a style. */
   isLoud?: boolean;
   label?: string;
@@ -50,9 +57,16 @@ export interface WidgetProps {
 }
 
 /** A widget. Its own description, so the extractor has one to pick up. */
-export function Widget({ count, tone = 'iris', isLoud = false, label, children }: WidgetProps) {
+export function Widget({
+  count,
+  tone = 'iris',
+  isLoud = false,
+  label,
+  spread,
+  children,
+}: WidgetProps) {
   return (
-    <div data-tone={tone} data-loud={isLoud} aria-label={label}>
+    <div data-tone={tone} data-loud={isLoud} data-spread={spread} aria-label={label}>
       {count}
       {children}
     </div>
