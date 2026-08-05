@@ -40,9 +40,10 @@ export function PropsSection({ slug }: { slug: string }) {
     // README → nothing for the length of a dynamic import, with no
     // announcement that anything was coming: SectionSkeleton is `aria-hidden`,
     // deliberately.
-    // `props-section` is what gets this section's prose — its link, and the
-    // bare `<code>` in its paragraph and its h3s — the treatment the README one
-    // screen above already gives the identical elements (site.css).
+    //
+    // `props-section` is the hook that gets this section's prose — its link,
+    // and the bare `<code>` in its paragraph and its h3s — the treatment the
+    // README one screen above already gives the identical elements (site.css).
     <section className="props-section" aria-labelledby={labelId}>
       <Stack gap="5">
         <Heading as="h2" size="5" id={labelId}>Props</Heading>
