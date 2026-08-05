@@ -4,8 +4,10 @@ import { useSyncExternalStore } from 'react';
 
 import { Theme } from '@radix-ui/themes';
 
+import { DEFAULT_SCALING } from '../scaling';
 import { useThemePreferences } from './ThemePreferencesProvider';
 
+import type { Scaling } from '../scaling';
 import type { AccentColor } from '@pineappleui/tokens';
 
 // useSyncExternalStore is the idiomatic React way to subscribe to external
@@ -52,11 +54,23 @@ interface DesignSystemProviderProps {
    * pin its effect is invisible.
    */
   accentColor?: AccentColor;
+  /**
+   * The scale everything is drawn at. Radix multiplies every space and font
+   * token by it, so it is how an app reads larger or smaller as a whole
+   * without touching a single `size` prop — and without changing any ratio,
+   * which bumping sizes one by one does.
+   *
+   * Pass the SAME value to `getFoucScript({ scaling })`. This one moves LAYOUT,
+   * not colour: a pair that disagrees paints the page at one size and reflows
+   * it at another on hydration.
+   */
+  scaling?: Scaling;
 }
 
 export function DesignSystemProvider({
   children,
   accentColor: pinnedAccentColor,
+  scaling = DEFAULT_SCALING,
 }: DesignSystemProviderProps) {
   const { appearance, accentColor: storedAccentColor } = useThemePreferences();
   const accentColor = pinnedAccentColor ?? storedAccentColor;
@@ -75,7 +89,7 @@ export function DesignSystemProvider({
       appearance={resolvedAppearance}
       accentColor={accentColor}
       radius="large"
-      scaling="100%"
+      scaling={scaling}
     >
       {children}
     </Theme>

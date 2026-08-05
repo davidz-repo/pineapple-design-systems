@@ -4,30 +4,32 @@ import { getFoucScript } from '@pineappleui/theme';
 
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { SITE_ACCENT_COLOR } from './site-accent';
+import { SITE_ACCENT_COLOR, SITE_SCALING } from './site-theme';
 
 import type { HtmlTagDescriptor, Plugin } from 'vite';
 
-// The site pins one accent across TWO surfaces that paint independently: the
-// boot script vite inlines (before React exists) and the provider main.tsx
-// mounts (after). site-accent.ts explains why they must agree — a pair that
-// disagrees is not an error anywhere, it is one frame of the wrong colour on
-// the first paint of every visit.
+// The site pins TWO theme values across TWO surfaces that paint independently:
+// the boot script vite inlines (before React exists) and the provider main.tsx
+// mounts (after). site-theme.ts explains why they must agree — a pair that
+// disagrees is not an error anywhere, it is one frame of the wrong thing on the
+// first paint of every visit. For the accent that frame is the wrong colour;
+// for the scaling it is the whole page at the wrong SIZE, reflowing a frame
+// later, which is the louder of the two.
 //
-// Nothing else in the repo holds that pair. The theme package proves the
+// Nothing else in the repo holds those pairs. The theme package proves the
 // MECHANISM — getFoucScript.test.ts diffs the script's attributes against the
-// provider's for every accent — but a surface that stopped passing
-// SITE_ACCENT_COLOR would still agree with itself and pass there. These two
-// tests are what makes dropping the pin on either side loud, and they read the
-// constant rather than the literal 'amber' so repainting the site stays a
-// one-line change in site-accent.ts.
+// provider's — but a surface that stopped passing the site's constants would
+// still agree with itself and pass there. These tests are what makes dropping
+// a pin on either side loud, and they read the constants rather than the
+// literals so repainting or resizing the site stays a one-line change in
+// site-theme.ts.
 
 afterEach(() => {
   vi.resetModules();
   document.body.innerHTML = '';
 });
 
-it('the boot script vite injects pins the site accent', async () => {
+it('the boot script vite injects pins the site accent and scaling', async () => {
   const { default: config } = await import('../vite.config');
 
   // Flattened as unknown[]: vite's own PluginOption is recursive (a plugin may
@@ -66,12 +68,15 @@ it('the boot script vite injects pins the site accent', async () => {
   expect(scripts).toHaveLength(1);
 
   // Exact, not a substring match: this is the same string getFoucScript builds
-  // for the pinned accent, so passing a bare literal, the package default, or
-  // any other accent in vite.config.ts fails here with a readable diff.
-  expect(scripts[0]?.children).toBe(getFoucScript({ accentColor: SITE_ACCENT_COLOR }));
+  // for BOTH pins, so passing a bare literal, the package default, or any other
+  // value for either in vite.config.ts fails here with a readable diff.
+  expect(scripts[0]?.children).toBe(getFoucScript({
+    accentColor: SITE_ACCENT_COLOR,
+    scaling: SITE_SCALING,
+  }));
 });
 
-it('the app main.tsx mounts pins the same accent on #root', async () => {
+it('the app main.tsx mounts pins the same accent and scaling', async () => {
   // A stale accent from before the picker was removed — the exact record the
   // pin exists to override. If the provider ever stops receiving the constant,
   // this is what the reader would get instead.
@@ -104,6 +109,7 @@ it('the app main.tsx mounts pins the same accent on #root', async () => {
   }
 
   expect(themed.getAttribute('data-accent-color')).toBe(SITE_ACCENT_COLOR);
+  expect(themed.getAttribute('data-scaling')).toBe(SITE_SCALING);
   // The appearance is NOT pinned: it is still a real preference, and the pin
   // must not swallow the stored one on its way past. 'light' was seeded above.
   expect(themed.classList.contains('light')).toBe(true);

@@ -3,6 +3,9 @@ import { getMatchingGrayColor } from '@radix-ui/themes/helpers';
 
 import { DEFAULT_ACCENT, STORAGE_KEY } from './preferences';
 
+import { DEFAULT_SCALING } from './scaling';
+
+import type { Scaling } from './scaling';
 import type { AccentColor } from '@pineappleui/tokens';
 
 // Returns the first-paint script body as a string. Consumers inline it in
@@ -64,6 +67,18 @@ interface GetFoucScriptOptions {
   /** Defaults to `root`, the element the provider tree is mounted into. */
   rootElementId?: string;
   /**
+   * The scale the script paints, matching `DesignSystemProvider`'s prop of the
+   * same name.
+   *
+   * The fourth must-move-together pair. Unlike the accent it is not a stored
+   * preference at all — no surface persists it — but it is still written to the
+   * root element at first paint, and it is the one attribute here that moves
+   * LAYOUT rather than colour: every Radix space and font token multiplies by
+   * it. A pair that disagrees paints the whole page at one size and reflows it
+   * at another a frame later, which is a worse flash than any wrong colour.
+   */
+  scaling?: Scaling;
+  /**
    * Pins the accent the script paints, ignoring the stored one.
    *
    * The pair for `DesignSystemProvider`'s `accentColor` prop, and the same rule
@@ -118,6 +133,7 @@ export function getFoucScript({
   storageKey = STORAGE_KEY,
   rootElementId = DEFAULT_ROOT_ELEMENT_ID,
   accentColor,
+  scaling = DEFAULT_SCALING,
 }: GetFoucScriptOptions = {}): string {
   // A pinned accent is not a preference, so it does not consult the stored
   // record at all — the app that pins one has no picker, and its returning
@@ -170,6 +186,6 @@ export function getFoucScript({
   el.setAttribute('data-has-background', 'true');
   el.setAttribute('data-panel-background', 'translucent');
   el.setAttribute('data-radius', 'large');
-  el.setAttribute('data-scaling', '100%');
+  el.setAttribute('data-scaling', ${toInlineSafeLiteral(scaling)});
 })();`;
 }
