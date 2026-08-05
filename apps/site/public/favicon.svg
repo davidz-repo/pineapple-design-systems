@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pineapple UI">
-  <title>Pineapple UI</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pineapple Design Systems">
+  <title>Pineapple Design Systems</title>
   <!--
     The SAME drawing as apps/site/src/components/PineappleMark.tsx — three flat
     layers, no gradients and no opacity, so it survives 16px: a three-blade

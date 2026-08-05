@@ -106,7 +106,7 @@ export function HomePage() {
               so one more character in the wordmark would have wrapped it
               badly. Nothing else on the site needs this — it is the only type
               on the page set large enough for the viewport to matter. */}
-          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple UI</Heading>
+          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple Design Systems</Heading>
           <Text as="p" size="4" color="gray">
             A presentational React design system: thin, typed wrappers over
             Radix Themes. Every package is a shell — props in, callbacks out —
