@@ -1,5 +1,4 @@
-import type { Ref } from 'react';
-import { Suspense, use, useId, useRef, useState } from 'react';
+import { Suspense, use, useId, useState } from 'react';
 
 import { Badge } from '@pineappleui/badge';
 import { Button } from '@pineappleui/button';
@@ -193,7 +192,13 @@ function PropsBody({ slug }: { slug: string }) {
 function ComponentProps({ component }: { component: ComponentDoc }) {
   const [areLayoutPropsShown, setAreLayoutPropsShown] = useState(false);
   const layoutId = useId();
-  const openerRef = useRef<HTMLButtonElement>(null);
+  // An id rather than a ref, and not a stylistic choice: apps/site declares
+  // `pineapple.refTestNotApplicable` on the grounds that no component here
+  // takes a ref, and `scripts/check-ref-tests.mjs` reads the source to make
+  // sure that stays true. A ref-forwarding component in an app that exports
+  // nothing would be ceremony bought with a false declaration. The disclosure
+  // already pairs its two halves by id — that is what `aria-controls` is.
+  const openerId = useId();
 
   // Radix gives every component the same margin/padding/size/position props —
   // 41 of Box's 44, and 41 of Stack's 51. Left in the table they bury the props
@@ -222,7 +227,7 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
       {layoutProps.length > 0 && (
         <>
           <LayoutPropsToggle
-            ref={openerRef}
+            id={openerId}
             component={component}
             count={layoutProps.length}
             controls={layoutId}
@@ -252,7 +257,7 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
               isShown
               onToggle={() => {
                 setAreLayoutPropsShown(false);
-                openerRef.current?.focus();
+                document.getElementById(openerId)?.focus();
               }}
             />
           )}
@@ -263,14 +268,15 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
 }
 
 function LayoutPropsToggle({
-  ref,
+  id,
   component,
   count,
   controls,
   isShown,
   onToggle,
 }: {
-  ref?: Ref<HTMLButtonElement>;
+  /** Set on the opener only — the copy at the bottom focuses it by this. */
+  id?: string;
   component: ComponentDoc;
   count: number;
   controls: string;
@@ -293,7 +299,7 @@ function LayoutPropsToggle({
           Both copies of this control carry the same name, which is what two
           controls doing one thing are supposed to do. */}
       <Button
-        ref={ref}
+        id={id}
         size="1"
         variant="ghost"
         color="gray"
