@@ -229,7 +229,19 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
     // The same treatment MarkdownView gives a README's own tables: scroll the
     // table rather than the page, so the prose around it keeps its line length
     // on a phone.
-    <div className="props-table-scroll">
+    //
+    // Focusable and named, because on a phone this container ALWAYS scrolls —
+    // for all sixteen packages, not occasionally like a wide README table.
+    // Chrome made scroll containers keyboard-focusable by default in 127, and
+    // that is neither universal nor something to rely on; where it does apply,
+    // an unnamed one is announced as "scrollable region" and nothing else. The
+    // caption is already computed and already unique per table.
+    <div
+      className="props-table-scroll"
+      role="region"
+      aria-label={caption}
+      tabIndex={0}
+    >
       <table className="props-table">
         {/* Named for screen-reader table navigation, which lists a page's
             tables by caption; the h3 above already says it on screen. */}

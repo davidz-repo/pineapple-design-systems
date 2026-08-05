@@ -198,7 +198,15 @@ describe('the props table', () => {
     // literals). The wrapper is what keeps that inside the column instead of
     // pushing the whole page sideways, and it is a div a later edit dissolves
     // without noticing.
-    expect(table.closest('.props-table-scroll')).not.toBeNull();
+    const scroll = table.closest('.props-table-scroll');
+    expect(scroll).not.toBeNull();
+
+    // And it is reachable and named. On a phone this container always scrolls,
+    // for all sixteen packages — so a keyboard-only reader who cannot focus it
+    // cannot read past the first column, and an unnamed one is announced as
+    // "scrollable region" and nothing else.
+    expect(scroll).toHaveAttribute('tabindex', '0');
+    expect(scroll).toHaveAccessibleName('Widget props');
   });
 
   it('names what a layout prop is, where there are any', async () => {
