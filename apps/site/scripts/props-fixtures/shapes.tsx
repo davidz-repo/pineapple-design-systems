@@ -16,11 +16,17 @@ import type { ReactNode, Ref } from 'react';
 // exports that are NOT components — one lower-case, one capitalised and not
 // callable — because the component predicate has to say no to both.
 
-/** Ten members: long enough that the page has to wrap it. */
+/**
+ * Ten members: long enough that the page has to wrap it. Every name is invented
+ * — none is a member of `ACCENT_COLORS`, so `scripts/check-token-drift.mjs`
+ * reads this as the synthetic union it is rather than a hand-typed copy of the
+ * real accent list. That guard has no allowlist on purpose, and a fixture is
+ * not the reason to give it one.
+ */
 type Tone
-  = | 'amber'
+  = | 'apricot'
     | 'blue'
-    | 'crimson'
+    | 'cerise'
     | 'grass'
     | 'iris'
     | 'jade'
@@ -61,4 +67,4 @@ export function widgetTone(props: WidgetProps): Tone {
  * which is exactly how an array of icon names came to be documented as a
  * component with 35 props.
  */
-export const WIDGET_TONES: readonly Tone[] = ['amber', 'blue', 'crimson'];
+export const WIDGET_TONES: readonly Tone[] = ['apricot', 'blue', 'cerise'];

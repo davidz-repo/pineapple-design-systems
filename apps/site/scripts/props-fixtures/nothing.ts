@@ -4,7 +4,10 @@
 // or the hook, because "this package documents no props" is a page the site
 // draws on purpose and must not draw by accident.
 
-export const FIXTURE_TONES = ['amber', 'blue'] as const;
+// Invented names, matching shapes.tsx: no member of `ACCENT_COLORS` appears in
+// a fixture, so check-token-drift never has to tell a synthetic list apart from
+// a hand-typed copy of the real one.
+export const FIXTURE_TONES = ['apricot', 'blue'] as const;
 
 // Named for what it stands in for — `useLocalStorage`, the real package with no
 // component in it — so the rule below is right about the code and wrong about

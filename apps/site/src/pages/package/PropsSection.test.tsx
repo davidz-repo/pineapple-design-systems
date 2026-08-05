@@ -51,7 +51,7 @@ const { FIXTURE_SLUG, MISSING_SLUG, fixtureDoc } = vi.hoisted(() => ({
           },
           {
             name: 'tone',
-            type: '"amber" | "blue" | "crimson"',
+            type: '"apricot" | "blue" | "cerise"',
             required: false,
             default: '"iris"',
             description: 'Which tone to draw it in.',
@@ -125,7 +125,7 @@ describe('the props table', () => {
 
     const tone = rowFor(table, 'tone');
     expect(within(tone).getAllByRole('cell').map(cell => cell.textContent))
-      .toEqual(['"amber" | "blue" | "crimson"', '"iris"', 'Which tone to draw it in.']);
+      .toEqual(['"apricot" | "blue" | "cerise"', '"iris"', 'Which tone to draw it in.']);
 
     // A prop with no default gets the placeholder, and it is decorative: an
     // empty cell already reads as empty, and "em dash" announced on every

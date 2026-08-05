@@ -149,7 +149,7 @@ describe('the shapes a table has to render', () => {
     });
     expect(propNamed(component, 'tone')).toEqual({
       name: 'tone',
-      type: '"amber" | "blue" | "crimson" | "grass" | "iris" | "jade" | "lime" | "mint" | "plum" | "ruby"',
+      type: '"apricot" | "blue" | "cerise" | "grass" | "iris" | "jade" | "lime" | "mint" | "plum" | "ruby"',
       required: false,
       // Written in the destructuring parameter, which leaves no trace in the
       // props type — the AST is the only place this exists.
