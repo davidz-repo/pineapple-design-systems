@@ -127,6 +127,48 @@ it('opens with a skip link that targets the main region', async () => {
   expect(main).toHaveAttribute('tabindex', '-1');
 });
 
+// Every control the header renders, in document order, each named by the class
+// site.css's 860px block switches on. `.site-appearance-segments` and
+// `.site-appearance-cycle` are one control in two forms — CSS shows exactly one
+// per viewport — and the segmented control's three radios are internal to it,
+// so neither counts twice. `.site-docs-badge` is not here because a badge is
+// not a control; it is dropped by the same block for width all the same.
+const HEADER_CONTROLS = [
+  'site-header-brand',
+  'site-appearance-segments',
+  'site-appearance-cycle',
+  'site-header-link',
+  'site-menu-trigger',
+];
+
+const WORDMARK_CLAMP = [
+  'The phone header holds ONE ROW only because site.css scales the wordmark with',
+  'a clamp — `.site-header-wordmark` in the `@media (max-width: 860px)` block —',
+  'whose 219.6px constant was measured against exactly the controls listed above.',
+  'Nothing measures the row at runtime, so adding or removing a header control',
+  'wraps the header to two rows below ~484px with no other warning, and every',
+  'sticky rail that reads --site-header-h then sits ~44px under the chrome.',
+  'Re-derive that clamp in apps/site/src/site.css, then update this list.',
+].join('\n');
+
+it('renders exactly the header controls the wordmark clamp was derived from', async () => {
+  await renderAt('/');
+  const header = document.querySelector('header.site-header');
+  expect(header).not.toBeNull();
+
+  // A radiogroup is one control: keep the group, drop the radios inside it.
+  const controls = Array.from(
+    header?.querySelectorAll('a, button, input, select, textarea, [role="radiogroup"]') ?? [],
+  ).filter(element => element.matches('[role="radiogroup"]')
+    || element.closest('[role="radiogroup"]') === null);
+
+  const named = controls.map(element => HEADER_CONTROLS
+    .find(name => element.classList.contains(name))
+    ?? `UNNAMED CONTROL: ${element.outerHTML.slice(0, 120)}`);
+
+  expect(named, WORDMARK_CLAMP).toEqual(HEADER_CONTROLS);
+});
+
 it('retitles the document per page and per tab', async () => {
   await renderAt('/');
   await expectTitle('Pineapple Design Systems — React components on Radix Themes');
