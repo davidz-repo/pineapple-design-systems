@@ -649,13 +649,14 @@
    scroll moves the table, it does not reflow the column.
 
    12rem is ~22 monospace characters after the cell's padding at this font
-   size, so the union wraps at its own ` | ` and a member is never split. At
-   390px the content column is 358px and the table's minimum becomes 128 + 192
-   + 100 (+ 224 when there is a Description column) — so it still scrolls
-   sideways on a phone, and it is now a readable table that scrolls rather than
-   an unreadable one that also scrolls. The real answer below ~600px is a
-   stacked per-prop layout, which is a page-wide decision because the README
-   tables share this CSS. */
+   size, so the union wraps at its own ` | ` and a member is never split.
+
+   This governs the GRID, which is what the table is down to 600px: at 700px
+   the content column is 668px and the minimum is 128 + 192 + 100 (+ 224 with a
+   Description column), so a described table still scrolls a little and an
+   undescribed one fits. Below 600px there is no grid to floor — every cell is
+   a full-width block — and the stacked block at the end of this file releases
+   this floor along with the others. The two never apply at once. */
 .props-table td:nth-child(2) {
   min-width: 12rem;
 }
@@ -670,6 +671,145 @@
 .props-table td:nth-child(4) {
   min-width: 14rem;
   max-width: 28rem;
+}
+
+/* ---- Reference tables, stacked --------------------------------------- */
+
+/* Below 600px a reference table stops being a grid. Every rule above it is a
+   column width, and the widths are the problem: the floors that make the
+   columns readable (8rem name, 12rem type, 14rem description) add up to more
+   than a phone has, so the table scrolled sideways on every package page and
+   on every README with a wide table. Widening the viewport is not an option a
+   reader has, and narrowing the floors is the unreadable table this replaced.
+
+   So each row becomes a block and each cell a labelled line — the value under
+   the name of the column it came from — which is what a phone has room for and
+   what most component-docs sites do. Nothing scrolls horizontally after this:
+   there is no content wider than the column any more.
+
+   Applied to `.markdown table` as well as `.props-table`, because they are the
+   same object and share every rule above. The theme package's options table
+   has 60-word cells and was the worst of them.
+
+   WHAT THIS COSTS, AND WHAT PAYS IT
+   Changing a table's `display` DROPS its implicit ARIA semantics in every
+   engine: no table, no rows, no cells, no relationship between a cell and its
+   column. The roles are therefore written out explicitly in the markup —
+   PropsSection.tsx for the generated tables, rehypeTableSemantics.ts for the
+   ones a README writes — and they are what a screen reader reads here. Above
+   the breakpoint they are the roles the elements already have, so they change
+   nothing.
+
+   The `thead` is HIDDEN, not removed, for the same reason: it holds the column
+   headers a screen reader associates each cell with. `data-label` below is
+   that same fact drawn for everyone else, not a replacement for it.
+
+   The scroll wrapper is left exactly as it is. `overflow-x: auto` with nothing
+   to overflow draws no scrollbar, and its `tabindex` becomes a tab stop onto a
+   named region rather than onto a scroller — which is a landmark saying which
+   table you have arrived in, not a stop that does nothing. Removing it would
+   mean two behaviours for one element across a breakpoint, and CSS is not
+   where a tabindex lives anyway. */
+@media (max-width: 600px) {
+  .markdown table,
+  .props-table,
+  .markdown tbody,
+  .props-table tbody,
+  .markdown tr,
+  .props-table tr,
+  .markdown td,
+  .props-table td,
+  .props-table tbody th {
+    display: block;
+  }
+
+  /* Releases the column floors and the description's ceiling: a full-width
+     block has no column to be floored into, and 8rem + 12rem + 14rem is more
+     than a 390px viewport holds.
+
+     Written out cell by cell rather than as one `.props-table td` reset,
+     because the rules being released are `:first-child` and `:nth-child()` and
+     so outrank any plain-element selector however far down the file it sits.
+     A generic reset here would have looked like it worked and left all three
+     floors standing. */
+  .markdown th:first-child,
+  .markdown td:first-child,
+  .props-table th:first-child,
+  .props-table td:first-child,
+  .props-table td:nth-child(2),
+  .props-table td:nth-child(4) {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .markdown table,
+  .props-table {
+    min-width: 0;
+  }
+
+  /* Announced, not drawn: the same treatment .site-visually-hidden gives the
+     table's caption, and for the same reason. */
+  .markdown thead,
+  .props-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The row is the block now, so the row carries the rule that separated it
+     from the next one. */
+  .markdown tbody tr,
+  .props-table tbody tr {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--site-border);
+  }
+
+  .markdown tbody tr:last-child,
+  .props-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .markdown td,
+  .props-table td,
+  .props-table tbody th {
+    padding: var(--space-1) 0;
+    border-bottom: none;
+  }
+
+  /* The first cell is what the block is ABOUT — a prop name, an export name —
+     so it reads as the block's title rather than as one of its values, and it
+     is the one cell that carries no label. */
+  .markdown tbody tr > :first-child,
+  .props-table tbody tr > :first-child {
+    padding-top: 0;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .markdown td::before,
+  .props-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--gray-11);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-1);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .markdown tbody tr > td:first-child::before,
+  .props-table tbody tr > td:first-child::before {
+    content: none;
+  }
+
+  /* The type's own ceiling was there to stop it forcing the table wider than
+     the scroll container. There is no container to force any more. */
+  .props-table .props-type {
+    max-width: none;
+  }
 }
 
 .markdown hr {

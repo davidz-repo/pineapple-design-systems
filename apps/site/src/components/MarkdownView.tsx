@@ -11,6 +11,7 @@ import remarkGfm from 'remark-gfm';
 
 import { internalRouteFor } from '../packageLinks';
 import { CodeBlock } from './CodeBlock';
+import { rehypeTableSemantics } from './rehypeTableSemantics';
 
 import type { Components } from 'react-markdown';
 
@@ -110,15 +111,35 @@ const components: Components = {
       : <CodeBlock code={fence.code} language={fence.language} />;
   },
   // READMEs carry prop tables far wider than a phone: the theme package's
-  // options table alone has 60-word cells. Scrolling the table instead of the
-  // page keeps the surrounding prose at the reader's line length, and the
-  // first-column min-width (site.css) stops the name column collapsing to one
-  // character per line to buy the description room it does not have either.
-  table: ({ children }) => (
-    <div className="markdown-table-scroll">
-      <table>{children}</table>
-    </div>
-  ),
+  // options table alone has 60-word cells. Above 600px the table scrolls rather
+  // than the page, so the surrounding prose keeps the reader's line length, and
+  // the first-column min-width (site.css) stops the name column collapsing to
+  // one character per line to buy the description room it does not have either.
+  // Below 600px it stacks instead and nothing scrolls — see
+  // `rehypeTableSemantics`, which is what keeps it a table while it does.
+  //
+  // Named and focusable for the same reason the props tables' wrapper is: a
+  // container that scrolls and cannot be focused cannot be read past its first
+  // column by a keyboard, and an unnamed one announces as "scrollable region"
+  // and nothing else. A README table has no caption, so its own column headings
+  // are the name — the only thing on the page that says which table this is.
+  table: ({ children, node }) => {
+    const columns = node?.properties?.['data-columns'];
+    return (
+      <div
+        className="markdown-table-scroll"
+        role="region"
+        aria-label={typeof columns === 'string' && columns !== '' ? columns : 'Table'}
+        tabIndex={0}
+      >
+        {/* The plugin puts `role="table"` on the hast node; this override
+            builds the element itself and does not spread its properties, so
+            the role is written here. Everything below the table — rowgroups,
+            rows, cells — comes through as the plugin left it. */}
+        <table role="table">{children}</table>
+      </div>
+    );
+  },
 };
 
 // One components map per offset, built once and kept. react-markdown re-renders
@@ -152,7 +173,11 @@ export function MarkdownView({
   const body = stripLeadingH1 ? markdown.replace(/^#\s.*\n+/, '') : markdown;
   return (
     <div className="markdown">
-      <Markdown remarkPlugins={[remarkGfm]} components={componentsFor(headingOffset)}>
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeTableSemantics]}
+        components={componentsFor(headingOffset)}
+      >
         {body}
       </Markdown>
     </div>

@@ -54,13 +54,46 @@ describe('markdownView', () => {
     expect(container.querySelector('h6')).toHaveTextContent('Deep');
   });
 
-  it('wraps a table in a horizontal scroll container', () => {
-    const { container, getByText } = render(
+  it('wraps a table in a horizontal scroll container, named and reachable', () => {
+    const { container, getByText, getByRole } = render(
       <MarkdownView markdown={'| Prop | Description |\n| --- | --- |\n| `size` | How big. |'} />,
     );
     const wrapper = container.querySelector('.markdown-table-scroll');
     expect(wrapper?.firstElementChild?.tagName).toBe('TABLE');
     // The wrapper is a wrapper: the table's content still renders through it.
     expect(getByText('How big.')).toBeInTheDocument();
+
+    // A container that scrolls and cannot be focused cannot be read past its
+    // first column by a keyboard, and an unnamed one announces as "scrollable
+    // region" and nothing else. A README table has no caption, so its own
+    // column headings are the only thing that says which table this is.
+    const region = getByRole('region', { name: 'Prop, Description' });
+    expect(region).toBe(wrapper);
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
+  it('gives a table the roles and column labels its stacked layout needs', () => {
+    const { getByRole, getAllByRole } = render(
+      <MarkdownView
+        markdown={'| Export | What it is |\n| --- | --- |\n| `Box` | The element. |'}
+      />,
+    );
+
+    // Below 600px site.css stacks these rows into blocks, and changing a
+    // table's `display` drops its implicit ARIA semantics in every engine.
+    // rehypeTableSemantics writes them out so they survive the restyle; above
+    // the breakpoint they are the roles these elements already have. jsdom
+    // evaluates no media query, so this asserts the markup the layout rests on.
+    const table = getByRole('table');
+    expect(table).toHaveAttribute('role', 'table');
+    expect(getAllByRole('rowgroup')).toHaveLength(2);
+    expect(getAllByRole('row')).toHaveLength(2);
+    expect(getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Export', 'What it is']);
+
+    // Each body cell carries its column's heading, because stacked there is no
+    // header row above it to read across to.
+    expect(getAllByRole('cell').map(cell => cell.getAttribute('data-label')))
+      .toEqual(['Export', 'What it is']);
   });
 });

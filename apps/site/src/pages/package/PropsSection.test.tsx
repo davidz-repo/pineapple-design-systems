@@ -188,6 +188,39 @@ describe('the props table', () => {
     const caption = within(props).getByText('Widget props');
     expect(caption.tagName).toBe('CAPTION');
     expect(caption).toHaveClass('site-visually-hidden');
+
+    // And the table is NAMED by it through `aria-labelledby`, not only through
+    // HTML's caption-names-the-table rule — that rule is a native mechanism,
+    // and below 600px this element stops being a native table.
+    const [table] = within(props).getAllByRole('table');
+    expect(table).toHaveAccessibleName('Widget props');
+    expect(table).toHaveAttribute('aria-labelledby', caption.id);
+  });
+
+  it('states the table roles its stacked layout would otherwise destroy', async () => {
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+    const [table] = within(props).getAllByRole('table');
+
+    // Below 600px site.css sets `display: block` on the table and its parts, and
+    // changing a table's `display` drops its implicit ARIA semantics in every
+    // engine. Written out, they survive the restyle. jsdom evaluates no media
+    // query, so what is asserted here is the markup the stacked layout rests
+    // on — the layout itself is CSS and is verified by reading it.
+    expect(table).toHaveAttribute('role', 'table');
+    expect(within(table).getAllByRole('rowgroup')).toHaveLength(2);
+    // Header row plus one per prop.
+    expect(within(table).getAllByRole('row')).toHaveLength(4);
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Prop', 'Type', 'Default', 'Description']);
+
+    // Each value carries the column it came from, because stacked there is no
+    // header above it any more. The row header does not: the prop name is the
+    // block's title, not one of its labelled values.
+    const tone = rowFor(table, 'tone');
+    expect(within(tone).getAllByRole('cell').map(cell => cell.getAttribute('data-label')))
+      .toEqual(['Type', 'Default', 'Description']);
+    expect(within(tone).getByRole('rowheader')).not.toHaveAttribute('data-label');
   });
 
   it('scrolls the table rather than the page, like a README\'s own tables', async () => {

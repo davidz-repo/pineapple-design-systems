@@ -236,6 +236,8 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
 }
 
 function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
+  const captionId = useId();
+
   // Per TABLE, not per section: 68 of the 98 non-layout props in the artifact
   // carry no JSDoc at all, and on eight of the sixteen packages — Button, Text,
   // Heading, Card, Badge among them — that is every row of the own-props table.
@@ -250,11 +252,11 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
     // table rather than the page, so the prose around it keeps its line length
     // on a phone.
     //
-    // Focusable and named, because on a phone this container ALWAYS scrolls —
-    // for all sixteen packages, not occasionally like a wide README table.
-    // Chrome made scroll containers keyboard-focusable by default in 127, and
-    // that is neither universal nor something to rely on; where it does apply,
-    // an unnamed one is announced as "scrollable region" and nothing else. The
+    // Focusable and named, because above 600px this container scrolls for all
+    // sixteen packages, not occasionally like a wide README table. Chrome made
+    // scroll containers keyboard-focusable by default in 127, and that is
+    // neither universal nor something to rely on; where it does apply, an
+    // unnamed one is announced as "scrollable region" and nothing else. The
     // caption is already computed and already unique per table.
     <div
       className="props-table-scroll"
@@ -262,38 +264,56 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
       aria-label={caption}
       tabIndex={0}
     >
-      <table className="props-table">
-        {/* Named for screen-reader table navigation, which lists a page's
-            tables by caption; the h3 above already says it on screen. */}
-        <caption className="site-visually-hidden">{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Prop</th>
-            <th scope="col">Type</th>
-            <th scope="col">Default</th>
-            {hasDescriptions && <th scope="col">Description</th>}
+      {/* Every ARIA role below 600px is doing the work the element's own tag
+          normally does: the stacked layout (site.css) sets `display: block` on
+          the table and its parts, and changing a table's `display` DROPS its
+          implicit semantics in every engine — the table, its rows, its cells
+          and the relationships between them. Stated explicitly they survive the
+          restyle, and above the breakpoint they are the roles these elements
+          already have, so nothing changes.
+
+          `aria-labelledby` rather than leaning on the caption for the same
+          reason: HTML's caption-names-the-table rule is a native mechanism, and
+          this element stops being a native table on a phone. The `<caption>`
+          stays where it is — it is what a screen reader's table list reads. */}
+      <table className="props-table" role="table" aria-labelledby={captionId}>
+        <caption id={captionId} role="caption" className="site-visually-hidden">{caption}</caption>
+        <thead role="rowgroup">
+          {/* Visually hidden below the breakpoint, never removed: the column
+              headers are how a screen reader associates a stacked cell with
+              its column, and `data-label` below is the same fact drawn for
+              everyone else. */}
+          <tr role="row">
+            <th scope="col" role="columnheader">Prop</th>
+            <th scope="col" role="columnheader">Type</th>
+            <th scope="col" role="columnheader">Default</th>
+            {hasDescriptions && <th scope="col" role="columnheader">Description</th>}
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           {props.map(prop => (
-            <tr key={prop.name}>
+            <tr role="row" key={prop.name}>
               {/* A row header, not a cell: reading across a row, a screen
-                  reader then says which prop the type and default belong to. */}
-              <th scope="row">
+                  reader then says which prop the type and default belong to.
+                  It takes no `data-label` — stacked, the prop name is the
+                  block's title rather than one of its labelled values. */}
+              <th scope="row" role="rowheader">
                 <Inline gap="2" align="center">
                   <code>{prop.name}</code>
                   {prop.required && <Badge size="1" variant="soft" color="amber">Required</Badge>}
                 </Inline>
               </th>
-              <td><code className="props-type">{prop.type}</code></td>
-              <td>
+              <td role="cell" data-label="Type"><code className="props-type">{prop.type}</code></td>
+              <td role="cell" data-label="Default">
                 {prop.default === undefined
                   // Decorative: an empty cell already reads as empty, and an
                   // "em dash" announced on every optional prop is noise.
                   ? <span aria-hidden="true">—</span>
                   : <code>{prop.default}</code>}
               </td>
-              {hasDescriptions && <td>{prop.description}</td>}
+              {hasDescriptions && (
+                <td role="cell" data-label="Description">{prop.description}</td>
+              )}
             </tr>
           ))}
         </tbody>
