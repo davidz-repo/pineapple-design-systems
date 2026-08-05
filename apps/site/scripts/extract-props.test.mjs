@@ -193,8 +193,14 @@ describe('a compound component written in this repo\'s style', () => {
 });
 
 describe('a package with no components', () => {
+  // Extracted in the describe body, like the three above it. `extract` builds a
+  // whole TypeScript program, which is by far the most expensive thing in this
+  // file; done inside the `it` it is charged to that test's own timeout rather
+  // than to collection, and on a loaded CI runner this one test was paying for
+  // a program while the other three had already paid for theirs.
+  const [doc] = extract([fixture('nothing.ts')]).docs;
+
   it('reports none rather than finding something in the data', () => {
-    const [doc] = extract([fixture('nothing.ts')]).docs;
     expect(doc).toEqual({ slug: 'nothing.ts', components: [] });
   });
 });
