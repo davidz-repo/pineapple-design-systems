@@ -125,17 +125,18 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
               and would stretch it across the page. */}
           <Inline gap="2">
             {/* The visible text repeats on every component that has layout
-                props, so the NAME says which component — starting with the
-                visible text, so a voice-control user can still say what they
-                read (WCAG 2.5.3). Same shape as the examples' "Show code
-                for …". */}
+                props, so the NAME says which component — and the name has to
+                START with the visible text, word for word, or a voice-control
+                user saying what they read gets no match (WCAG 2.5.3, Label in
+                Name, Level A). One inserted "the" is enough to break it. Same
+                shape as the examples' "Show code for …". */}
             <Button
               size="1"
               variant="ghost"
               color="gray"
               aria-expanded={areLayoutPropsShown}
               aria-controls={layoutId}
-              aria-label={`${areLayoutPropsShown ? 'Hide' : 'Show'} the ${layoutProps.length} layout props for ${component.name}`}
+              aria-label={`${areLayoutPropsShown ? 'Hide' : 'Show'} ${layoutProps.length} layout props for ${component.name}`}
               onClick={() => setAreLayoutPropsShown(shown => !shown)}
             >
               {`${areLayoutPropsShown ? 'Hide' : 'Show'} ${layoutProps.length} layout props`}

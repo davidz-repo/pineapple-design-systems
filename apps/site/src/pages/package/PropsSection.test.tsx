@@ -197,11 +197,18 @@ describe('the layout props', () => {
 
     // The visible text repeats on every component that has them, so the NAME
     // says which — starting with the visible text, so a voice-control user can
-    // still say what they read (WCAG 2.5.3).
+    // still say what they read (WCAG 2.5.3, Label in Name, Level A).
+    //
+    // FOUND by that relationship rather than by a literal name, because the
+    // relationship is the requirement. Two independent string assertions — one
+    // on the name, one on the text — both passed while the name read "Show THE
+    // 2 layout props for Widget" and the button read "Show 2 layout props",
+    // which is the exact failure this is here to catch.
     const toggle = within(props).getByRole('button', {
-      name: 'Show the 2 layout props for Widget',
+      name: (accessibleName, element) => accessibleName.startsWith(element.textContent ?? ''),
     });
     expect(toggle).toHaveTextContent('Show 2 layout props');
+    expect(toggle).toHaveAccessibleName('Show 2 layout props for Widget');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     // The region it controls is in the document from the start, so
@@ -214,7 +221,12 @@ describe('the layout props', () => {
       fireEvent.click(toggle);
     });
 
-    expect(toggle).toHaveAccessibleName('Hide the 2 layout props for Widget');
+    // Same relationship on the other side of the toggle: the verb changes in
+    // both strings or in neither.
+    expect(toggle.getAttribute('aria-label')).toMatch(
+      new RegExp(`^${toggle.textContent ?? ''}\\b`),
+    );
+    expect(toggle).toHaveAccessibleName('Hide 2 layout props for Widget');
     expect(toggle).toHaveTextContent('Hide 2 layout props');
     const layoutTable = within(region as HTMLElement).getByRole('table');
     expect(within(layoutTable).getAllByRole('rowheader').map(cell => cell.textContent))
