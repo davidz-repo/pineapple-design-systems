@@ -205,6 +205,24 @@ jobs:
       - name: Check publish contract
         run: node scripts/check-publish-contract.mjs
 
+      # Also after the build, and beside the step above because it is the other
+      # half of the same question: that one asks whether the tarball carries the
+      # files it promises, this one asks whether the DECLARATIONS inside them
+      # hold up under the options a consumer compiles with.
+      #
+      # Nothing else in this job does. `packages/tsconfig/base.json` sets
+      # `skipLibCheck: true` and enables no `exactOptionalPropertyTypes`, so
+      # every `typecheck` above is green on a published `.d.ts` that fails in a
+      # consumer's build — and `skipLibCheck` DEFAULTS to false, so that consumer
+      # is the default one. `packages/icons` shipped exactly that: an
+      # `interface … extends Omit<…>` re-declaring an inherited prop, which
+      # REPLACES it rather than intersecting with it, and `error TS2430` for
+      # anyone on `exactOptionalPropertyTypes`. Under `skipLibCheck: true` the
+      # same declaration is not an error at all — it is a quietly relaxed type,
+      # which is the half no red line was ever going to catch.
+      - name: Check the published types compile as a consumer's
+        run: node scripts/check-dts-strict.mjs
+
       # Also after the build: the guard reads the vocabulary it enforces from the
       # built tokens package, so it cannot disagree with the package it checks.
       #

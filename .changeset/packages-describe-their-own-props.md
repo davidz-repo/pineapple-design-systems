@@ -33,6 +33,17 @@ identical type, Radix's own declared defaults still come through, and a prop Rad
 still arrives through the intersection without being listed. `icons`, `inline`, `live-region`
 and `stack` already declared their props and simply gained the five comments they were missing.
 
+`IconProps` becomes a type alias over the same intersection, having been an `interface … extends
+Omit<LucideProps, …>`. The two are not interchangeable for a restated prop: an interface member
+REPLACES what it inherits instead of intersecting with it, so `absoluteStrokeWidth?:
+LucideProps['absoluteStrokeWidth']` — an indexed access on an optional property, and therefore
+`boolean | undefined` — was `error TS2430` against Lucide's `absoluteStrokeWidth?: boolean` for
+any consumer compiling with `exactOptionalPropertyTypes`, and a silently widened type for
+anyone with `skipLibCheck: true`. The intersection AND-s optionality across its constituents,
+so Lucide's own declaration survives beside the description and `absoluteStrokeWidth: undefined`
+is rejected again. Everything else about the type is unchanged: same props, same types, same
+`Omit`.
+
 `text-field` is deliberately left as it was. It re-exports Radix's compound namespace whole so
 that `TextField.RootProps` and `TextField.SlotProps` keep resolving for consumers, which means
 it has no props type of its own to describe them in — and inventing one would break the export
