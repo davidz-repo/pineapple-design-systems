@@ -64,18 +64,24 @@ const { FIXTURE_SLUG, MISSING_SLUG, fixtureDoc } = vi.hoisted(() => ({
             description: '',
             isLayout: false,
           },
+          // No description on either, which is the reverse of the real
+          // artifact — Radix documents all 41 of its layout props and leaves 68
+          // of the 98 own props bare. Reversed on purpose: it puts a described
+          // table and an undescribed one inside ONE component, which is where
+          // the "does this table draw a Description column" decision has to be
+          // made.
           {
             name: 'mt',
             type: 'string',
             required: false,
-            description: 'Sets the CSS margin-top property.',
+            description: '',
             isLayout: true,
           },
           {
             name: 'mb',
             type: 'string',
             required: false,
-            description: 'Sets the CSS margin-bottom property.',
+            description: '',
             isLayout: true,
           },
         ],
@@ -231,6 +237,29 @@ describe('the layout props', () => {
     const layoutTable = within(region as HTMLElement).getByRole('table');
     expect(within(layoutTable).getAllByRole('rowheader').map(cell => cell.textContent))
       .toEqual(['mt', 'mb']);
+  });
+
+  it('drops the Description column on a table where no prop has one', async () => {
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+
+    // Per TABLE. 68 of the artifact's 98 own props carry no JSDoc, and on
+    // eight of the sixteen packages that is EVERY row — a Description header
+    // over nothing, holding a 14rem floor that starves the Type column beside
+    // it on a phone. The same component's other table keeps its column.
+    const [own] = within(props).getAllByRole('table');
+    expect(within(own).getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Prop', 'Type', 'Default', 'Description']);
+
+    await act(async () => {
+      fireEvent.click(within(props).getByRole('button', { name: /layout props/ }));
+    });
+
+    const [, layout] = within(props).getAllByRole('table');
+    expect(within(layout).getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Prop', 'Type', 'Default']);
+    // And no orphan cell left behind the missing header.
+    expect(within(rowFor(layout, 'mt')).getAllByRole('cell')).toHaveLength(2);
   });
 });
 

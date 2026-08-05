@@ -631,10 +631,34 @@
   overflow-wrap: anywhere;
 }
 
+/* The Type column carries the content, and it was the only column with no
+   floor. `overflow-wrap: anywhere` above feeds into min-content sizing (unlike
+   `break-word`), so the cell's own intrinsic minimum is ONE CHARACTER, and the
+   column settled at whatever the word "Type" needs — about 32px of content
+   box. Every accent union then broke mid-token (`"ru` / `by"`) down sixty
+   lines of ribbon, and no amount of scrolling widened it: the horizontal
+   scroll moves the table, it does not reflow the column.
+
+   12rem is ~22 monospace characters after the cell's padding at this font
+   size, so the union wraps at its own ` | ` and a member is never split. At
+   390px the content column is 358px and the table's minimum becomes 128 + 192
+   + 100 (+ 224 when there is a Description column) — so it still scrolls
+   sideways on a phone, and it is now a readable table that scrolls rather than
+   an unreadable one that also scrolls. The real answer below ~600px is a
+   stacked per-prop layout, which is a page-wide decision because the README
+   tables share this CSS. */
+.props-table td:nth-child(2) {
+  min-width: 12rem;
+}
+
 /* Descriptions are Radix's own JSDoc, up to about 20 words. A floor so the
    column is not squeezed to one word per line by the type beside it, and a
-   ceiling so it does not take the whole page on a wide screen. */
-.props-table td:last-child {
+   ceiling so it does not take the whole page on a wide screen.
+
+   Addressed by position, not by `:last-child`: the Description column is the
+   fourth one, and a table that has no descriptions to show does not draw it —
+   so `:last-child` would put a 14rem floor on Default instead. */
+.props-table td:nth-child(4) {
   min-width: 14rem;
   max-width: 28rem;
 }

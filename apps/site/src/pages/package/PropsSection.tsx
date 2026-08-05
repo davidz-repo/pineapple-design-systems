@@ -156,6 +156,15 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
 }
 
 function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
+  // Per TABLE, not per section: 68 of the 98 non-layout props in the artifact
+  // carry no JSDoc at all, and on eight of the sixteen packages — Button, Text,
+  // Heading, Card, Badge among them — that is every row of the own-props table.
+  // A Description header over four empty cells is a column that says the page
+  // is missing something; worse, it holds a 14rem floor that is exactly what
+  // starves the Type column beside it on a phone. The layout tables keep theirs,
+  // because Radix documents all 41.
+  const hasDescriptions = props.some(prop => prop.description !== '');
+
   return (
     // The same treatment MarkdownView gives a README's own tables: scroll the
     // table rather than the page, so the prose around it keeps its line length
@@ -170,7 +179,7 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
             <th scope="col">Prop</th>
             <th scope="col">Type</th>
             <th scope="col">Default</th>
-            <th scope="col">Description</th>
+            {hasDescriptions && <th scope="col">Description</th>}
           </tr>
         </thead>
         <tbody>
@@ -192,7 +201,7 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
                   ? <span aria-hidden="true">—</span>
                   : <code>{prop.default}</code>}
               </td>
-              <td>{prop.description}</td>
+              {hasDescriptions && <td>{prop.description}</td>}
             </tr>
           ))}
         </tbody>
