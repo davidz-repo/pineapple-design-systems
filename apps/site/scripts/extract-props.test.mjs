@@ -168,7 +168,7 @@ describe('the shapes a table has to render', () => {
 
   it('puts the required props first, then goes alphabetical', () => {
     expect(doc.components[0].props.map(prop => prop.name))
-      .toEqual(['count', 'isLoud', 'label', 'spread', 'tone']);
+      .toEqual(['count', 'isLoud', 'label', 'reach', 'spread', 'tone']);
   });
 
   it('sorts an expanded union rather than printing it in the checker\'s order', () => {
@@ -184,6 +184,21 @@ describe('the shapes a table has to render', () => {
     // reasons of its own.
     expect(propNamed(doc.components[0], 'spread')?.type)
       .toBe('"auto" | "narrow" | "wide"');
+  });
+
+  it('sorts a union inside a preserved alias, which is where most of them are', () => {
+    // The half a top-level sort could not reach, and the reason this is a node
+    // rewrite rather than an operation on the printed type: 179 of the
+    // artifact's 277 props print as `Responsive<…>`, so the union is inside the
+    // type ARGUMENT. `Heading.trim`, `Text.weight`, `Inline.align`,
+    // `Stack.justify` and ten more moved on a docs commit that changed no type,
+    // two of them in `box`, which that commit did not touch.
+    //
+    // The alias survives, which is the other half of the claim: expanding
+    // `Wrapped<…>` here would print the whole breakpoint object where the name
+    // was saying the useful thing.
+    expect(propNamed(doc.components[0], 'reach')?.type)
+      .toBe('Wrapped<"a" | "b" | "c">');
   });
 
   it('reads the required flag, the type, the default and the JSDoc', () => {

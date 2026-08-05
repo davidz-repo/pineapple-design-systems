@@ -337,6 +337,55 @@ function propDefDefault(ts, prop) {
   return undefined;
 }
 
+/** Code point, which is the order the props themselves are listed in. */
+function byCodePoint(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * The same union rendering, with every all-literal union inside it sorted.
+ *
+ * Written as a node transform because the union that needs sorting is usually
+ * not the type being printed: 179 of the artifact's 277 props print through a
+ * PRESERVED ALIAS — `Responsive<"center" | "start" | "end">` — and the members
+ * are inside its type arguments, where no operation on the top-level type can
+ * reach them.
+ *
+ * Only unions whose every member is a string or number LITERAL are touched, the
+ * same rule `typeText` applies at the top level, so `T | undefined` and
+ * `Union<string, …>` keep the order the checker gave them and `undefined` stays
+ * where the trim below expects it. A union that mixes literals with anything
+ * else — including `undefined` at its own level — is left alone rather than
+ * partly ordered.
+ *
+ * @param {import('typescript')} ts
+ * @param {import('typescript').TypeNode} node
+ * @param {(node: import('typescript').Node) => string} print
+ * @returns {import('typescript').TypeNode} the same tree, unions ordered
+ */
+function withSortedUnions(ts, node, print) {
+  const isLiteral = member => ts.isLiteralTypeNode(member)
+    && (ts.isStringLiteral(member.literal) || ts.isNumericLiteral(member.literal));
+
+  const transform = context => (root) => {
+    const visit = (current) => {
+      const visited = ts.visitEachChild(current, visit, context);
+      if (!ts.isUnionTypeNode(visited) || !visited.types.every(isLiteral)) {
+        return visited;
+      }
+      return ts.factory.updateUnionTypeNode(
+        visited,
+        ts.factory.createNodeArray(
+          [...visited.types].sort((a, b) => byCodePoint(print(a), print(b))),
+        ),
+      );
+    };
+    return ts.visitNode(root, visit);
+  };
+
+  return ts.transform(node, [transform]).transformed[0];
+}
+
 /**
  * The type as the table prints it.
  *
@@ -353,22 +402,32 @@ function propDefDefault(ts, prop) {
  * saying the useful thing. `boolean` is excluded by the same line — it is
  * `true | false` inside, and nobody wants to read that.
  *
- * Members come out sorted by code point. `UnionType.types` is ALREADY id-
- * ordered, so the branch above buys EXPANSION and nothing else — the sequence
- * it would print is a function of the whole program's type ids, not of the
- * union. Radix declares `radius` as none/small/medium/large/full and the
- * artifact printed `"small" | "none" | "large" | "medium" | "full"`; adding a
- * seventeenth package can reshuffle every enum cell in every table, which is
- * churn nothing explains and a pinned test failure that names no cause.
- * Sorting makes the order a function of the members alone — the same code-
- * point order the props themselves are listed in.
+ * Members come out sorted by code point, wherever in the rendering they sit.
+ * `UnionType.types` is ALREADY id-ordered, so the branch above buys EXPANSION
+ * and nothing else — the sequence it would print is a function of the whole
+ * program's type ids, not of the union. Radix declares `radius` as
+ * none/small/medium/large/full and the artifact printed `"small" | "none" |
+ * "large" | "medium" | "full"`; adding a seventeenth package can reshuffle every
+ * enum cell in every table, which is churn nothing explains and a pinned test
+ * failure that names no cause.
+ *
+ * "Wherever in the rendering they sit" is the second half, and it is why the
+ * fallback goes through `typeToTypeNode` rather than `typeToString`. Sorting the
+ * TOP-LEVEL union covers under a hundred of the artifact's 277 cells: the rest
+ * print through a preserved alias, and `Heading.trim`, `Text.weight`,
+ * `Inline.align`, `Stack.justify` and eleven more moved on a docs-only commit
+ * that changed no type at all — including two in `box`, which that commit did
+ * not touch. Rewriting the union NODES reaches inside the alias, keeps the alias
+ * (which is the useful thing in the cell), and stays on the compiler API this
+ * file already restricts itself to.
  *
  * It is NOT declaration order, which would be the useful one (a scale read as
  * a scale). Recovering that means resolving each prop back to a `UnionTypeNode`
- * in its declaration, and Radix's props are mapped out of `values: readonly
- * [...]` arrays, so there is no union type node to read. Explicable and stable
- * is what is on offer here; a comment claiming more than the code does is what
- * this replaces.
+ * in its DECLARATION, and Radix's props are mapped out of `values: readonly
+ * [...]` arrays, so there is no union type node to read — the nodes rewritten
+ * here are the checker's own rendering of the resolved type, which carries no
+ * memory of how it was written. So `Responsive<Union<string, "-1" | … | "9">>`
+ * prints its negative steps first. Explicable and stable is what is on offer.
  *
  * @param {import('typescript')} ts
  * @param {import('typescript').TypeChecker} checker
@@ -386,12 +445,29 @@ function typeText(ts, checker, type, enclosing) {
     if (members.length > 0 && members.every(member => (member.flags & LITERAL_FLAGS) !== 0)) {
       return members
         .map(member => checker.typeToString(member, enclosing, flags))
-        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+        .sort(byCodePoint)
         .join(' | ');
     }
   }
 
-  return checker.typeToString(type, enclosing, flags).replace(/\s*\|\s*undefined$/, '');
+  const node = checker.typeToTypeNode(
+    type,
+    enclosing,
+    ts.NodeBuilderFlags.NoTruncation | ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope,
+  );
+
+  // The node builder gives up on some types and answers `undefined`; the
+  // checker's own string is always available, and an unsorted cell is the state
+  // every cell was in before this.
+  if (node === undefined) {
+    return checker.typeToString(type, enclosing, flags).replace(/\s*\|\s*undefined$/, '');
+  }
+
+  const printer = ts.createPrinter({ removeComments: true });
+  const blank = ts.createSourceFile('types.ts', '', ts.ScriptTarget.Latest);
+  const print = current => printer.printNode(ts.EmitHint.Unspecified, current, blank);
+
+  return print(withSortedUnions(ts, node, print)).replace(/\s*\|\s*undefined$/, '');
 }
 
 /**
