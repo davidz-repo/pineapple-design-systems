@@ -57,20 +57,47 @@
      the page. No step-11 body text lives on it, so it is free to be one. */
   --site-example-bg: var(--gray-3);
 
-  /* Every rule, edge and divider this file draws. Amber-8 was here because a
-     neutral hairline over yellow reads as dirty; on white that reason is gone,
-     and amber-8 measures 2.20:1 — a fully saturated orange, the loudest thing
-     on the page, reading as a validation error rather than a container edge.
-     gray-6 is Radix's subtle-border step: 1.41:1 on the canvas, and it is now
-     load-bearing rather than decorative (see --site-panel). */
+  /* The one-sided RULES this file draws: the header's underline, the sidebar's
+     column edge, the footer's top, a table's row dividers. Not the boxes — see
+     --site-enclosure-border below, which used to be this same value and is the
+     half of the job a hairline could not do.
+
+     Amber-8 was here because a neutral hairline over yellow reads as dirty; on
+     white that reason is gone, and amber-8 measures 2.20:1 — a fully saturated
+     orange, the loudest thing on the page, reading as a validation error rather
+     than a container edge. gray-6 is Radix's subtle-border step, 1.41:1, which
+     is right for a divider: it separates two things already beside each other,
+     and a table of twenty rows at a heavier step reads as a grid of stripes. */
   --site-border: var(--gray-6);
 
-  /* The inline-code chip's edge. Transparent in light, where the chip's own
-     fill separates it from white; a real border in dark, where the chip is
-     amber-3 on an amber-1 canvas (1.19:1) and needs the help. A token rather
-     than a border in one block and an unset in the other, so the two
-     appearances state their answer in the same place. */
-  --site-code-border: transparent;
+  /* The edge of anything that ENCLOSES something — a card, a code panel, an
+     example canvas, an inline-code chip. Distinct from --site-border above,
+     which is now only the one-sided RULES: the header's underline, the sidebar's
+     column edge, a table's row dividers. Two jobs that used to share a step and
+     should not, because a rule only has to separate two things that are already
+     next to each other, while an edge has to make a box exist.
+
+     On this canvas the difference is the whole ballgame. Every enclosure here
+     is a fill of 1.02:1 to 1.14:1 — near enough to white to be white — so the
+     edge is not helping the fill, it IS the box. At the hairline step the boxes
+     did not read: a `Box` in a sentence was bare monospace, and the package
+     cards on the home page were reported as not visible at all.
+
+     Step 8, which is 1.92:1 here. Not gray-6 (1.41:1), which is what they were
+     and what the rules keep. Not 9, which is a solid fill step rather than a
+     border and would draw the outline in near-grey. This file already had to
+     learn once that small elements need a step the page's own does not — see
+     --site-row-hover, at 4 rather than 3 for the same reason.
+
+     A page of boxes is what `.markdown a code` below prevents on the prose
+     side: most inline code in these READMEs is a link, and links drop the chip,
+     so what is left to draw an edge around is sparse. */
+  --site-enclosure-border: var(--gray-8);
+
+  /* The same edge on a card you can click, one step up, which is the lift Radix
+     gives its own card and the reason this is a token rather than a literal:
+     in dark the step above the enclosure edge is amber, not grey. */
+  --site-enclosure-border-hover: var(--gray-9);
 
   /* The brand green, in its two jobs. Step 11 is the readable end of the ramp
      and is the one for TEXT and hairlines — the wordmark, the page h1, prose
@@ -148,11 +175,20 @@
    any of the four with a literal hex is the one edit that breaks dark.
 
    Everything else below is a RESTATEMENT of what dark already rendered before
-   the light canvas turned white: this is the appearance the reader said they
-   preferred, and it is not what was being changed. Verified by resolving all
-   15 site colour tokens in a browser against a pre-change build — 0 of 15
-   differ in dark, 8 differ in light, which are exactly the ones re-specced
-   above. NOT a pixel comparison: every page differs by design, because the
+   the light canvas turned white, EXCEPT the enclosure edge — and that exception
+   is the reader's own, asked for after seeing this appearance: the boxes were
+   reported as hard to find here and invisible in light, which is one cause with
+   two symptoms. Concretely, what moved in dark is
+
+     - --site-enclosure-border, amber-7 to amber-8. Every full box reads it now
+       (code panel, example canvas, playground, inline chip) where they used to
+       read --site-border, so each gains one step: 2.52:1 to 3.57:1.
+     - the Radix Card ring, which was never this file's at all — it came from
+       Radix's own neutral --gray-a5 and is now the same amber-8, because a grey
+       ring on an amber canvas was both faint and the wrong hue.
+
+   Nothing else here differs, and the four tokens named above are still absent
+   on purpose. NOT a pixel comparison: every page differs by design, because the
    scale moved to 110%, and one RULE (`.markdown a code`) intentionally drops
    the chip from inline code that is also a link in both appearances. */
 .radix-themes.radix-themes:is(.dark, .dark-theme) {
@@ -160,7 +196,13 @@
   --site-panel: var(--amber-3);
   --site-example-bg: var(--amber-3);
   --site-border: var(--amber-7);
-  --site-code-border: var(--site-border);
+  /* One step above the hairline, for the reason light needs step 8 too: at the
+     --site-border step an enclosure measured 2.52:1 and was findable but not
+     easily — the fill behind it is 1.19:1, so the edge is the whole box.
+     amber-8 is 3.57:1. This is the one dark value in this block that is not a
+     restatement of what dark already rendered. */
+  --site-enclosure-border: var(--amber-8);
+  --site-enclosure-border-hover: var(--amber-9);
   --site-nav-group-fg: var(--amber-12);
   --site-skeleton: var(--amber-5);
   --accent-indicator: var(--amber-9);
@@ -273,6 +315,16 @@ body {
   top: 0;
   z-index: 2;
   background: var(--color-background);
+  /* A query container, so the wordmark's clamp below can be sized from THIS
+     BOX instead of from the viewport — see .site-header-wordmark for why `vw`
+     was the wrong ruler. `inline-size`, not `size`: it contains the INLINE axis
+     only, so block size still follows the content and everything the paragraph
+     above depends on survives — measured, one row is 62.6px as before and a
+     wrapped header still grows to hold both (105.6px at 320px), and the sticky
+     box still pins at top 0 at every width. Layout and style containment come
+     with it; PAINT containment does not, so the bottom border and the focus
+     rings on the controls inside still draw where they always did. */
+  container-type: inline-size;
 }
 
 .site-header-brand {
@@ -592,12 +644,89 @@ body {
   /* Header chrome that does not survive a 390px viewport: the badge is
      decoration, the GitHub link is repeated in the footer, and the appearance
      segments become one cycling button. What is left — brand, cycler, Menu —
-     holds one row at 390px with room to spare, now that the accent picker it
-     used to share the row with is gone. */
+     holds one row at 390px, though no longer with room to spare: see the
+     wordmark rule below for what the site's name costs here. */
   .site-docs-badge,
   .site-header-link,
   .site-appearance-segments {
     display: none;
+  }
+
+  /* Matches .site-main above, which is already --space-4 here. The header was
+     the odd one out at --space-5, so the brand sat 9px further in than the
+     text under it; bringing the two into line is also the 17.6px that keeps
+     the wordmark legible below. */
+  .site-header {
+    padding-inline: var(--space-4);
+  }
+
+  /* "Pineapple Design Systems" is 229px at the desktop size and the row has
+     147px for it at 390px, so on a phone the name does not fit and something
+     has to give. This scales the wordmark instead of hiding it or wrapping the
+     header, which is the trade chosen deliberately: the name stays readable on
+     every screen, and it is small.
+
+     Fluid rather than one step down, so it is only ever as small as the row
+     actually forces — measured 10.4px at 390px, 13.5px at 430px, and back to
+     the full --font-size-3 by 484px, where the name fits on its own.
+
+     THE RULER IS THE HEADER, NOT THE VIEWPORT. This was `7.69vw - 19.6px`, and
+     `vw` counts a classic scrollbar that the layout never gets: in a desktop
+     window narrow enough to reach this block, 15px of scrollbar meant the label
+     was sized for 15px of width it did not have. That is MORE than the ~12px of
+     slack the slope buys, so the row wrapped in exactly the case the slack
+     exists to prevent — measured at 390/430/484px with a 15px scrollbar, the
+     slack ran -2.97/-2.85/-2.61px and the header rendered 106.56px against its
+     62.6px token, parking every sticky rail that reads --site-header-h 44px too
+     high. `100cqi` is the header's own content box (.site-header above is the
+     query container), which is scrollbar-exact by construction: the same three
+     widths now measure +2.09/+11.97/+12.06px and hold one row, i.e. a window
+     with a 15px scrollbar behaves as the phone 15px narrower that it is.
+
+     Same line, re-expressed, not a new slope: 7.69vw is 100/13.0, and
+     19.6 x 13.0 = 254.8 = 219.6 + 35.2 — where 35.2px is the header's two
+     --space-4 paddings at the pinned 110% scale. Subtracting them before the
+     divide makes that padding DERIVED rather than baked into a constant, so a
+     change to --space-4 or --scaling no longer silently invalidates the number.
+     On a phone it renders identically, to a hundredth of a pixel: 10.40/13.48/
+     17.6px at 390/430/484, against 10.39/13.47/17.6 before.
+
+     The slope leaves ~12px of slack rather than filling the row exactly —
+     measured 11.9px at 390, 12.0px at 430, 12.4px at 484. Sized to the
+     millimetre it DID fit at 390px in the layout engine's arithmetic and
+     wrapped anyway: the label is measured in fractional pixels and the row it
+     sits in is rounded, so a fit with nothing spare is a fit that depends on
+     rounding going its way. The slack is the difference between one row and
+     two on the commonest phone width there is.
+
+     The bound is 10px and it is a LEGIBILITY floor, not a fit one. At that
+     floor the row needs 337.7px of header content (brand 165.1 + gap 17.6 +
+     controls 155.0), so below that — a 373px window with no scrollbar, a 388px
+     one with 15px of scrollbar — the header wraps to two rows, which
+     .site-header is built to survive (flex-wrap plus min-height, not height).
+     One row at any cost would mean single digits.
+
+     Literal px here, against this file's habit of tokens, for two reasons: the
+     thing being fitted INTO is a box measured in px; and a floor for legibility
+     is a physical size, so a floor that grew with --scaling would stop being a
+     floor.
+
+     219.6 IS A CONVENTION, NOT AN INVARIANT. Nothing here measures the row:
+     the constant was derived at the pinned 110% scale against a row holding the
+     mark, this label, the appearance cycler and Menu, and CSS cannot notice
+     when that set changes — add a fourth control and the header just starts
+     wrapping. app.test.tsx pins the control set for exactly this reason and its
+     failure message points back at this rule; that test is the whole tripwire.
+
+     line-height is overridden because it does NOT follow font-size: Radix's
+     rt-r-size-3 hands .rt-Text a --line-height of 26.4px, leading measured for
+     the 17.6px this rule replaces, which is a 2.5x line box on a 10.4px label.
+     1.5 is Radix's own size-3 ratio (26.4/17.6), so at the top of the clamp
+     this is the identical 26.4px and below it the leading follows the type. */
+  .site-header-wordmark {
+    font-size: clamp(10px, calc((100cqi - 219.6px) / 13), var(--font-size-3));
+    line-height: 1.5;
+    white-space: nowrap;
   }
 
   .site-appearance-cycle {
@@ -623,6 +752,51 @@ body {
 .radix-themes .rt-BaseButton:where(.rt-variant-solid, .rt-variant-classic)[data-disabled] {
   background-color: var(--site-disabled-bg);
   color: var(--site-disabled-fg);
+}
+
+/* A Card is an enclosure, so it takes the enclosure edge — the package cards on
+   the home page are the largest boxes on the site and were reported as not
+   visible at all in light and barely visible in dark.
+
+   Radix draws that edge as a ring on `::after` rather than as a border, from
+   `--gray-a5` mixed towards `--gray-5`. Composited over this canvas that lands
+   on 1.41:1, the same hairline the rules use, which is a fine weight for a card
+   sitting on Radix's own panel-grey page and far too little on white.
+
+   The shadow VARIABLES are the override, not the `::after` rule: they are the
+   seam Radix designed for this, they keep the ring geometry exactly as shipped,
+   and they mean this file never has to restate a selector Radix may change.
+   The alpha is dropped for a solid, because an alpha over a white canvas is
+   just a lighter grey with an extra step to reason about.
+
+   ALL THREE STATES, because two was a bug. The active variable was left to
+   Radix and fell back to --gray-a6, which is a GREY ring — on the amber canvas
+   that is verbatim the defect this block exists to fix — and, worse, a fainter
+   one than the card's resting edge. Measured against the page canvas, the
+   ladder was
+
+     light   rest 1.92:1  ->  hover 3.34:1   ->  active 1.44:1  (#d8d7d3, grey)
+     dark    rest 3.57:1  ->  hover 11.82:1  ->  active 1.62:1  (#3c3932, grey)
+
+   so pressing a card made it RECEDE. Radix's own ladder (a5 rest, a7 hover, a6
+   active) puts active between the two; the floor is that it must not sit below
+   rest. Active takes the HOVER edge here rather than a third token — 3.34:1 and
+   11.82:1 — because this file has two enclosure-edge steps and a state that
+   lasts one tap does not earn a third. It lands hardest on touch: Radix gates
+   its `:hover` rule behind `@media (hover: hover)`, so on a phone this is the
+   only feedback a tap gets, and the home page's cards are `<Card asChild><Link>`
+   — they render as <a> and so match Radix's
+   `:where(:any-link, button, label):where(:active)` on every one.
+
+   The selector is DOUBLED for the reason the palette block at the top of this
+   file gives. It was already safe: Radix declares all three of these under
+   `:where(.radix-themes)`, specificity 0,0,0, which a single class already
+   beats. But "safe because of the shape the vendor's selector happens to have
+   today" is not a rule, and the file states its convention once. */
+.radix-themes.radix-themes {
+  --base-card-surface-box-shadow: 0 0 0 1px var(--site-enclosure-border);
+  --base-card-surface-hover-box-shadow: 0 0 0 1px var(--site-enclosure-border-hover);
+  --base-card-surface-active-box-shadow: 0 0 0 1px var(--site-enclosure-border-hover);
 }
 
 /* ---- Markdown -------------------------------------------------------- */
@@ -672,8 +846,9 @@ body {
    It takes the EXAMPLE field rather than the code panel: the panel is step 1
    and would be invisible against white (see the palette block), and no
    step-11 syntax colour lands on an inline chip, so the constraint that forces
-   step 1 there does not apply here. --site-code-border is transparent in light,
-   where the fill separates it, and a real edge in dark, where it does not.
+   step 1 there does not apply here. The fill is not what draws this chip on
+   either canvas, though — --site-enclosure-border is, and the palette block carries
+   the measurements for why.
 
    One rule for both surfaces rather than two that agree today: the word
    `children` is a chip in the README and was bare monospace in the paragraph
@@ -684,7 +859,7 @@ body {
   font-family: var(--code-font-family, ui-monospace, monospace);
   font-size: 0.9em;
   background: var(--site-example-bg);
-  border: 1px solid var(--site-code-border);
+  border: 1px solid var(--site-enclosure-border);
   border-radius: var(--radius-1);
   padding: 0.1em 0.35em;
 }
@@ -1050,7 +1225,7 @@ body {
      a long one scrolls beneath it. */
   padding: var(--space-3) var(--space-8) var(--space-3) var(--space-4);
   background: var(--site-panel);
-  border: 1px solid var(--site-border);
+  border: 1px solid var(--site-enclosure-border);
   border-radius: var(--radius-3);
   overflow-x: auto;
   font-family: var(--code-font-family, ui-monospace, monospace);
@@ -1157,7 +1332,7 @@ body {
    --color-panel-solid. The preview is the one box on the page whose contents
    are a component rather than the site's own chrome. */
 .playground-preview {
-  border: 1px solid var(--site-border);
+  border: 1px solid var(--site-enclosure-border);
   border-radius: var(--radius-3);
   background: var(--site-example-bg);
   min-height: 160px;
@@ -1168,7 +1343,7 @@ body {
 }
 
 .playground-controls {
-  border: 1px solid var(--site-border);
+  border: 1px solid var(--site-enclosure-border);
   border-radius: var(--radius-3);
   background: var(--site-panel);
   padding: var(--space-4);
@@ -1345,7 +1520,7 @@ body {
    which is 1.02:1 against white. This token exists precisely so the field can
    be a step off the page while the code panel cannot. */
 .example-canvas {
-  border: 1px solid var(--site-border);
+  border: 1px solid var(--site-enclosure-border);
   border-radius: var(--radius-3);
   background: var(--site-example-bg);
   overflow-x: auto;

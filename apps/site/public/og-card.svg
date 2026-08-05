@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Pineapple UI — a presentational React design system">
-  <title>Pineapple UI — a presentational React design system</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Pineapple Design Systems — presentational React components on Radix Themes">
+  <title>Pineapple Design Systems — presentational React components on Radix Themes</title>
   <!--
     SOURCE for /og-card.png, which is what index.html actually points og:image
     at: link scrapers (Slack, iMessage, Twitter, LinkedIn) do not rasterize SVG,
@@ -54,13 +54,30 @@
     <path id="og-pineapple-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
   </defs>
 
+  <!-- The name sets on TWO lines, and that is forced rather than styled. The
+       mark occupies x 813 to 1147 (see its transform above), so the text column
+       ends at about 790. "Pineapple Design Systems" is 1114px at font-size 88 —
+       it would cross the pineapple and run 2px off the right edge of the card.
+       Set on one line it would have to drop to about 55px to clear, which on a
+       1200x630 card scraped into a timeline is no longer a headline. Broken
+       after "Pineapple" the two lines are ~430px and ~660px, both inside the
+       column at the full 88.
+
+       Every baseline below therefore moved up, because the second line is 92px
+       the block did not have: the ink now spans y 118 to 508 and centres on
+       313, against the card's own 309 and the mark's 345.
+
+       The eyebrow no longer reads "REACT DESIGN SYSTEM": the name under it now
+       ends in "Design Systems", and the card would say it twice in two type
+       sizes. It names the thing you get instead. -->
   <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" fill="#1F1B16">
-    <text x="88" y="232" font-size="24" font-weight="700" letter-spacing="4" fill="#ab6400">
-      REACT DESIGN SYSTEM
+    <text x="88" y="135" font-size="24" font-weight="700" letter-spacing="4" fill="#ab6400">
+      REACT COMPONENTS
     </text>
-    <text x="88" y="322" font-size="88" font-weight="700">Pineapple UI</text>
-    <text x="88" y="392" font-size="32" fill="#6B6157">Thin, typed wrappers over Radix Themes,</text>
-    <text x="88" y="438" font-size="32" fill="#6B6157">published under the @pineappleui scope.</text>
-    <text x="88" y="524" font-size="26" fill="#94897C">designpineapple.com</text>
+    <text x="88" y="233" font-size="88" font-weight="700">Pineapple</text>
+    <text x="88" y="325" font-size="88" font-weight="700">Design Systems</text>
+    <text x="88" y="393" font-size="32" fill="#6B6157">Thin, typed wrappers over Radix Themes,</text>
+    <text x="88" y="437" font-size="32" fill="#6B6157">published under the @pineappleui scope.</text>
+    <text x="88" y="501" font-size="26" fill="#94897C">designpineapple.com</text>
   </g>
 </svg>

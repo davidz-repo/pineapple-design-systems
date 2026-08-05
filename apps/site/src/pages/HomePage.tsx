@@ -101,16 +101,29 @@ export function HomePage() {
     <Stack gap="6">
       <div className="home-hero">
         <Stack gap="4">
-          {/* Responsive, because size 9 is 66px at every width: on a 390px
-              phone that filled the line edge to edge with about 16px to spare,
-              so one more character in the wordmark would have wrapped it
-              badly. Nothing else on the site needs this — it is the only type
-              on the page set large enough for the viewport to matter. */}
-          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple UI</Heading>
+          {/* Responsive, and what it buys is a LINE, not a fit: size 9 is 66px
+              at every width, and at 66px this name is 818px on one line, so it
+              never fits a phone either way. Measured — size 8 (38.5px) against
+              size 9 at the same width: 390px gives 2 lines / 88px against 3
+              lines / 198px, and 320px gives 3 against 4. One line saved
+              everywhere below the `sm` breakpoint (768px), and on the
+              commonest phone width that is 110px of hero the reader does not
+              scroll past before reaching the sentence under it.
+
+              The name wraps above the breakpoint too, and that is fine: two
+              lines from 768px until the main column can hold 818px at about
+              1151px, one line from there. A heading wrapping is not a defect —
+              a heading taller than the viewport's first screen is, which is
+              what size 9 does on a phone. Nothing else on the site needs this;
+              it is the only type on the page set large enough for the width to
+              matter. */}
+          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple Design Systems</Heading>
+          {/* Does not say "design system" — the h1 one line up already does,
+              and a subtitle that restates its own heading's words spends the
+              first thing anyone reads on nothing. */}
           <Text as="p" size="4" color="gray">
-            A presentational React design system: thin, typed wrappers over
-            Radix Themes. Every package is a shell — props in, callbacks out —
-            published independently under the
+            Thin, typed React wrappers over Radix Themes. Every package is a
+            shell — props in, callbacks out — published independently under the
             {' '}
             <code>@pineappleui</code>
             {' '}

@@ -57,7 +57,7 @@ function BackButton() {
 
 it('renders the home page with a card per registry entry', async () => {
   await renderAt('/');
-  expect(screen.getByRole('heading', { name: 'Pineapple UI', level: 1 })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Pineapple Design Systems', level: 1 })).toBeInTheDocument();
   // The Button card (the sidebar link has no blurb text).
   expect(screen.getByText('The action trigger, in six variants.')).toBeInTheDocument();
 });
@@ -127,31 +127,73 @@ it('opens with a skip link that targets the main region', async () => {
   expect(main).toHaveAttribute('tabindex', '-1');
 });
 
+// Every control the header renders, in document order, each named by the class
+// site.css's 860px block switches on. `.site-appearance-segments` and
+// `.site-appearance-cycle` are one control in two forms — CSS shows exactly one
+// per viewport — and the segmented control's three radios are internal to it,
+// so neither counts twice. `.site-docs-badge` is not here because a badge is
+// not a control; it is dropped by the same block for width all the same.
+const HEADER_CONTROLS = [
+  'site-header-brand',
+  'site-appearance-segments',
+  'site-appearance-cycle',
+  'site-header-link',
+  'site-menu-trigger',
+];
+
+const WORDMARK_CLAMP = [
+  'The phone header holds ONE ROW only because site.css scales the wordmark with',
+  'a clamp — `.site-header-wordmark` in the `@media (max-width: 860px)` block —',
+  'whose 219.6px constant was measured against exactly the controls listed above.',
+  'Nothing measures the row at runtime, so adding or removing a header control',
+  'wraps the header to two rows below ~484px with no other warning, and every',
+  'sticky rail that reads --site-header-h then sits ~44px under the chrome.',
+  'Re-derive that clamp in apps/site/src/site.css, then update this list.',
+].join('\n');
+
+it('renders exactly the header controls the wordmark clamp was derived from', async () => {
+  await renderAt('/');
+  const header = document.querySelector('header.site-header');
+  expect(header).not.toBeNull();
+
+  // A radiogroup is one control: keep the group, drop the radios inside it.
+  const controls = Array.from(
+    header?.querySelectorAll('a, button, input, select, textarea, [role="radiogroup"]') ?? [],
+  ).filter(element => element.matches('[role="radiogroup"]')
+    || element.closest('[role="radiogroup"]') === null);
+
+  const named = controls.map(element => HEADER_CONTROLS
+    .find(name => element.classList.contains(name))
+    ?? `UNNAMED CONTROL: ${element.outerHTML.slice(0, 120)}`);
+
+  expect(named, WORDMARK_CLAMP).toEqual(HEADER_CONTROLS);
+});
+
 it('retitles the document per page and per tab', async () => {
   await renderAt('/');
-  await expectTitle('Pineapple UI — React design system');
+  await expectTitle('Pineapple Design Systems — React components on Radix Themes');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Button' }));
   });
-  await expectTitle('Button — Pineapple UI');
+  await expectTitle('Button — Pineapple Design Systems');
 
   // A tab is not a new page, but it is a new history entry — three of them
-  // reading "Button — Pineapple UI" is three entries nobody can tell apart.
+  // reading "Button — Pineapple Design Systems" is three entries nobody can tell apart.
   await act(async () => {
     fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button changelog — Pineapple UI');
+  await expectTitle('Button changelog — Pineapple Design Systems');
 
   await act(async () => {
     fireEvent.click(await findTabLink(/Playground/));
   });
-  await expectTitle('Button playground — Pineapple UI');
+  await expectTitle('Button playground — Pineapple Design Systems');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Getting started' }));
   });
-  await expectTitle('Getting started — Pineapple UI');
+  await expectTitle('Getting started — Pineapple Design Systems');
 });
 
 it('scrolls to the top and focuses the main region on a page change only', async () => {
@@ -162,7 +204,7 @@ it('scrolls to the top and focuses the main region on a page change only', async
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Button' }));
   });
-  await expectTitle('Button — Pineapple UI');
+  await expectTitle('Button — Pineapple Design Systems');
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0 });
   expect(document.activeElement).toBe(document.getElementById('main'));
 
@@ -172,7 +214,7 @@ it('scrolls to the top and focuses the main region on a page change only', async
   await act(async () => {
     fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button changelog — Pineapple UI');
+  await expectTitle('Button changelog — Pineapple Design Systems');
   expect(scrollTo).not.toHaveBeenCalled();
 });
 
@@ -232,7 +274,7 @@ it('discloses the nav panel from the header and closes it on navigation', async 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Getting started' }));
   });
-  await expectTitle('Getting started — Pineapple UI');
+  await expectTitle('Getting started — Pineapple Design Systems');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
   expect(panel).toHaveAttribute('data-open', 'false');
 });
@@ -269,13 +311,13 @@ it('does not reopen the panel when history returns to the page it was opened on'
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: /The action trigger/ }));
   });
-  await expectTitle('Button — Pineapple UI');
+  await expectTitle('Button — Pineapple Design Systems');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'test-only: back' }));
   });
-  await expectTitle('Pineapple UI — React design system');
+  await expectTitle('Pineapple Design Systems — React components on Radix Themes');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
 
