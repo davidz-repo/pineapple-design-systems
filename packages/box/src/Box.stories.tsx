@@ -6,7 +6,7 @@ export function Padded() {
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {(['1', '2', '3', '4', '5'] as const).map(p => (
-        <Box key={p} p={p} style={{ background: 'var(--gray-3)' }}>
+        <Box key={p} p={p} style={{ background: 'var(--accent-a3)' }}>
           p=
           {p}
         </Box>
@@ -28,7 +28,7 @@ export const Playground: Story<PlaygroundArgs> = ({ content, p, width }) => (
     <Box
       p={p}
       width={width || undefined}
-      style={{ background: 'var(--gray-3)' }}
+      style={{ background: 'var(--accent-a3)' }}
     >
       {content}
     </Box>

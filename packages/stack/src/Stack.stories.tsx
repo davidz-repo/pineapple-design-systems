@@ -14,8 +14,8 @@ export function Gaps() {
             {g}
           </div>
           <Stack gap={g}>
-            <div style={{ background: 'var(--gray-3)', padding: 8 }}>A</div>
-            <div style={{ background: 'var(--gray-3)', padding: 8 }}>B</div>
+            <div style={{ background: 'var(--accent-a3)', padding: 8 }}>A</div>
+            <div style={{ background: 'var(--accent-a3)', padding: 8 }}>B</div>
           </Stack>
         </div>
       ))}
@@ -36,7 +36,7 @@ export const Playground: Story<PlaygroundArgs> = ({ gap, ...rest }) => (
   <div style={{ padding: 24 }}>
     <Stack gap={gap} {...rest}>
       {['One', 'Two', 'Three'].map(t => (
-        <div key={t} style={{ background: 'var(--gray-3)', padding: 8 }}>{t}</div>
+        <div key={t} style={{ background: 'var(--accent-a3)', padding: 8 }}>{t}</div>
       ))}
     </Stack>
   </div>
