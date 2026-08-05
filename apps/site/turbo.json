@@ -13,6 +13,13 @@
     // the day one of those aliases goes, this task would resolve the built copy
     // and must have one. `outputs` is what lets a warm cache restore the
     // directory instead of leaving the build reading an empty glob.
+    //
+    // `^build` is COMPLETE only because every public package is a site
+    // devDependency, so every package this extraction reads has a turbo edge
+    // to it. That invariant is not visible from here — it is asserted in
+    // apps/site/src/alias-fences.test.ts ("every public package is a
+    // devDependency (turbo edge)"). Without it a new package could be
+    // extracted with no edge and served from a stale cache forever.
     "props": {
       "dependsOn": ["^build"],
       "outputs": ["generated/props/**"]

@@ -30,6 +30,14 @@
 // The first two are wrong answers. The third is only a worse table, and it is
 // still refused: a degradation nothing reports is one nobody fixes.
 //
+// The third catches TOTAL loss and nothing short of it. If Radix moves
+// `margin.props` but leaves `layout.props` where it is, the count drops from
+// 179 to something smaller, every table grows by ~20 rows, and this exits 0 —
+// the same silent degradation one notch down. Said here rather than guarded,
+// because the check that would catch it is a different shape: Box, Stack and
+// Inline all classify exactly 41 today, so a cross-package agreement test is
+// what a partial move would break.
+//
 //   node scripts/generate-props.mjs
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
