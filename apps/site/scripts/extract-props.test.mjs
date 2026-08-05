@@ -164,6 +164,17 @@ describe('the shapes a table has to render', () => {
     expect(propNamed(component, 'isLoud')?.default).toBe('false');
   });
 
+  it('strips the markdown JSDoc is written in and keeps the words', () => {
+    // `PropDoc.description` is a string the page prints into a table cell, so
+    // the markers have to go somewhere — and it is here rather than in the
+    // cell, which would mean a block-level markdown renderer loose in a
+    // four-column table. Radix writes `Sets the CSS **display** property` on
+    // 197 of the artifact's 209 described props; unstripped, every one of them
+    // shows its asterisks.
+    expect(propNamed(doc.components[0], 'isLoud')?.description)
+      .toBe('Whether it says so loudly — the data-loud attribute, not a style.');
+  });
+
   it('drops ref and children even when the package declares them itself', () => {
     // These are on `WidgetProps` directly rather than inherited, which is the
     // case the `@types/react` filter alone would not catch.

@@ -25,7 +25,12 @@ export interface PropDoc {
   required: boolean;
   /** A JS literal. Absent means the component declares no default. */
   default?: string;
-  /** JSDoc, whitespace collapsed. `''` when the source carries none. */
+  /**
+   * JSDoc as plain text: whitespace collapsed, and the markdown emphasis and
+   * code markers an author wrote (`**display**`) stripped down to their words.
+   * The page prints this into a table cell, so it is a string rather than
+   * markup. `''` when the source carries none.
+   */
   description: string;
   /** Declared by Radix's shared layout props — every component takes these. */
   isLayout: boolean;

@@ -12,7 +12,8 @@ import type { ReactNode, Ref } from 'react';
 //
 // What is deliberately in here: a required prop beside optional ones, a default
 // written in the destructuring parameter, a union long enough to matter, JSDoc
-// on some props and not others, `children` and `ref` for the carve-out, and two
+// on some props and not others (one of them written in markdown, which is how
+// Radix writes all of its), `children` and `ref` for the carve-out, and two
 // exports that are NOT components — one lower-case, one capitalised and not
 // callable — because the component predicate has to say no to both.
 
@@ -40,7 +41,7 @@ export interface WidgetProps {
   count: number;
   /** Which tone to draw it in. */
   tone?: Tone;
-  /** Whether it says so loudly. */
+  /** Whether it says so **loudly** — the `data-loud` attribute, not a style. */
   isLoud?: boolean;
   label?: string;
   children?: ReactNode;

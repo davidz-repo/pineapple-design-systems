@@ -74,14 +74,15 @@ import path from 'node:path';
  * @property {string} type rendered by the checker, `| undefined` trimmed
  * @property {boolean} required whether a call site has to pass it
  * @property {string} [default] a JS literal, quoted the way the page prints it
- * @property {string} description JSDoc, whitespace collapsed; `''` when there is none
+ * @property {string} description JSDoc as plain text — whitespace collapsed and
+ * markdown markers stripped; `''` when there is none
  * @property {boolean} isLayout declared by the primitive's shared layout props
  */
 
 /**
  * @typedef {object} ComponentDoc
  * @property {string} name `Button`, or `TextField.Root` for a namespace member
- * @property {string} description the component's own JSDoc, whitespace collapsed
+ * @property {string} description the component's own JSDoc, as plain text
  * @property {PropDoc[]} props required first, then alphabetical
  */
 
@@ -419,7 +420,7 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
         ),
         required: (prop.flags & ts.SymbolFlags.Optional) === 0,
         ...pickDefault(defaults.get(name) ?? propDefDefault(ts, prop)),
-        description: collapse(ts.displayPartsToString(prop.getDocumentationComment(checker))),
+        description: plainText(ts.displayPartsToString(prop.getDocumentationComment(checker))),
         isLayout: SHARED_PROP_MODULES.test(declaration.getSourceFile().fileName),
       });
     }
@@ -459,7 +460,7 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
       if (component !== undefined) {
         components.push({
           name,
-          description: collapse(ts.displayPartsToString(symbol.getDocumentationComment(checker))),
+          description: plainText(ts.displayPartsToString(symbol.getDocumentationComment(checker))),
           props: propsOf(symbol, component.propsType),
         });
         continue;
@@ -483,7 +484,7 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
         }
         components.push({
           name: `${name}.${member.getName()}`,
-          description: collapse(
+          description: plainText(
             ts.displayPartsToString(memberSymbol.getDocumentationComment(checker)),
           ),
           props: propsOf(memberSymbol, memberComponent.propsType),
@@ -520,14 +521,42 @@ function aliasedSymbol(ts, checker, symbol) {
 }
 
 /**
- * JSDoc as one line. A description is a table cell here, and the line breaks an
- * author wrote for a source file are not the ones a cell wants.
+ * The inline markdown a JSDoc author writes and a table cell cannot render:
+ * a code span, then strong, then plain emphasis. The delimiters go and the
+ * words stay, so `**div**` reads as `div`.
+ *
+ * Emphasis requires a non-space character inside the delimiters — CommonMark's
+ * flanking rule, approximated — so a lone `*` in prose is left alone rather
+ * than pairing with the next one. `_underscores_` are deliberately not in the
+ * list: half the identifiers a props description names contain one, and
+ * stripping them would eat the word.
+ */
+const MARKDOWN_MARKERS = [
+  /`+([^`]+)`+/g,
+  /\*\*(?!\s)([^*]+?)(?<!\s)\*\*/g,
+  /\*(?!\s)([^*]+?)(?<!\s)\*/g,
+];
+
+/**
+ * JSDoc as one line of plain text.
+ *
+ * A description is a table cell here, so the line breaks an author wrote for a
+ * source file are not the ones a cell wants — and neither are the markdown
+ * markers. Radix writes its JSDoc in markdown (`Sets the CSS **display**
+ * property`) and this repo's own writes identifiers as code spans; rendered
+ * verbatim they are literal asterisks and backticks in the table. Stripping
+ * beats rendering here because the contract this fills — `PropDoc.description`
+ * in src/content.ts — is a string the page prints, and a markdown renderer
+ * inside a table cell is a block-level formatter loose in a 4rem column.
  *
  * @param {string} text
- * @returns {string} the same text on one line
+ * @returns {string} the same words, on one line, with no markers
  */
-function collapse(text) {
-  return text.replace(/\s+/g, ' ').trim();
+function plainText(text) {
+  return MARKDOWN_MARKERS
+    .reduce((stripped, marker) => stripped.replace(marker, '$1'), text)
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
