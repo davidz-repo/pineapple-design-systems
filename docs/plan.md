@@ -480,14 +480,14 @@ Decisions worth recording, in the same spirit as the gallery section above:
   rather than button: button is the one file whose Playground is declared above its examples,
   so nothing follows its last story and the cut is never made there.
 - **Examples open the Overview; they are not a tab.** Tabs are Overview / Playground /
-  Changelog, and Overview reads examples → README → (props, when that lands). A tab is a
+  Changelog, and Overview reads examples → README → props. A tab is a
   place a reader has to decide to go, and the live component is what the page is opened for.
   `src/packageTabs.ts` is the single tab vocabulary — segment, strip label and title suffix
   in one row — because it used to be two lists, and a segment the router served but the title
   map had never heard of titled a working page "Page not found" with nothing to fail.
 - **Every package page has the same heading outline, whatever its README says.** h1 package
-  name → h2 Examples (h3 per story) → h2 README → h2 Props, when that lands. The `README`
-  heading is the site's, and `MarkdownView`'s `headingOffset` demotes the file's own headings
+  name → h2 Examples (h3 per story) → h2 README → h2 Props (h3 per component). The
+  `README` heading is the site's, and `MarkdownView`'s `headingOffset` demotes the file's own headings
   under it, type scale included. It is applied to the Overview's README only: on the
   Changelog tab the file IS the page, so its version `##`s stay where changesets wrote them.
   Without this, a README's own sections rendered as siblings of "Examples" and no two
@@ -541,6 +541,40 @@ Decisions worth recording, in the same spirit as the gallery section above:
   wraps one, never which (Stack and Inline are both `Flex`) — so that is one registry field
   holding a docs *path*, and `registry.test.ts` fails in both directions if the two lists
   disagree.
+- **The props tables are generated from the packages' own types, and the artifact is
+  gitignored.** `apps/site/scripts/extract-props.mjs` walks each package's `src/index.ts`
+  with the **TypeScript compiler API** — the `typescript` the repo already depends on;
+  react-docgen-typescript, typedoc and ts-morph were evaluated and rejected for a job that
+  is `getPropertiesOfType` plus four decisions. A *component* is a capitalised export,
+  callable with at most one argument, returning something assignable to React's `ReactNode`
+  (the real type, resolved out of the program — a predicate written on callability alone
+  documented `Array.prototype` as a component with 35 props). A namespace export is
+  descended one level, because `text-field` is one. Three things are recovered that no
+  hand-written table would keep current: Radix's **own declared defaults**, which survive
+  into its `.d.ts` as literal types because its prop defs are `as const`; the package's own,
+  read off the destructuring parameter (`{ direction = 'column' }`), which leaves no trace
+  in the props type; and JSDoc, from either side.
+  Two omissions are deliberate and are stated **on the page** rather than left silent: the
+  ~295 standard DOM attributes React declares for every element (`TextField.Root` resolves
+  311 properties, 14 of which are anyone's), and `children`/`ref`, which are React mechanics
+  rather than props. Radix's shared margin/padding/position props — 41 of `Box`'s 44 — are
+  marked and go behind a per-component disclosure, the way Radix's own docs do it.
+  The artifact is **`apps/site/generated/props/<slug>.json`, gitignored**: a committed copy
+  is a second source of truth that goes stale between the commit that changes a prop and the
+  commit that regenerates it, and `check-token-drift.mjs` scans `git ls-files` with no
+  allowlist, so the accent-colour unions it writes out verbatim would fail it. A **separate
+  `props` turbo task** (declared in `apps/site/turbo.json`, not the root — one workspace has
+  it) writes it with `outputs` declared so a warm cache restores it, and the site's `build`
+  and `test` depend on it. `typecheck` deliberately does not: `tsc` never resolves the glob.
+  That leaves one silent failure — an empty `generated/props/` reads to the bundler as a repo
+  with no packages, and every page renders "this build has no generated props table" while
+  the build, the tests and the deploy stay green — so `scripts/check-props-coverage.mjs`
+  requires a file per public package and at least one component named for every package that
+  ships a `.tsx` under `src/` (the same signal `check-ref-tests.mjs` derives). Zero *props*
+  is a real answer and passes — `DesignSystemProvider` takes `children` and nothing else, and
+  the page says so; zero *components* for a package that plainly has one is the extraction
+  having stopped working, and fails.
+
 - **First-paint theming reads `dist/`, not `src/`.** The FOUC plugin calls
   `getFoucScript` from `@pineappleui/theme` resolved through node_modules — the built copy —
   while the app graph reads source through the aliases. Stale dist is a dev-only hazard

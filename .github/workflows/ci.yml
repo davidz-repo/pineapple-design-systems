@@ -191,6 +191,16 @@ jobs:
       - name: Build, lint, test, typecheck
         run: npx turbo run build lint test typecheck
 
+      # After the run above, because that run is what produces what this reads:
+      # the site's `build` and `test` tasks depend on its `props` task, which
+      # writes apps/site/generated/props/. That directory is gitignored, so on a
+      # fresh checkout it does not exist — and if the turbo edge that fills it
+      # were ever removed, the site would build, test and DEPLOY green with
+      # every package page reporting that it has no props table. A glob matching
+      # zero files is nothing's error.
+      - name: Check every package has a generated props table
+        run: node scripts/check-props-coverage.mjs
+
       # After the build: the tarball assertion reads dist/.
       - name: Check publish contract
         run: node scripts/check-publish-contract.mjs

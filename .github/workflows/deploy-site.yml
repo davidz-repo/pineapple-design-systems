@@ -69,6 +69,23 @@ jobs:
       - name: Build the site
         run: npx turbo run build --filter=@pineappleui/site
 
+      # The one check this workflow does NOT delegate to ci.yml, because it is
+      # not about correctness someone else already verified — it is about the
+      # artifact the step above just produced.
+      #
+      # The site's `build` task depends on its `props` task, which writes the
+      # gitignored `apps/site/generated/props/`. Delete that edge and CI goes
+      # red on the same commit — and this workflow runs anyway, racing it, on a
+      # fresh checkout where the directory does not exist, so vite's glob
+      # matches zero files and designpineapple.com ships every package page
+      # saying "This build has no generated props table." That is verbatim the
+      # sentence ci.yml's own copy of this step exists to prevent, and until now
+      # the deploy path was not covered by it.
+      #
+      # It reads only what the build above wrote, so it costs a second.
+      - name: Check every package has a generated props table
+        run: node scripts/check-props-coverage.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 

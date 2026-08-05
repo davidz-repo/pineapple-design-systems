@@ -7,6 +7,10 @@ export default pineapple({
   // where the pattern `**/dist/` matches nothing until a build has run and
   // then matches generated code only. Stated here so the ignore does not
   // depend on which .gitignore is in scope.
-  ignores: ['dist'],
+  // `generated` joins it for the same reason from the other direction: the
+  // props tables are written by this workspace's own `props` task, and the
+  // repo-root .gitignore entry that excludes them (`apps/site/generated/`) does
+  // not match when ESLint reads that file relative to this workspace.
+  ignores: ['dist', 'generated'],
   typescript: { tsconfigPath: 'tsconfig.json' },
 });

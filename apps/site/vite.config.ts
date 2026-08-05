@@ -22,7 +22,8 @@ const repoRoot = path.resolve(siteDir, '../..');
 // is dynamic and lives inside the hook, not at top level: it resolves through
 // node_modules → the theme's `dist/` (the src aliases below configure the app
 // module graph, not this config process), so @pineappleui/theme must be built
-// before this runs — the `dev` script pre-builds it via turbo, and CI's
+// before this runs — the `dev` script reaches it through `turbo run props`,
+// whose own `^build` builds every package this site depends on, and CI's
 // `^build` dependency guarantees it for `vite build`. `injectTo: 'body'` is
 // load-bearing: the script paints `#root` and returns silently when the
 // element is not parsed yet, so head placement would be a permanent no-op;

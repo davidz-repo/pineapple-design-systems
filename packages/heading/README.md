@@ -28,8 +28,10 @@ import type { HeadingProps } from '@pineappleui/heading';
 | `Heading` | The element. Every prop Radix's `Heading` takes, including `ref`, with `size` defaulted from `as`. |
 | `HeadingProps` | Its props — `ComponentPropsWithRef<typeof Heading>` from Radix, re-exported so consumers do not import the type from Radix either. |
 
-The prop set is deliberately not reproduced here. `HeadingProps` is the authoritative one, your
+This README does not hand-write the prop set: `HeadingProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.
+The docs site generates the full table from those same types —
+[Heading on designpineapple.com](https://designpineapple.com/components/heading).
 
 ## The contract
 

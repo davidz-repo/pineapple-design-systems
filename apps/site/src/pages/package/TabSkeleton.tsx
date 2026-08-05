@@ -18,6 +18,21 @@ export function TabSkeleton() {
   );
 }
 
+// One section of a tab that is still waiting while the rest of it is already on
+// screen — the Overview's Props table, which loads its own generated file after
+// the examples and the README have drawn. Shorter than the tab's own skeleton
+// because it stands in for one section rather than a whole tab, and
+// `aria-hidden` for the same reason that one is: the section it replaces
+// announces nothing on arrival either.
+export function SectionSkeleton() {
+  return (
+    <div className="tab-skeleton" aria-hidden="true">
+      <span className="skeleton-line" />
+      <span className="skeleton-line" />
+    </div>
+  );
+}
+
 // The first load of a package page, where the tab strip is not up yet either:
 // which tabs exist depends on what the package's story module exports, so the
 // strip waits on the same import its content does. The bar stands in for it so

@@ -1,6 +1,7 @@
 import { Inline } from '@pineappleui/inline';
 
 import { npmUrlFor, radixDocsUrl, sourceUrlFor } from '../../packageLinks';
+import { NewTabNote } from './NewTabNote';
 
 import type { RegistryEntry } from '../../registry';
 
@@ -15,14 +16,8 @@ import type { RegistryEntry } from '../../registry';
 // per-package address, so a new package's row is right the moment its manifest
 // is — there is no list to remember to extend.
 
-// Every link left in this row opens a new tab. A sighted reader is told by the
-// tab that appears; without this, a screen-reader user is told by nothing, and
-// finds out when Back does not go back. It rides in the accessible name rather
-// than a `title`, which is announced inconsistently and never on touch.
-function NewTabNote() {
-  return <span className="site-visually-hidden"> (opens in a new tab)</span>;
-}
-
+// Every link left in this row opens a new tab, and says so in its accessible
+// name — see NewTabNote.
 export function PackageLinks({ entry }: { entry: RegistryEntry }) {
   const sourceUrl = sourceUrlFor(entry.slug);
   const npmUrl = npmUrlFor(entry.slug);
