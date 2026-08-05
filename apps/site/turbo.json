@@ -1,0 +1,45 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // Generates `generated/props/<slug>.json` from every package's own types
+    // (scripts/generate-props.mjs). Declared HERE rather than at the root
+    // because exactly one workspace has it: a root task would give every
+    // workspace a `props` slot it silently skips, which is the shape
+    // docs/plan.md §"Adding a workspace later" exists to keep out of this repo.
+    //
+    // `^build` because the extraction reads the packages through the site's own
+    // tsconfig `paths` — source today, so nothing here needs a `dist/` — and
+    // the day one of those aliases goes, this task would resolve the built copy
+    // and must have one. `outputs` is what lets a warm cache restore the
+    // directory instead of leaving the build reading an empty glob.
+    //
+    // `^build` is COMPLETE only because every public package is a site
+    // devDependency, so every package this extraction reads has a turbo edge
+    // to it. That invariant is not visible from here — it is asserted in
+    // apps/site/src/alias-fences.test.ts ("every public package is a
+    // devDependency (turbo edge)"). Without it a new package could be
+    // extracted with no edge and served from a stale cache forever.
+    "props": {
+      "dependsOn": ["^build"],
+      "outputs": ["generated/props/**"]
+    },
+    // The two tasks that READ the artifact. `build` bundles it, `test` renders
+    // it and asserts the real file's shape against the types the page reads it
+    // with. Without these edges the single unfiltered `turbo run build lint test
+    // typecheck` that CI and `verify` run would never ask for `props` at all,
+    // and the site would build green over an empty `generated/props/` — every
+    // package page reporting that it has no props table.
+    //
+    // `typecheck` is deliberately NOT here: `tsc` is pointed at `src` and
+    // `scripts`, the glob that reads the artifact is resolved by vite rather
+    // than the compiler, and `generated/` holds JSON. An edge that buys nothing
+    // is an edge the next reader has to disprove.
+    "build": {
+      "dependsOn": ["^build", "props"]
+    },
+    "test": {
+      "dependsOn": ["^build", "props"]
+    }
+  }
+}

@@ -12,6 +12,16 @@ dist/
 # of that name.
 apps/*/build/
 
+# The site's generated props tables (`apps/site/scripts/generate-props.mjs` ->
+# apps/site/generated/props/<slug>.json, run by its `props` turbo task).
+# Generated rather than committed on purpose: a committed copy is a second
+# source of truth that goes stale between the commit changing a prop and the
+# commit regenerating the table, and `scripts/check-token-drift.mjs` — which
+# scans `git ls-files` for hard-coded token vocabularies and has no allowlist —
+# would fail on the accent-colour unions these files write out verbatim.
+# `scripts/check-props-coverage.mjs` is what fails when they are absent.
+apps/site/generated/
+
 # Turborepo local cache
 .turbo
 **/.turbo

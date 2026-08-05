@@ -205,7 +205,7 @@ export function PackagePage() {
                 still on the screen around it. */}
             <Heading as="h2" size="4">{`${entry.name}'s docs failed to render`}</Heading>
             <Text as="p" size="3" color="gray">
-              {`Something in ${entry.name}'s examples, README or changelog stopped the page. Trying again is worth a shot — if it keeps happening, reloading the site clears whatever state caused it.`}
+              {`Something in ${entry.name}'s examples, README, props table or changelog stopped the page. Trying again is worth a shot — if it keeps happening, reloading the site clears whatever state caused it.`}
             </Text>
             <Text as="p" size="2" color="gray">{error.message}</Text>
             <Inline gap="3" align="center">

@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { MarkdownView } from './MarkdownView';
@@ -54,13 +55,76 @@ describe('markdownView', () => {
     expect(container.querySelector('h6')).toHaveTextContent('Deep');
   });
 
-  it('wraps a table in a horizontal scroll container', () => {
-    const { container, getByText } = render(
+  it('navigates in place when a README links a page of this site', () => {
+    // Ten package READMEs now point at their own docs page. Those links have to
+    // be absolute — a README is read on npm and on GitHub as well — and read
+    // HERE they are the page the reader is already on. Untranslated they went
+    // through the `target="_blank"` branch below: a second tab, onto this.
+    const { getByRole } = render(
+      <MemoryRouter>
+        <MarkdownView
+          markdown="See [Button on designpineapple.com](https://designpineapple.com/components/button)."
+        />
+      </MemoryRouter>,
+    );
+
+    const link = getByRole('link', { name: 'Button on designpineapple.com' });
+    expect(link).toHaveAttribute('href', '/components/button');
+    expect(link).not.toHaveAttribute('target');
+  });
+
+  it('still opens a genuinely external link in a new tab', () => {
+    const { getByRole } = render(
+      <MemoryRouter>
+        <MarkdownView markdown="See [Radix](https://www.radix-ui.com/themes/docs/components/box)." />
+      </MemoryRouter>,
+    );
+
+    const link = getByRole('link', { name: 'Radix' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  it('wraps a table in a horizontal scroll container, named and reachable', () => {
+    const { container, getByText, getByRole } = render(
       <MarkdownView markdown={'| Prop | Description |\n| --- | --- |\n| `size` | How big. |'} />,
     );
     const wrapper = container.querySelector('.markdown-table-scroll');
     expect(wrapper?.firstElementChild?.tagName).toBe('TABLE');
     // The wrapper is a wrapper: the table's content still renders through it.
     expect(getByText('How big.')).toBeInTheDocument();
+
+    // A container that scrolls and cannot be focused cannot be read past its
+    // first column by a keyboard, and an unnamed one announces as "scrollable
+    // region" and nothing else. A README table has no caption, so its own
+    // column headings are the only thing that says which table this is.
+    const region = getByRole('region', { name: 'Prop, Description' });
+    expect(region).toBe(wrapper);
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
+  it('gives a table the roles and column labels its stacked layout needs', () => {
+    const { getByRole, getAllByRole } = render(
+      <MarkdownView
+        markdown={'| Export | What it is |\n| --- | --- |\n| `Box` | The element. |'}
+      />,
+    );
+
+    // Below 600px site.css stacks these rows into blocks, and changing a
+    // table's `display` drops its implicit ARIA semantics in every engine.
+    // rehypeTableSemantics writes them out so they survive the restyle; above
+    // the breakpoint they are the roles these elements already have. jsdom
+    // evaluates no media query, so this asserts the markup the layout rests on.
+    const table = getByRole('table');
+    expect(table).toHaveAttribute('role', 'table');
+    expect(getAllByRole('rowgroup')).toHaveLength(2);
+    expect(getAllByRole('row')).toHaveLength(2);
+    expect(getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Export', 'What it is']);
+
+    // Each body cell carries its column's heading, because stacked there is no
+    // header row above it to read across to.
+    expect(getAllByRole('cell').map(cell => cell.getAttribute('data-label')))
+      .toEqual(['Export', 'What it is']);
   });
 });

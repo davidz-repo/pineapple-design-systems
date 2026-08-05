@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// CI-invariant guard: three pairings across .github/workflows/ci.yml,
-// turbo.json, the root package.json and scripts/ that nothing in the build can
-// fail on today.
+// CI-invariant guard: four pairings across .github/workflows/ci.yml,
+// .github/workflows/deploy-site.yml, turbo.json, the root package.json and
+// scripts/ that nothing in the build can fail on today.
 //
 // Each one is held by a comment and by whoever remembers to read it, and each
 // one breaks by staying green:
@@ -98,7 +98,27 @@
 //      wiring invariant 2 exists to certify — a wiring assertion that itself
 //      has to be wired in.
 //
-// The workflow is read line by line rather than parsed. The guards here take no
+//   4. THE DEPLOY BUILD CHECKS THE ARTIFACT IT PRODUCES. deploy-site.yml is the
+//      only build of this site anybody reads: it has no `needs:` on CI, it
+//      races CI on a push to main, and it ships whatever it built. Everything
+//      else it delegates to CI is CORRECTNESS someone else verified and does
+//      not change what is shipped — but the site's `build` writes a gitignored
+//      `apps/site/generated/props/`, and if the turbo edge that fills it were
+//      ever deleted, this workflow would build from a fresh checkout where the
+//      directory does not exist, vite's glob would match zero files, and
+//      designpineapple.com would ship every package page saying it has no
+//      props table. CI would be red on that same commit and the deploy would
+//      go out anyway.
+//
+//      So the step running check-props-coverage.mjs after the build is
+//      load-bearing, and until now it was held by nothing: invariant 2 reads
+//      ci.yml alone, so deleting the deploy step left all four guards exiting
+//      0. It is asserted with its POSITION, not just its presence — after the
+//      build, because before it the directory does not exist yet, and before
+//      the artifact upload, because a guard that fails after the upload has
+//      let the wrong bytes past the only gate they get.
+//
+// The workflows are read line by line rather than parsed. The guards here take no
 // dependencies, and a guard against a wiring mistake is the last place to add
 // the first one. That reader DETECTS wider than it validates — a cache step is
 // any `uses:` value mentioning `actions/cache`, in any spelling — and then
@@ -151,6 +171,15 @@ const WORKFLOW = '.github/workflows/ci.yml';
 const MANIFEST = 'package.json';
 const SCRIPTS_DIR = 'scripts';
 const VERIFY_SCRIPT = 'verify';
+
+// Invariant 4's four names: the workflow that ships the site, the guard that
+// has to run inside it, and the two steps it has to sit between.
+const DEPLOY_WORKFLOW = '.github/workflows/deploy-site.yml';
+const ARTIFACT_GUARD = 'check-props-coverage.mjs';
+// Detected wider than it is validated, like the cache step above: any `run:`
+// asking turbo for a build, however the filter is spelled.
+const BUILDS_THE_SITE = /\bturbo\b.+\brun\b.+\bbuild\b/;
+const UPLOADS_THE_ARTIFACT = /actions\/upload-pages-artifact/;
 
 // Invariant 3's four names: the root script, the turbo task that runs it, the
 // task that has to depend on it, and the linter the script is expected to be.
@@ -473,7 +502,8 @@ function runCommandsIn(lines, from, to) {
  * and takes the run out of it.
  *
  * @param {string[]} lines
- * @returns {{ lineNumber: number, name: string, invocations: string[],
+ * @returns {{ lineNumber: number, name: string, commands: string[],
+ *   uses: string[], invocations: string[],
  *   conditionalKeys: { key: string, lineNumber: number }[] }[]} one entry per
  *   step, in file order
  */
@@ -523,10 +553,16 @@ function readSteps(lines) {
         conditionalKeys.push({ key, lineNumber: i + 1 });
     }
 
+    const commands = runCommandsIn(lines, start, end);
+
     return {
       lineNumber: start + 1,
       name: STEP_NAME.exec(lines[start])?.[1] ?? '(unnamed step)',
-      invocations: runCommandsIn(lines, start, end).flatMap(invocationsIn),
+      commands,
+      uses: lines.slice(start, end)
+        .map(line => USES_LINE.exec(line)?.[1])
+        .filter(value => value !== undefined),
+      invocations: commands.flatMap(invocationsIn),
       conditionalKeys,
     };
   });
@@ -538,17 +574,19 @@ function invocationsIn(text) {
 }
 
 /**
- * The workflow, by line.
+ * A workflow, by line.
  *
  * A missing file is refused with the fix rather than left to throw ENOENT: this
  * guard's whole subject is a workflow that stopped running what it should, and
  * "the workflow is not where the guard looks" is the largest version of that.
  *
+ * @param {string} relativePath
+ * @param {string} why what stops being held when this file is not there
  * @returns {string[]} the file's lines, its newlines dropped
  */
-function readWorkflowLines() {
+function readWorkflowLines(relativePath, why) {
   try {
-    return readFileSync(path.join(repoRoot, WORKFLOW), 'utf8').split(/\r?\n/);
+    return readFileSync(path.join(repoRoot, relativePath), 'utf8').split(/\r?\n/);
   }
   catch (error) {
     if (error.code !== 'ENOENT')
@@ -556,10 +594,10 @@ function readWorkflowLines() {
     // `return` because `refuse()` is `never`: this branch does not fall out of
     // the function, it ends the process.
     return refuse(
-      `${WORKFLOW} does not exist, so neither invariant here has a workflow to hold.\n`
-      + '  fix: restore it, or point WORKFLOW in this guard at the file that runs CI now.\n'
-      + '       Both assertions below are about that one file; with it gone this guard\n'
-      + '       would be certifying a cache key and a guard list that nothing runs.',
+      `${relativePath} does not exist, so ${why}\n`
+      + `  fix: restore it, or point this guard at the file that does that job now. A\n`
+      + `       workflow constant naming a file that is not there is a guard certifying\n`
+      + '       something nothing runs.',
     );
   }
 }
@@ -742,7 +780,14 @@ function coversTarget(input, target) {
   return input.slice(normalized.length + 1).includes('*');
 }
 
-const workflowLines = readWorkflowLines();
+const workflowLines = readWorkflowLines(
+  WORKFLOW,
+  'the cache-salt and guard-set invariants have no workflow to hold.',
+);
+const deployLines = readWorkflowLines(
+  DEPLOY_WORKFLOW,
+  'there is no deploy path to check the shipped artifact on.',
+);
 const rootManifest = JSON.parse(readFileSync(path.join(repoRoot, MANIFEST), 'utf8'));
 
 // ---------------------------------------------------------------------------
@@ -1068,6 +1113,98 @@ if (hasLintScriptsTask && lintTargets.length > 0) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Invariant 4 — the deploy build checks the artifact it produces.
+// ---------------------------------------------------------------------------
+
+const deploySteps = readSteps(deployLines);
+
+/**
+ * @param {(step: { commands: string[], uses: string[] }) => boolean} matches
+ * @param {string} what the step, named as it reads in a message
+ * @param {string} how what the reader looked for
+ * @returns {number} the index of the one step that matches
+ */
+function deployStepIndex(matches, what, how) {
+  const found = deploySteps.filter(matches);
+  if (found.length !== 1) {
+    // Refused, not reported: with the step unfound there is nothing to place
+    // the guard relative to, and an ordering assertion that quietly stopped
+    // having two ends would print a pass over any order at all.
+    refuse(
+      `${DEPLOY_WORKFLOW} has ${found.length} step(s) that ${what}, and this guard implements\n`
+      + 'exactly one.\n'
+      + `  fix: keep one such step, or teach ${SCRIPTS_DIR}/${GUARD_NAME}.mjs the shape it has\n`
+      + `       now — it is found by ${how}. Invariant 4 asserts WHERE the\n`
+      + `       \`${ARTIFACT_GUARD}\` step sits, and both ends of that have to be real.`,
+    );
+  }
+  return deploySteps.indexOf(found[0]);
+}
+
+const buildsAt = deployStepIndex(
+  step => step.commands.some(command => BUILDS_THE_SITE.test(command)),
+  'build the site',
+  `a \`run:\` matching ${BUILDS_THE_SITE}`,
+);
+const uploadsAt = deployStepIndex(
+  step => step.uses.some(value => UPLOADS_THE_ARTIFACT.test(value)),
+  'upload the Pages artifact',
+  `a \`uses:\` matching ${UPLOADS_THE_ARTIFACT}`,
+);
+
+const artifactGuardSteps = deploySteps.filter(step => step.invocations.includes(ARTIFACT_GUARD));
+
+if (artifactGuardSteps.length === 0) {
+  fail(
+    DEPLOY_WORKFLOW,
+    `never runs \`${SCRIPTS_DIR}/${ARTIFACT_GUARD}\``,
+    `add a step running \`node ${SCRIPTS_DIR}/${ARTIFACT_GUARD}\` after "`
+    + `${deploySteps[buildsAt].name}". This workflow has no \`needs:\` on ${WORKFLOW} and races `
+    + `it on a push to main, and unlike lint and test — correctness someone else verified, which `
+    + `does not change what ships — the props artifact is produced BY this build. Delete the `
+    + `turbo edge that fills \`apps/site/generated/props/\` and this job builds from a fresh `
+    + `checkout where that directory does not exist, matches zero files, and publishes every `
+    + `package page saying it has no props table, while ${WORKFLOW} goes red beside it and stops `
+    + 'nothing.',
+  );
+}
+
+for (const step of artifactGuardSteps) {
+  if (step.conditionalKeys.length > 0) {
+    fail(
+      `${DEPLOY_WORKFLOW}:${step.lineNumber} "${step.name}"`,
+      `runs \`${SCRIPTS_DIR}/${ARTIFACT_GUARD}\` under `
+      + `${step.conditionalKeys.map(({ key, lineNumber }) => `\`${key}:\` (:${lineNumber})`).join(' and ')}`,
+      'drop that key. A guard the deploy may skip, or whose exit code it ignores, is in the '
+      + 'file and out of the run — and this is the last gate the published bytes get.',
+    );
+  }
+
+  const at = deploySteps.indexOf(step);
+  if (at < buildsAt) {
+    fail(
+      `${DEPLOY_WORKFLOW}:${step.lineNumber} "${step.name}"`,
+      `runs \`${SCRIPTS_DIR}/${ARTIFACT_GUARD}\` BEFORE "${deploySteps[buildsAt].name}" `
+      + `(:${deploySteps[buildsAt].lineNumber})`,
+      'move it after the build. `apps/site/generated/props/` is gitignored, so before the build '
+      + 'it does not exist on a fresh checkout and the guard is asserting against the wrong '
+      + 'run — it would fail every deploy for a reason that has nothing to do with what is '
+      + 'about to ship.',
+    );
+  }
+  if (at > uploadsAt) {
+    fail(
+      `${DEPLOY_WORKFLOW}:${step.lineNumber} "${step.name}"`,
+      `runs \`${SCRIPTS_DIR}/${ARTIFACT_GUARD}\` AFTER "${deploySteps[uploadsAt].name}" `
+      + `(:${deploySteps[uploadsAt].lineNumber})`,
+      'move it above the upload. A guard that fails after the artifact has been uploaded has '
+      + 'let the wrong bytes past the only gate they get; the job goes red and the pages are '
+      + 'already staged for deployment.',
+    );
+  }
+}
+
 if (failures.length > 0) {
   console.error(
     `\n${GUARD_NAME}: ${failures.length} broken CI invariant(s)\n\n`
@@ -1077,12 +1214,15 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `${GUARD_NAME}: all three CI invariants hold\n`
+  `${GUARD_NAME}: all four CI invariants hold\n`
   + `  cache salt — ${WORKFLOW} "${cacheStep.name}": ${RESTORE_KEYS_FIELD} \`${restoreValue}\` `
   + `is exactly the static portion of ${KEY_FIELD} \`${keyValue}\`\n`
   + `  guard set — ${everyGuard.length} guard(s) named by ${ON_DISK}, by ${IN_VERIFY} and by `
   + `${IN_WORKFLOW}: ${everyGuard.map(name => name.replace(/\.mjs$/, '')).join(', ')}\n`
   + `  ${SCRIPTS_DIR}/ lint — ${MANIFEST} \`${LINT_SCRIPTS_SCRIPT}\`, ${TURBO_CONFIG} task `
   + `\`${LINT_SCRIPTS_TASK}\` and \`${LINT_TASK}.dependsOn\` naming it, with inputs covering `
-  + `${lintTargets.join(', ')}`,
+  + `${lintTargets.join(', ')}\n`
+  + `  shipped artifact — ${DEPLOY_WORKFLOW} runs ${SCRIPTS_DIR}/${ARTIFACT_GUARD} in `
+  + `"${artifactGuardSteps.map(step => step.name).join('", "')}", after "`
+  + `${deploySteps[buildsAt].name}" and before "${deploySteps[uploadsAt].name}"`,
 );

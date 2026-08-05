@@ -31,9 +31,10 @@ import { TextField } from '@pineappleui/text-field';
 | `TextField.Slot` | An adornment rendered inside the field — an icon, a unit, a prefix. `side` places it left or right. |
 
 The prop types ride along on the namespace as `TextField.RootProps` and `TextField.SlotProps`, so
-consumers do not import those from Radix either. The prop set is deliberately not reproduced here:
+consumers do not import those from Radix either. This README does not hand-write the prop set:
 those types are the authoritative ones, your editor completes from them, and a second copy in prose
-is a copy that goes stale without failing.
+is a copy that goes stale without failing. The docs site generates the full table from those same
+types — [TextField on designpineapple.com](https://designpineapple.com/components/text-field).
 
 ## The contract
 

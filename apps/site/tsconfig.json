@@ -45,5 +45,10 @@
       // @pineappleui-aliases:end
     }
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts", "vite-env.d.ts"]
+  // `scripts` covers the props-extraction fixtures (scripts/props-fixtures/*.tsx)
+  // — the tricky prop shapes its unit test extracts from. They are real
+  // TypeScript that has to keep compiling, and a fixture outside the project is
+  // also a file the type-aware lint refuses to read. The `.mjs` scripts beside
+  // them stay out: tsc reads `.ts`/`.tsx` only without `allowJs`.
+  "include": ["src", "scripts", "vite.config.ts", "vitest.config.ts", "vite-env.d.ts"]
 }

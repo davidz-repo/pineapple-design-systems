@@ -449,7 +449,8 @@ body {
 .site-sidebar-link:focus-visible,
 .site-footer-link:focus-visible,
 .package-link:focus-visible,
-.markdown a:focus-visible {
+.markdown a:focus-visible,
+.props-section a:focus-visible {
   outline: 2px solid var(--focus-8);
   outline-offset: 2px;
 }
@@ -560,23 +561,39 @@ body {
    canvas measures 4.25:1, which is an AA failure for body-size prose. The
    underline is a border alpha at a6 and renders as a hairline nobody can see,
    so a8 — the visible end of the same ramp — carries the affordance that colour
-   alone must not. */
-.markdown a {
+   alone must not.
+
+   `.props-section` joins every rule in this block. It is prose on the same
+   page, one screen below a README that renders the identical elements, and
+   its own link had no class at all — so it drew as `#0000EE` browser blue on
+   an amber canvas, purple once visited, and fell outside the shared
+   `:focus-visible` ring above. If a third prose surface appears, this pair of
+   selectors is the thing to promote to a class; two is not yet a pattern. */
+.markdown a,
+.props-section a {
   color: var(--site-brand);
   text-decoration-color: var(--grass-a8);
   text-underline-offset: 2px;
 }
 
 .markdown a:hover,
-.markdown a:focus-visible {
+.markdown a:focus-visible,
+.props-section a:hover,
+.props-section a:focus-visible {
   text-decoration-color: currentcolor;
 }
 
 /* A panel, not a grey wash: an alpha grey over yellow tints towards olive, and
    inline code stops looking like the code blocks it is the short form of. The
    border is what keeps it legible where the panel and the canvas are only two
-   steps apart. */
-.markdown code {
+   steps apart.
+
+   One rule for both surfaces rather than two that agree today: the word
+   `children` is a chip in the README and was bare monospace in the paragraph
+   one screen below it, while `variant` was a chip again in the table below
+   that — three treatments of one element on one page. */
+.markdown code,
+.props-section code {
   font-family: var(--code-font-family, ui-monospace, monospace);
   font-size: 0.9em;
   background: var(--site-panel);
@@ -615,13 +632,19 @@ body {
    table rather than letting it push the page sideways. `min-width: 100%` (not
    `width`) so a table still fills a wide column but may grow past a narrow one,
    and the first column gets a floor so the name never wraps a character at a
-   time to buy a 60-word description room it still would not have. */
-.markdown-table-scroll {
+   time to buy a 60-word description room it still would not have.
+
+   The generated Props tables (.props-table) share every rule here: they are the
+   same object — a wide reference table inside a column of prose — and a second
+   set of numbers would only be the first set drifting. What differs is below. */
+.markdown-table-scroll,
+.props-table-scroll {
   overflow-x: auto;
   margin: 0 0 var(--space-4);
 }
 
-.markdown table {
+.markdown table,
+.props-table {
   min-width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-2);
@@ -629,7 +652,9 @@ body {
 }
 
 .markdown th,
-.markdown td {
+.markdown td,
+.props-table th,
+.props-table td {
   text-align: left;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--site-border);
@@ -637,13 +662,223 @@ body {
 }
 
 .markdown th:first-child,
-.markdown td:first-child {
+.markdown td:first-child,
+.props-table th:first-child,
+.props-table td:first-child {
   min-width: 8rem;
 }
 
-.markdown th {
+.markdown th,
+.props-table thead th {
   color: var(--gray-11);
   font-weight: var(--font-weight-medium);
+}
+
+/* The prop name is a ROW header, so it is not the muted grey a COLUMN header
+   is — it is the content of its row, the same weight as the cells beside it. */
+.props-table tbody th {
+  color: var(--gray-12);
+  font-weight: var(--font-weight-regular);
+}
+
+/* A generated type is whatever the checker printed: Radix's accent union is 26
+   string literals, ~200 characters. Left unwrapped it makes the table wide
+   enough that the horizontal scroll above stops being a way to read the table
+   and becomes the only way. It wraps at the union's own ` | ` spaces, with
+   `anywhere` as the floor for a single long identifier. */
+.props-table .props-type {
+  display: inline-block;
+  max-width: 26rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The Type column carries the content, and it was the only column with no
+   floor. `overflow-wrap: anywhere` above feeds into min-content sizing (unlike
+   `break-word`), so the cell's own intrinsic minimum is ONE CHARACTER, and the
+   column settled at whatever the word "Type" needs — about 32px of content
+   box. Every accent union then broke mid-token (`"ru` / `by"`) down sixty
+   lines of ribbon, and no amount of scrolling widened it: the horizontal
+   scroll moves the table, it does not reflow the column.
+
+   12rem is ~22 monospace characters after the cell's padding at this font
+   size, so the union wraps at its own ` | ` and a member is never split.
+
+   This governs the GRID, which is what the table is down to 600px: at 700px
+   the content column is 668px and the minimum is 128 + 192 + 100 (+ 224 with a
+   Description column), so a described table still scrolls a little and an
+   undescribed one fits. Below 600px there is no grid to floor — every cell is
+   a full-width block — and the stacked block at the end of this file releases
+   this floor along with the others. The two never apply at once. */
+.props-table td:nth-child(2) {
+  min-width: 12rem;
+}
+
+/* Descriptions are Radix's own JSDoc, up to about 20 words. A floor so the
+   column is not squeezed to one word per line by the type beside it, and a
+   ceiling so it does not take the whole page on a wide screen.
+
+   Addressed by position, not by `:last-child`: the Description column is the
+   fourth one, and a table that has no descriptions to show does not draw it —
+   so `:last-child` would put a 14rem floor on Default instead. */
+.props-table td:nth-child(4) {
+  min-width: 14rem;
+  max-width: 28rem;
+}
+
+/* ---- Reference tables, stacked --------------------------------------- */
+
+/* Below 600px a reference table stops being a grid. Every rule above it is a
+   column width, and the widths are the problem: the floors that make the
+   columns readable (8rem name, 12rem type, 14rem description) add up to more
+   than a phone has, so the table scrolled sideways on every package page and
+   on every README with a wide table. Widening the viewport is not an option a
+   reader has, and narrowing the floors is the unreadable table this replaced.
+
+   So each row becomes a block and each cell a labelled line — the value under
+   the name of the column it came from — which is what a phone has room for and
+   what most component-docs sites do. Nothing scrolls horizontally after this:
+   there is no content wider than the column any more.
+
+   Applied to `.markdown table` as well as `.props-table`, because they are the
+   same object and share every rule above. The theme package's options table
+   has 60-word cells and was the worst of them.
+
+   WHAT THIS COSTS, AND WHAT PAYS IT
+   Changing a table's `display` DROPS its implicit ARIA semantics in every
+   engine: no table, no rows, no cells, no relationship between a cell and its
+   column. The roles are therefore written out explicitly in the markup —
+   PropsSection.tsx for the generated tables, rehypeTableSemantics.ts for the
+   ones a README writes — and they are what a screen reader reads here. Above
+   the breakpoint they are the roles the elements already have, so they change
+   nothing.
+
+   The `thead` is HIDDEN, not removed, for the same reason: it holds the column
+   headers a screen reader associates each cell with. `data-label` below is
+   that same fact drawn for everyone else, not a replacement for it.
+
+   The scroll wrapper is left exactly as it is. `overflow-x: auto` with nothing
+   to overflow draws no scrollbar, and its `tabindex` becomes a tab stop onto a
+   named region rather than onto a scroller — which is a landmark saying which
+   table you have arrived in, not a stop that does nothing. Removing it would
+   mean two behaviours for one element across a breakpoint, and CSS is not
+   where a tabindex lives anyway. */
+@media (max-width: 600px) {
+  .markdown table,
+  .props-table,
+  .markdown tbody,
+  .props-table tbody,
+  .markdown tr,
+  .props-table tr,
+  .markdown td,
+  .props-table td,
+  .props-table tbody th {
+    display: block;
+  }
+
+  /* Releases the column floors and the description's ceiling: a full-width
+     block has no column to be floored into, and 8rem + 12rem + 14rem is more
+     than a 390px viewport holds.
+
+     Written out cell by cell rather than as one `.props-table td` reset,
+     because the rules being released are `:first-child` and `:nth-child()` and
+     so outrank any plain-element selector however far down the file it sits.
+     A generic reset here would have looked like it worked and left all three
+     floors standing. */
+  .markdown th:first-child,
+  .markdown td:first-child,
+  .props-table th:first-child,
+  .props-table td:first-child,
+  .props-table td:nth-child(2),
+  .props-table td:nth-child(4) {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .markdown table,
+  .props-table {
+    min-width: 0;
+  }
+
+  /* Announced, not drawn: the same treatment .site-visually-hidden gives the
+     table's caption, and for the same reason. */
+  .markdown thead,
+  .props-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The row is the block now, so the row carries the rule that separated it
+     from the next one. */
+  .markdown tbody tr,
+  .props-table tbody tr {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--site-border);
+  }
+
+  .markdown tbody tr:last-child,
+  .props-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .markdown td,
+  .props-table td,
+  .props-table tbody th {
+    padding: var(--space-1) 0;
+    border-bottom: none;
+  }
+
+  /* The first cell is what the block is ABOUT — a prop name, an export name —
+     so it reads as the block's title rather than as one of its values, and it
+     is the one cell that carries no label. */
+  .markdown tbody tr > :first-child,
+  .props-table tbody tr > :first-child {
+    padding-top: 0;
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* Two `content` declarations, and they are a PAIR rather than an edit left
+     behind. The second is CSS Generated Content's speech-alternative form:
+     everything before the `/` is drawn, everything after it is what a screen
+     reader gets instead — here, nothing.
+
+     That is the point. The `thead` above stays in the accessibility tree, so
+     the cell-to-column association is the real one; without the alternative
+     text, an engine that exposes generated content (Chrome and Firefox both do)
+     announces the column's name a second time on every cell. `/ ""` drops the
+     duplicate and leaves the association untouched.
+
+     The plain form has to come FIRST because an engine that does not implement
+     the syntax treats the whole second declaration as invalid and discards it,
+     falling back to this one. Declaring only the `/ ""` form would lose the
+     visible label entirely wherever it is not understood. */
+  .markdown td::before,
+  .props-table td::before {
+    content: attr(data-label);
+    content: attr(data-label) / "";
+    display: block;
+    color: var(--gray-11);
+    font-size: var(--font-size-1);
+    line-height: var(--line-height-1);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .markdown tbody tr > td:first-child::before,
+  .props-table tbody tr > td:first-child::before {
+    content: none;
+  }
+
+  /* The type's own ceiling was there to stop it forcing the table wider than
+     the scroll container. There is no container to force any more. */
+  .props-table .props-type {
+    max-width: none;
+  }
 }
 
 .markdown hr {
