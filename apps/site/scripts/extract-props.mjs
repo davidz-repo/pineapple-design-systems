@@ -110,6 +110,59 @@ const SHARED_PROP_MODULES = /@radix-ui\/themes\/dist\/[^/]+\/props\//;
 /** React mechanics rather than props of the component — see the header. */
 const CARVED_OUT = new Set(['ref', 'children', 'key']);
 
+/**
+ * The two descriptions in the upstream types that are WRONG, corrected on the
+ * way out — and the only two, deliberately.
+ *
+ * `node_modules/@radix-ui/themes/dist/esm/props/gap.props.d.ts` documents
+ * `gapX` as "Sets the CSS **row-gap** property" while declaring
+ * `customProperties: ["--column-gap"]`, and documents `gapY` as column-gap
+ * while declaring `--row-gap`. The implementations are right and the prose is
+ * swapped; upstream's own `@link` lines point at the same wrong MDN pages. On
+ * `Stack` and `Inline` these are OWN props, in the default table, so a reader
+ * who trusts the site is told the horizontal and vertical gaps are the other
+ * way round — under this design system's name, since the page does not say
+ * whose sentence it is.
+ *
+ * A list of two, matched on the prop name AND the module that declares it, so
+ * it cannot quietly start correcting some other package's `gapX`. It is not a
+ * general mechanism for editing third-party prose: whether the site should
+ * republish Radix's descriptions at all is an open question, and this answers
+ * only "not while two of them are false".
+ *
+ * If Radix fixes or moves these, the match stops firing and
+ * `extract-props.test.mjs` says so — the assertion is on the corrected text.
+ */
+const UPSTREAM_CORRECTIONS = [
+  {
+    module: /@radix-ui\/themes\/dist\/[^/]+\/props\/gap\.props\.d\.ts$/,
+    name: 'gapX',
+    description: 'Sets the CSS column-gap property. Supports space scale values, CSS strings, '
+      + 'and responsive objects.',
+  },
+  {
+    module: /@radix-ui\/themes\/dist\/[^/]+\/props\/gap\.props\.d\.ts$/,
+    name: 'gapY',
+    description: 'Sets the CSS row-gap property. Supports space scale values, CSS strings, '
+      + 'and responsive objects.',
+  },
+];
+
+/**
+ * @param {import('typescript').Symbol} prop
+ * @returns {string|undefined} the corrected description, when this prop is one
+ * of the two above; `undefined` for every other prop in the repo
+ */
+function correctedDescription(prop) {
+  const declaredIn = (prop.declarations ?? []).map(
+    declaration => declaration.getSourceFile().fileName,
+  );
+  return UPSTREAM_CORRECTIONS.find(
+    correction => correction.name === prop.getName()
+      && declaredIn.some(fileName => correction.module.test(fileName)),
+  )?.description;
+}
+
 /** A default this can print: one string, number or boolean literal. */
 const LITERAL = /^(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?|true|false)$/;
 
@@ -420,7 +473,8 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
         ),
         required: (prop.flags & ts.SymbolFlags.Optional) === 0,
         ...pickDefault(defaults.get(name) ?? propDefDefault(ts, prop)),
-        description: plainText(ts.displayPartsToString(prop.getDocumentationComment(checker))),
+        description: correctedDescription(prop)
+          ?? plainText(ts.displayPartsToString(prop.getDocumentationComment(checker))),
         isLayout: SHARED_PROP_MODULES.test(declaration.getSourceFile().fileName),
       });
     }

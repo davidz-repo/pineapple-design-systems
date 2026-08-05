@@ -6,10 +6,12 @@
 //
 // Two subjects, and they answer different questions.
 //
-//   - packages/text-field, the REAL package: does the pipeline hold against the
-//     source the site actually documents? It is the compound one — a Radix
-//     namespace re-exported whole — so it is where the descent, the inherited
-//     props and Radix's own declared defaults all have to work at once.
+//   - packages/text-field and packages/stack, REAL packages: does the pipeline
+//     hold against the source the site actually documents? text-field is the
+//     compound one — a Radix namespace re-exported whole — so it is where the
+//     descent, the inherited props and Radix's own declared defaults all have
+//     to work at once. stack is where `gapX`/`gapY` land, which is the one
+//     place this repo overrides an upstream description.
 //   - props-fixtures/*, written here: are the cell contents right? Asserting a
 //     type string or a default against Radix would be asserting the version of
 //     @radix-ui/themes that happens to be installed, and it would go red on an
@@ -58,8 +60,9 @@ function propNamed(component, name) {
 describe('the real packages', () => {
   const { docs, diagnostics } = extract([
     { slug: 'text-field', entry: path.join(repoRoot, 'packages/text-field/src/index.ts') },
+    { slug: 'stack', entry: path.join(repoRoot, 'packages/stack/src/index.ts') },
   ]);
-  const [doc] = docs;
+  const [doc, stackDoc] = docs;
 
   it('compiles the package it reads', () => {
     // The extraction is only worth what the program behind it is worth: props
@@ -117,6 +120,33 @@ describe('the real packages', () => {
     // file, so they are its props rather than the shared set: they stay in the
     // main table, which is where Radix's own docs put them too.
     expect(propNamed(doc.components[1], 'px')?.isLayout).toBe(false);
+  });
+
+  it('corrects the two upstream descriptions that are swapped', () => {
+    // `props/gap.props.d.ts` documents `gapX` as row-gap while declaring
+    // `--column-gap`, and `gapY` as the mirror of that. Both are own props on
+    // Stack and Inline, in the default table, so uncorrected the site tells a
+    // reader the horizontal and vertical gaps are the other way round — in its
+    // own voice, since the page never says whose sentence it is.
+    //
+    // Asserted on the corrected text rather than on "not the upstream one", so
+    // this goes red if Radix moves the module out from under the match as well
+    // as if the override is deleted.
+    const [stack] = stackDoc.components;
+    expect(propNamed(stack, 'gapX')?.description).toBe(
+      'Sets the CSS column-gap property. Supports space scale values, CSS strings, and '
+      + 'responsive objects.',
+    );
+    expect(propNamed(stack, 'gapY')?.description).toBe(
+      'Sets the CSS row-gap property. Supports space scale values, CSS strings, and '
+      + 'responsive objects.',
+    );
+    // Its neighbour is untouched, which is the narrowness of the override:
+    // upstream's `gap` is right and stays upstream's.
+    expect(propNamed(stack, 'gap')?.description).toBe(
+      'Sets the CSS gap property. Supports space scale values, CSS strings, and responsive '
+      + 'objects.',
+    );
   });
 });
 
