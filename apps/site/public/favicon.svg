@@ -35,25 +35,50 @@
     <path id="pineapple-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
   </defs>
 
-  <!-- Crown first, body over it: the blade bases tuck under the body's edge. -->
-  <g fill="#46a758">
-    <path d="M16 2 L19 10 L13 10 Z" />
-    <path d="M16 2 L19 10 L13 10 Z" transform="rotate(-40 16 10)" />
-    <path d="M16 2 L19 10 L13 10 Z" transform="rotate(40 16 10)" />
-  </g>
+  <!-- The reframe. The drawing's own bounds are x 8..24 and y 2..29 — half the
+       viewBox wide and 84% of it tall, centred half a unit high — so at a 16px
+       tab this rendered an 8x13px pineapple with room to spare on every side
+       and a crown that collapsed to two nubs. Scaling about the box centre and
+       re-centring the ink takes it to 30 of 32 units tall (94%) with a 1-unit
+       optical margin: +11% linear, which is all the geometry allows. A
+       pineapple is a 0.59-aspect object, so in a SQUARE icon it can never
+       exceed about 56% of the width; going further means a full-bleed tile
+       instead of a transparent mark, which is a different drawing.
 
-  <rect x="8" y="9" width="16" height="20" rx="7" fill="#ffc53d" />
+       A transform rather than rewritten coordinates, so this is provably the
+       same drawing as the other two files rather than seven three-decimal pip
+       positions that have to be diffed by eye. The clip below resolves in this
+       same transformed space (it is userSpaceOnUse, and it is referenced from
+       inside the group), so the lattice still follows the body's curve. -->
+  <g transform="translate(16 16) scale(1.1111) translate(-16 -15.5)">
+    <!-- Crown first, body over it: the blade bases tuck under the body's edge. -->
+    <g fill="#46a758">
+      <path d="M16 2 L19 10 L13 10 Z" />
+      <path d="M16 2 L19 10 L13 10 Z" transform="rotate(-40 16 10)" />
+      <path d="M16 2 L19 10 L13 10 Z" transform="rotate(40 16 10)" />
+    </g>
 
-  <!-- The outer pips of the middle row overhang the body; the clip shaves them,
-       which is what makes the lattice follow the curve instead of stopping
-       short of it in a straight line. -->
-  <g clip-path="url(#pineapple-body)" fill="#ab6400">
-    <use href="#pineapple-pip" x="12.5" y="14" />
-    <use href="#pineapple-pip" x="19.5" y="14" />
-    <use href="#pineapple-pip" x="10" y="19" />
-    <use href="#pineapple-pip" x="16" y="19" />
-    <use href="#pineapple-pip" x="22" y="19" />
-    <use href="#pineapple-pip" x="12.5" y="24" />
-    <use href="#pineapple-pip" x="19.5" y="24" />
+    <!-- The stroke is the silhouette. The body is amber 9, which measures
+         1.58:1 on white — fine as a logotype, but on light tab chrome and on
+         the site's white header the shape dissolved and only the crown and the
+         pips read. Amber 11 is 4.61:1 on white and is already the pips' colour,
+         so the mark gains an edge without gaining a fourth hue. -->
+    <rect
+      x="8" y="9" width="16" height="20" rx="7"
+      fill="#ffc53d" stroke="#ab6400" stroke-width="1"
+    />
+
+    <!-- The outer pips of the middle row overhang the body; the clip shaves
+         them, which is what makes the lattice follow the curve instead of
+         stopping short of it in a straight line. -->
+    <g clip-path="url(#pineapple-body)" fill="#ab6400">
+      <use href="#pineapple-pip" x="12.5" y="14" />
+      <use href="#pineapple-pip" x="19.5" y="14" />
+      <use href="#pineapple-pip" x="10" y="19" />
+      <use href="#pineapple-pip" x="16" y="19" />
+      <use href="#pineapple-pip" x="22" y="19" />
+      <use href="#pineapple-pip" x="12.5" y="24" />
+      <use href="#pineapple-pip" x="19.5" y="24" />
+    </g>
   </g>
 </svg>

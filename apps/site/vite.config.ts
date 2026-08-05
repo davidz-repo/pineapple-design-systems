@@ -9,7 +9,7 @@ import { defineConfig } from 'vite';
 // `allowImportingTsExtensions` on: Vite's native config loader resolves this
 // import itself, and it will not add one. Extensionless, it loads today and
 // warns that it is scheduled to stop.
-import { SITE_ACCENT_COLOR } from './src/site-accent.ts';
+import { SITE_ACCENT_COLOR, SITE_SCALING } from './src/site-theme.ts';
 
 import type { Plugin } from 'vite';
 
@@ -42,7 +42,10 @@ function foucScriptPlugin(): Plugin {
       const { getFoucScript } = await import('@pineappleui/theme');
       return [{
         tag: 'script',
-        children: getFoucScript({ accentColor: SITE_ACCENT_COLOR }),
+        children: getFoucScript({
+          accentColor: SITE_ACCENT_COLOR,
+          scaling: SITE_SCALING,
+        }),
         injectTo: 'body',
       }];
     },

@@ -13,3 +13,7 @@ export {
   ThemePreferencesProvider,
   useThemePreferences,
 } from './providers/ThemePreferencesProvider';
+// The scale both painting surfaces have to agree on, and Radix's own step
+// union behind it — a consumer pinning one needs the type to hold it.
+export { DEFAULT_SCALING } from './scaling';
+export type { Scaling } from './scaling';

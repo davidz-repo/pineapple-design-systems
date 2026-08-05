@@ -59,9 +59,24 @@ Playground.argTypes = {
   },
 };
 
+// `alignItems: 'center'` is load-bearing, not styling. Ghost is not the same
+// box as the other five: Radix gives it `height: fit-content` and NEGATIVE
+// margins, so its layout box is its TEXT and its ink hangs outside. That is
+// exactly right where a ghost belongs — aligned to surrounding prose rather
+// than to a row of filled controls — but a definite height opts out of flex
+// stretch, so with the default cross-axis rule it pinned to the top of the line
+// and sat ~7px high against its neighbours.
+//
+// Written out one tag per variant, and laid out the way a reader would really
+// write it, because THIS SOURCE IS THE DOCUMENTATION: the site discloses it
+// verbatim under "Show code". A `.map()` over a variant array is tidier code
+// and worse docs — the reader came to see six Buttons, not a loop — and
+// wrapping each in a spacer cell would document a workaround as if it were part
+// of using the component. What remains is ~1px of the ghost's ink reaching into
+// the 8px gap, which is the component telling the truth about itself.
 export function Variants() {
   return (
-    <div style={{ padding: 24, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div style={{ padding: 24, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <Button variant="classic">Classic</Button>
       <Button variant="solid">Solid</Button>
       <Button variant="soft">Soft</Button>
