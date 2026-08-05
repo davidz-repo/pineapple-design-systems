@@ -612,6 +612,12 @@ Decisions worth recording, in the same spirit as the gallery section above:
   domain serves from the root; without the domain, Pages falls back to
   `/pineapple-design-systems/` and the base must change with it.
 
+The section above is what the site IS. How it got there — the three-wave overhaul of
+2026-08-04/05, PR by PR, what each review caught, and the follow-ups and product questions
+it left open — is in [`site-ux-overhaul.md`](./site-ux-overhaul.md). That file is a closed
+record and does not describe current behaviour; this one does. Its two live sections are the
+five filed follow-up streams and the decisions left to the user.
+
 ### Deferred
 
 `form` — needs a decision on how much validation behavior belongs in a presentational shell.
