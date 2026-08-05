@@ -275,7 +275,12 @@ describe('the generated artifact', () => {
 
     const [root] = within(props).getAllByRole('table');
     const [type, byDefault] = within(rowFor(root, 'variant')).getAllByRole('cell');
-    expect(type).toHaveTextContent('"soft" | "surface" | "classic"');
+    // Pinnable because the extractor SORTS an expanded literal union now. Left
+    // in the checker's own order this string was a function of the whole
+    // program's type ids — it read `"soft" | "surface" | "classic"` — so a
+    // seventeenth package could reshuffle it and land here as a red test whose
+    // message named nothing about the cause.
+    expect(type).toHaveTextContent('"classic" | "soft" | "surface"');
     expect(byDefault).toHaveTextContent('"surface"');
 
     // React mechanics rather than props of this component, and they are on

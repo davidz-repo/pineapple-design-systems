@@ -353,9 +353,22 @@ function propDefDefault(ts, prop) {
  * saying the useful thing. `boolean` is excluded by the same line — it is
  * `true | false` inside, and nobody wants to read that.
  *
- * Members come out in the order the union DECLARES them, which is both more
- * useful (`"none" | "small" | "medium" | "large"` is a scale) and more stable
- * than the checker's printer, whose order follows program-global type ids.
+ * Members come out sorted by code point. `UnionType.types` is ALREADY id-
+ * ordered, so the branch above buys EXPANSION and nothing else — the sequence
+ * it would print is a function of the whole program's type ids, not of the
+ * union. Radix declares `radius` as none/small/medium/large/full and the
+ * artifact printed `"small" | "none" | "large" | "medium" | "full"`; adding a
+ * seventeenth package can reshuffle every enum cell in every table, which is
+ * churn nothing explains and a pinned test failure that names no cause.
+ * Sorting makes the order a function of the members alone — the same code-
+ * point order the props themselves are listed in.
+ *
+ * It is NOT declaration order, which would be the useful one (a scale read as
+ * a scale). Recovering that means resolving each prop back to a `UnionTypeNode`
+ * in its declaration, and Radix's props are mapped out of `values: readonly
+ * [...]` arrays, so there is no union type node to read. Explicable and stable
+ * is what is on offer here; a comment claiming more than the code does is what
+ * this replaces.
  *
  * @param {import('typescript')} ts
  * @param {import('typescript').TypeChecker} checker
@@ -371,7 +384,10 @@ function typeText(ts, checker, type, enclosing) {
   if (type.isUnion()) {
     const members = type.types.filter(member => (member.flags & ts.TypeFlags.Undefined) === 0);
     if (members.length > 0 && members.every(member => (member.flags & LITERAL_FLAGS) !== 0)) {
-      return members.map(member => checker.typeToString(member, enclosing, flags)).join(' | ');
+      return members
+        .map(member => checker.typeToString(member, enclosing, flags))
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+        .join(' | ');
     }
   }
 
