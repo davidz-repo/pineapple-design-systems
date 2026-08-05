@@ -175,6 +175,15 @@ function PropsBody({ slug }: { slug: string }) {
             that arrives after the column-less table has already been read is
             worth nothing.
 
+            "This package's OWN props", not "these tables", and the wording is
+            load-bearing at this position: the sentence in front of it is the
+            layout-props one, so a demonstrative takes the layout tables as its
+            nearest antecedent — and those DO carry a Description column, since
+            Radix documents all 41. A reader who opened the disclosure to check
+            would find the page contradicting itself. "Own" contrasts with
+            "shared" in the sentence before, and "either" ties it to the two
+            omissions this paragraph has already declared.
+
             The primitive is NAMED from the registry, the same field the link
             below is built from, so the sentence cannot come to name the wrong
             component on a page it was not written for. And it cannot arrive on
@@ -184,7 +193,7 @@ function PropsBody({ slug }: { slug: string }) {
             on is one where that reason has been written down. */}
         {hasUndescribedOwnTable && (
           <>
-            {' These tables carry no Description column: this package passes Radix\'s '}
+            {' There is no Description column on this package\'s own props either: it passes Radix\'s '}
             {radix.name}
             {' through whole, so there is no props type of its own to describe them in. Radix\'s own documentation, linked below, is where they are described.'}
           </>

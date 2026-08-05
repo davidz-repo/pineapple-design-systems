@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Props-coverage guard: every package the reference site documents must have a
 // generated props table, every package that ships a component must have at
-// least one component IN it, and every prop the packages declare themselves
-// must carry a description.
+// least one component IN it, every prop the packages declare themselves must
+// carry a description, and no default may be longer than the table's layout has
+// room for.
 //
 // The artifact this checks — `apps/site/generated/props/<slug>.json` — is
 // written by the site's `props` turbo task and is GITIGNORED, which is what
@@ -60,6 +61,23 @@
 // package now describes everything is removed, or the next real regression hides
 // behind it.
 //
+// WHY A DEFAULT'S LENGTH IS THIS FILE'S BUSINESS
+//
+// Of the props table's four columns, three carry a width floor in site.css and
+// the Default one does not: it is sized by whatever it holds. The stacked-table
+// breakpoint was derived from a total that INCLUDES it, so a longer default
+// literal silently invalidates the breakpoint — a layout regression whose cause
+// is a package's source, two repositories of reasoning away, with nothing in
+// between that fails.
+//
+// It cannot be pinned in CSS. A floor on that column raises the minimum and
+// makes the overflow worse; a `max-width` is simply violated by a single
+// unbreakable token, and adding `overflow-wrap: anywhere` to reach it collapses
+// the cell's min-content to ONE CHARACTER — the ribbon failure recorded above
+// `.props-table td:nth-child(2)`, which is the reason that floor exists. So it
+// is bounded at the source, which is where this repo bounds things it cannot
+// check where they hurt.
+//
 // WHY "ZERO PROPS" IS COVERED AND "ZERO COMPONENTS" IS NOT
 //
 // A component whose whole prop surface is React plumbing is a real answer —
@@ -115,6 +133,30 @@ const NOT_A_SOURCE = /\.(?:test|stories)\.[cm]?[jt]sx?$/;
 // into. An alternative exists (an `export namespace` whose members are annotated
 // to a local intersection) and costs the package its pure re-export emit; that
 // is a product call, and this list is where it is recorded either way.
+// How long a `default` cell may be, as the page prints it — quotes included,
+// because the quotes are drawn.
+//
+// THE ARITHMETIC, so the next reader can re-derive it rather than trust it.
+// `apps/site/src/site.css` stacks a reference table below 768px; above that it
+// is a grid whose minimum width is the sum of the column floors plus 24px of
+// padding each, and there is no global `box-sizing: border-box`:
+//
+//   name 128+24 | type 192+24 | default ~79+24 | description 224+24  =  ~719px
+//
+// At 768px the page gives a table `viewport − 32` = 736px, so the headroom is
+// 736 − 719 = 17px. The Default column in that sum is the only content-driven
+// one: ~79px is `"surface"` at 0.9 × 14px monospace plus the code chip's padding
+// and border — 9 characters, the longest default in the artifact when the
+// breakpoint was chosen. 17px is about 2.2 monospace characters at that size, so
+// 9 + 2 = 11 is what the breakpoint has room for.
+//
+// `"space-between"` is a real Radix `justify` value at 15 characters, which is
+// the kind of thing a package ships as a default without anyone connecting it to
+// a breakpoint. Move this number and the arithmetic above
+// `.props-table td:nth-child(2)` in the same commit: they are one decision
+// written in two files.
+const MAX_DEFAULT_LENGTH = 11;
+
 const UNDESCRIBED_BY_DESIGN = new Map([
   [
     'text-field',
@@ -133,6 +175,11 @@ const failures = [];
 // instead of implying it: "85 of 98" is a number a reader can watch move.
 let ownPropCount = 0;
 let describedCount = 0;
+
+// The widest Default cell in the artifact, reported on the pass line for the
+// same reason: MAX_DEFAULT_LENGTH is a budget, and a budget nobody sees the
+// balance of is one that is first read on the day it is exceeded.
+let longestDefault = { text: '', where: 'nothing' };
 
 /**
  * @param {string} subject the package or file the problem is about
@@ -345,15 +392,52 @@ for (const entry of packages) {
     );
   }
 
-  if (exemption !== undefined && ownProps.length > 0 && undescribed.length === 0) {
+  // ANY described prop, not all of them. The exemption's premise is "describes
+  // none by design" — a package that describes even one has disproved it, and
+  // requiring ALL would let `text-field` describe 12 of 13 while the thirteenth
+  // sat blank under an exemption that no longer said anything true.
+  if (exemption !== undefined && undescribed.length < ownProps.length) {
+    const described = ownProps.length - undescribed.length;
     fail(
       entry.name,
-      `is allow-listed as describing none of its props, and now describes all ${ownProps.length}`,
-      `remove its entry from UNDESCRIBED_BY_DESIGN in scripts/${GUARD_NAME}.mjs. The reason `
-      + `recorded there — it ${exemption} — no longer holds, and a stale exemption is where the `
-      + 'next real regression hides: every prop this package loses a description to would pass '
-      + 'under it, silently.',
+      `is allow-listed as describing none of its props, and describes ${described} of `
+      + `${ownProps.length}`,
+      `remove its entry from UNDESCRIBED_BY_DESIGN in scripts/${GUARD_NAME}.mjs and describe the `
+      + `remaining ${undescribed.length}. The reason recorded there — it ${exemption} — no longer `
+      + 'holds for every prop, and a stale exemption is where the next real regression hides: '
+      + 'every prop this package loses a description to would pass under it, silently.',
     );
+  }
+
+  // Every prop, not only the own ones: the layout tables draw a Default column
+  // too, and Radix documents all 41 of those props, so they are described tables
+  // with the same four floors.
+  for (const component of doc.components) {
+    for (const prop of component.props ?? []) {
+      if (prop.default === undefined) {
+        continue;
+      }
+      longestDefault = prop.default.length > longestDefault.text.length
+        ? { text: prop.default, where: `${entry.slug} ${component.name}.${prop.name}` }
+        : longestDefault;
+
+      if (prop.default.length <= MAX_DEFAULT_LENGTH) {
+        continue;
+      }
+      fail(
+        entry.name,
+        `default \`${prop.default}\` (${prop.default.length} characters) on `
+        + `${component.name}.${prop.name} is longer than the ${MAX_DEFAULT_LENGTH} the table's `
+        + '768px breakpoint has room for',
+        'the stacked-table breakpoint (apps/site/src/site.css) was derived from a ~719px minimum '
+        + 'whose Default column is content-driven — ~79px for `"surface"`, the longest default '
+        + 'when it was chosen — leaving 17px of headroom at 768px, about two monospace '
+        + 'characters. Either shorten the default, or re-derive the breakpoint and update '
+        + `MAX_DEFAULT_LENGTH in scripts/${GUARD_NAME}.mjs along with the arithmetic above `
+        + '`.props-table td:nth-child(2)`. Nothing in CSS can hold this: a floor on that column '
+        + 'raises the minimum, and a `max-width` is violated outright by one unbreakable token.',
+      );
+    }
   }
 }
 
@@ -395,6 +479,8 @@ console.log(
   + `  ${describedCount} of ${ownPropCount} own prop(s) described; describing none by design: ${
     [...UNDESCRIBED_BY_DESIGN.keys()].join(', ') || 'none'
   }\n`
+  + `  longest default ${longestDefault.text || '(none)'} at ${longestDefault.text.length} of `
+  + `${MAX_DEFAULT_LENGTH} characters (${longestDefault.where})\n`
   + `  no component source, nothing required of them: ${
     packages.filter(entry => !entry.hasComponentSource).map(entry => entry.name).join(', ') || 'none'
   }`,

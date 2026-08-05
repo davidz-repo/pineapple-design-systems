@@ -390,6 +390,50 @@ function byCodePoint(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/** A member that IS a number, quoted or not — `"9"`, `"-1"`, `3`. */
+const NUMERIC_MEMBER = /^["']?(-?\d+(?:\.\d+)?)["']?$/;
+
+/**
+ * @param {string} text a member as it prints
+ * @returns {number|undefined} its value, or `undefined` when it is not a number
+ */
+function numericValue(text) {
+  const digits = NUMERIC_MEMBER.exec(text)?.[1];
+  return digits === undefined ? undefined : Number(digits);
+}
+
+/**
+ * A union's members in the order the table prints them: a NUMBER LINE when every
+ * member is a number, code point otherwise.
+ *
+ * Code point alone is wrong for exactly one shape, and it is the commonest one
+ * in the artifact — Radix's space scale, `"0"…"9" | "-1"…"-9"`, which sorted
+ * lexicographically puts all nine negatives first and starts the scale a reader
+ * wants at position ten. That is neither alphabetical-meaningful nor a number
+ * line. It reaches 92 cells, all of them margin props behind the layout
+ * disclosure; no non-layout prop in the artifact carries a negative member.
+ *
+ * The test is on EVERY member, so a union that mixes `"1"` with `"auto"` keeps
+ * code point rather than being half-ordered — and `size`, `radius` and the 26
+ * accents are unaffected either way, since a numeric-only union sorts to the
+ * same sequence under both rules whenever the values are single digits.
+ *
+ * @template T
+ * @param {readonly T[]} members
+ * @param {(member: T) => string} textOf
+ * @returns {T[]} a new array, ordered
+ */
+function inMemberOrder(members, textOf) {
+  const ranked = members.map(member => ({ member, text: textOf(member) }));
+  const values = ranked.map(entry => numericValue(entry.text));
+  const isNumberLine = values.every(value => value !== undefined);
+
+  return ranked
+    .map((entry, index) => ({ ...entry, value: values[index] }))
+    .sort((a, b) => (isNumberLine ? a.value - b.value : byCodePoint(a.text, b.text)))
+    .map(entry => entry.member);
+}
+
 /**
  * The same union rendering, with every all-literal union inside it sorted.
  *
@@ -423,9 +467,7 @@ function withSortedUnions(ts, node, print) {
       }
       return ts.factory.updateUnionTypeNode(
         visited,
-        ts.factory.createNodeArray(
-          [...visited.types].sort((a, b) => byCodePoint(print(a), print(b))),
-        ),
+        ts.factory.createNodeArray(inMemberOrder(visited.types, print)),
       );
     };
     return ts.visitNode(root, visit);
@@ -450,7 +492,8 @@ function withSortedUnions(ts, node, print) {
  * saying the useful thing. `boolean` is excluded by the same line — it is
  * `true | false` inside, and nobody wants to read that.
  *
- * Members come out sorted by code point, wherever in the rendering they sit.
+ * Members come out ordered — by code point, or as a NUMBER LINE where every
+ * member is a number (see `inMemberOrder`) — wherever in the rendering they sit.
  * `UnionType.types` is ALREADY id-ordered, so the branch above buys EXPANSION
  * and nothing else — the sequence it would print is a function of the whole
  * program's type ids, not of the union. Radix declares `radius` as
@@ -469,13 +512,15 @@ function withSortedUnions(ts, node, print) {
  * (which is the useful thing in the cell), and stays on the compiler API this
  * file already restricts itself to.
  *
- * It is NOT declaration order, which would be the useful one (a scale read as
- * a scale). Recovering that means resolving each prop back to a `UnionTypeNode`
- * in its DECLARATION, and Radix's props are mapped out of `values: readonly
- * [...]` arrays, so there is no union type node to read — the nodes rewritten
- * here are the checker's own rendering of the resolved type, which carries no
- * memory of how it was written. So `Responsive<Union<string, "-1" | … | "9">>`
- * prints its negative steps first. Explicable and stable is what is on offer.
+ * It is NOT declaration order, which would be the useful one for a union whose
+ * members are words. Recovering that means resolving each prop back to a
+ * `UnionTypeNode` in its DECLARATION, and Radix's props are mapped out of
+ * `values: readonly [...]` arrays, so there is no union type node to read — the
+ * nodes rewritten here are the checker's own rendering of the resolved type,
+ * which carries no memory of how it was written. For a union of NUMBERS,
+ * declaration order and the number line are the same sequence, which is why the
+ * space scale reads correctly anyway: `"-9" … "-1" | "0" … "9"`, not the
+ * lexicographic `"-1" … "-9" | "0" …` that code point alone produced.
  *
  * @param {import('typescript')} ts
  * @param {import('typescript').TypeChecker} checker
@@ -491,10 +536,10 @@ function typeText(ts, checker, type, enclosing) {
   if (type.isUnion()) {
     const members = type.types.filter(member => (member.flags & ts.TypeFlags.Undefined) === 0);
     if (members.length > 0 && members.every(member => (member.flags & LITERAL_FLAGS) !== 0)) {
-      return members
-        .map(member => checker.typeToString(member, enclosing, flags))
-        .sort(byCodePoint)
-        .join(' | ');
+      return inMemberOrder(
+        members.map(member => checker.typeToString(member, enclosing, flags)),
+        text => text,
+      ).join(' | ');
     }
   }
 

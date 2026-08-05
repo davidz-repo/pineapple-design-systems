@@ -334,13 +334,23 @@ describe('the props table', () => {
     await renderApp('/components/text-field');
     const props = await findPropsSection();
 
-    const note = within(props).getByText(/These tables carry no Description column/);
+    const note = within(props).getByText(/There is no Description column on this package's own props/);
     // Named from the registry, the same field the Radix link is built from.
+    //
+    // "Own props", not "these tables": this package HAS layout props, so the
+    // sentence in front of this one is the layout-props sentence — and the
+    // layout tables do carry a Description column, since Radix documents all
+    // 41. A demonstrative would take them as its antecedent and be false.
+    // Asserted as the whole sentence rather than a phrase, because the
+    // ambiguity this fixes lives in one word.
     expect(note).toHaveTextContent(
-      'These tables carry no Description column: this package passes Radix\'s TextField through '
-      + 'whole, so there is no props type of its own to describe them in. Radix\'s own '
-      + 'documentation, linked below, is where they are described.',
+      'There is no Description column on this package\'s own props either: it passes Radix\'s '
+      + 'TextField through whole, so there is no props type of its own to describe them in. '
+      + 'Radix\'s own documentation, linked below, is where they are described.',
     );
+    // And the sentence it has to be read against is the one immediately before
+    // it, in the same paragraph.
+    expect(note).toHaveTextContent(/shared layout props[^.]*\.\s*There is no Description column/);
 
     const [table] = within(props).getAllByRole('table');
     expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent))

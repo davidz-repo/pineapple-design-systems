@@ -168,7 +168,7 @@ describe('the shapes a table has to render', () => {
 
   it('puts the required props first, then goes alphabetical', () => {
     expect(doc.components[0].props.map(prop => prop.name))
-      .toEqual(['count', 'isLoud', 'label', 'reach', 'spread', 'tone']);
+      .toEqual(['count', 'isLoud', 'label', 'level', 'reach', 'spread', 'step', 'tone']);
   });
 
   it('sorts an expanded union rather than printing it in the checker\'s order', () => {
@@ -199,6 +199,28 @@ describe('the shapes a table has to render', () => {
     // was saying the useful thing.
     expect(propNamed(doc.components[0], 'reach')?.type)
       .toBe('Wrapped<"a" | "b" | "c">');
+  });
+
+  it('orders a union of numbers as a number line, not lexicographically', () => {
+    // Code point is right for words and wrong for exactly one shape, and it is
+    // the commonest one in the artifact: Radix's space scale, `"0"…"9" |
+    // "-1"…"-9"`, which sorts to nine negatives followed by the scale a reader
+    // actually wants. That is neither alphabetical-meaningful nor a number line.
+    //
+    // `"10"` is what tells the two rules apart in both directions — it sorts
+    // before `"9"` as text and after it as a number — and the negatives are what
+    // the 92 margin cells in the artifact are about.
+    expect(propNamed(doc.components[0], 'step')?.type)
+      .toBe('Wrapped<"-2" | "-1" | "0" | "2" | "10">');
+    // The same rule on the other branch: a top-level union is EXPANDED rather
+    // than printed as its alias, and it has its own sort.
+    expect(propNamed(doc.components[0], 'level')?.type)
+      .toBe('"-1" | "0" | "2" | "10"');
+    // And a union that only LOOKS numeric keeps code point rather than being
+    // half-ordered — `spread` above is words, and this is the mixed case the
+    // every-member test is for.
+    expect(propNamed(doc.components[0], 'tone')?.type)
+      .toBe('"apricot" | "blue" | "cerise" | "grass" | "iris" | "jade" | "lime" | "mint" | "plum" | "ruby"');
   });
 
   it('reads the required flag, the type, the default and the JSDoc', () => {
