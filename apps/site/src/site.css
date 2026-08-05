@@ -55,13 +55,21 @@
   --site-mark-texture: var(--amber-11);
 
   /* A row under the pointer. On a yellow page the hover has to be MORE yellow:
-     a grey alpha wash reads as the row going out, not lighting up. */
-  --site-row-hover: var(--amber-7);
+     a grey alpha wash reads as the row going out, not lighting up. Step 5,
+     not 7: at amber-7 (1.58:1 on the canvas, and heavily saturated) the row
+     under the pointer out-shouted the row you are actually on, so the nav
+     read as though the pointer selected things. Hover is the weaker signal of
+     the two and has to measure that way — see --site-selected-bg. */
+  --site-row-hover: var(--amber-5);
 
   /* Where you are, in the other hue. Yellow-on-yellow cannot carry selection —
      a step of the canvas's own scale over the canvas is around 1:1, which is
-     why the menu trigger's pressed state measured 1.06:1 before this. */
-  --site-selected-bg: var(--grass-3);
+     why the menu trigger's pressed state measured 1.06:1 before this. Step 5,
+     not 3: grass-3 measured 1.03:1 against this canvas, so the fill was doing
+     nothing on its own and the row relied entirely on its foreground and edge
+     marker. At step 5 it is 1.22:1 — visible as a surface — and stays above
+     the hover behind it. grass-12 on it is 9.15:1. */
+  --site-selected-bg: var(--grass-5);
   --site-selected-fg: var(--grass-12);
 
   /* Disabled is the one state that drops the hue. Every live control on this
@@ -95,17 +103,36 @@
 
 /* ---- App shell ------------------------------------------------------- */
 
+/* The UA's default 8px body margin, which nothing had reset. It was invisible
+   while the page was white on a white canvas; a yellow page turns it into an
+   8px white frame around the entire site, which is the loudest thing on the
+   screen that is not the site. It also forced a scrollbar onto every page —
+   .site-shell is 100dvh, and the margin put 16px more than that in the
+   document. No background here: --color-background is declared on
+   .radix-themes, which is a DESCENDANT of body, and custom properties do not
+   inherit upward. The shell covers the viewport once the margin is gone. */
+html,
+body {
+  margin: 0;
+}
+
 .site-shell {
   /* The header's own box, expressed in the scale it is actually built from:
      two --space-3 paddings, the tallest control in the row, and the bottom
-     border. Here that control is a Radix size-1 (--space-5), which is what
-     every control the desktop header shows is. The mobile block redefines
-     this — its Menu trigger is a size-2 — and anything that changes a
-     control's size has to come back here, because the sticky sidebar offsets
-     from this value and an 8px error parks the panel behind the header.
-     The 57px this replaced was never the rendered height and could not follow
-     Radix's --scaling at all, so the sidebar sat wrong at every scale. */
-  --site-header-h: calc(var(--space-3) * 2 + var(--space-5) + 1px);
+     border. That control is .site-header-link — its own --space-1 paddings
+     around a --line-height-2 row, 28px, which is TALLER than the --space-5
+     brand mark beside it. Naming --space-5 here (the mark) understated the row
+     by 4px on top of the 25px the content-box bug added, and the three sticky
+     rails that read this token — the sidebar's `top`, the package tab strip's
+     `top`, the hero's scroll-margin — all sat that far under the chrome.
+     The mobile block redefines this: its Menu trigger is a size-2 and is
+     taller than the link. Anything that changes a control's size has to come
+     back here. The 57px this replaced was never the rendered height and could
+     not follow Radix's --scaling at all, so the sidebar sat wrong at every
+     scale. */
+  --site-header-h: calc(
+    var(--space-3) * 2 + (var(--space-1) * 2 + var(--line-height-2)) + 1px
+  );
 
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -156,11 +183,18 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  /* min-height, not height: a viewport narrow enough to wrap the brand off
+  /* --site-header-h counts the paddings and the border (see .site-shell), so
+     this box has to measure the same way. Radix's reset only reaches its own
+     .rt-reset elements, and a plain <header> is content-box by default — under
+     which min-height sets the CONTENT height and the padding and border are
+     added on top, rendering 74px for a 49px token. Every consumer of the token
+     is a sticky offset, so that error is the one the block above warns about.
+     min-height, not height: a viewport narrow enough to wrap the brand off
      the controls' row makes the header taller, and a fixed height would clip
      that row rather than show it. The sticky offsets are exact whenever the
      header holds one row — each breakpoint sets --site-header-h to its own
      tallest control — and a wrapped header only ever grows past them. */
+  box-sizing: border-box;
   min-height: var(--site-header-h);
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--site-border);
@@ -180,12 +214,12 @@
   color: var(--site-brand);
 }
 
-/* --space-5, the SAME token --site-header-h is derived from above, because the
-   mark is now one of the controls that row is as tall as. A literal 24px would
-   be right at --scaling 100% and wrong at every other scale; anything TALLER
-   than --space-5 makes the header taller than the token says it is, and the
-   sticky offsets that read the token — the nav panel's `top`, the hero's
-   scroll-margin — all land under the chrome.
+/* --space-5, a token rather than a literal 24px, which would be right at
+   --scaling 100% and wrong at every other scale. The mark is NOT what sets the
+   header's height — .site-header-link is 28px and the mark is 24 — but if it
+   ever grows past the link it becomes the tallest thing in the row, and
+   --site-header-h above has to be re-derived from whichever control that is.
+   A row taller than the token is what parks the sticky rails under the chrome.
 
    The -1px is optical, not geometric: the crown's blades are the mark's
    lightest mass, so a mark centred by its box reads as sitting low against the
@@ -214,6 +248,11 @@
    exactly that reason. */
 .site-menu-trigger[aria-expanded='true'] {
   background-color: var(--site-selected-bg);
+  /* The foreground has to cross to the same hue as the fill. Radix leaves the
+     label on the accent's own ramp, so a green surface under amber-11 text
+     read as a broken chip rather than as a pressed control — the two halves of
+     one control disagreeing about which colour it is. */
+  color: var(--site-selected-fg);
 }
 
 /* Wide enough for the longest of the three settings, so cycling the
@@ -268,8 +307,17 @@
 }
 
 .site-sidebar {
+  /* Same reason as .site-header: the max-height below is the space left under
+     the header, and content-box would add this padding back on top of it —
+     32px of nav hanging below the fold, where it cannot be scrolled to. */
+  box-sizing: border-box;
   padding: var(--space-4);
   overflow-y: auto;
+  /* The platform scrollbar is a full-height grey stripe down a yellow page
+     (and a bright one down the near-black), which is the tallest piece of
+     chrome on the screen wearing none of the site's colour. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--site-border) transparent;
   /* Scrolling past the end of the nav must not carry on into the page behind
      it — as the mobile panel, that would scroll the content the panel is
      covering. */
@@ -290,14 +338,17 @@
 
 /* A heading, not a quiet link. It used to differ from the links below it by
    two pixels of type size and a shade of gray, which is not a category — it is
-   a link that happens not to work. Four cues separate them now: it is LARGER
-   than a link rather than smaller, bold rather than medium, uppercase with
-   tracking (a case no link in this nav uses), and the darkest step on the
-   canvas rather than the muted one. `cursor: default` and no hover finish the
-   claim — nothing here responds to a pointer, because there is nothing to
-   click. The uppercase is CSS, never the strings in registry.ts: those are the
-   groups' accessible names, and a screen reader should read "Feedback", not
-   "F-E-E-D-B-A-C-K". */
+   a link that happens not to work. Four cues separate them now: it is larger
+   than a link (--font-size-3 in Sidebar.tsx, against the links' --font-size-2)
+   rather than smaller, bold rather than medium, uppercase with tracking (a
+   case no link in this nav uses), and the darkest step on the canvas rather
+   than the muted one. The size cue is load-bearing twice over: the CURRENT
+   link is also bold, so at equal size the label and the selected row were the
+   two heaviest things in the column and told apart only by hue and case.
+   `cursor: default` and no hover finish the claim — nothing here responds to a
+   pointer, because there is nothing to click. The uppercase is CSS, never the
+   strings in registry.ts: those are the groups' accessible names, and a screen
+   reader should read "Feedback", not "F-E-E-D-B-A-C-K". */
 .site-nav-group-label {
   padding: 0 var(--space-2);
   /* Binds the label to the group under it rather than floating it between two
@@ -305,7 +356,9 @@
   margin-block-start: var(--space-2);
   color: var(--amber-12);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  /* Tracking is a small-type remedy; at 16px caps 0.08em reads as gappy
+     rather than as a heading. */
+  letter-spacing: 0.06em;
   cursor: default;
 }
 
@@ -704,12 +757,11 @@
 }
 
 /* Same surface as an example canvas, and for the same reason — see
-   `.example-canvas`, including why it is --gray-2 and not --color-panel-solid.
-   The preview is the one box on the page whose contents are a component rather
-   than the site's own chrome. */
+   `.example-canvas`, including why it is --site-panel and not
+   --color-panel-solid. The preview is the one box on the page whose contents
+   are a component rather than the site's own chrome. */
 .playground-preview {
-  background: var(--gray-2);
-  border: 1px solid var(--gray-a5);
+  border: 1px solid var(--site-border);
   border-radius: var(--radius-3);
   background: var(--site-panel);
   min-height: 160px;
@@ -797,7 +849,7 @@
 }
 
 .package-link:hover {
-  background: var(--gray-a3);
+  background: var(--site-row-hover);
   color: var(--gray-12);
 }
 
@@ -837,11 +889,14 @@
   gap: var(--space-3);
 }
 
+/* Amber, not the grey alpha these were: a grey wash over yellow does not read
+   as neutral, it tints the bar olive. Same reason the row hover is amber — see
+   the palette block. */
 .skeleton-line,
 .skeleton-tabs {
   display: block;
   border-radius: var(--radius-2);
-  background: var(--gray-a3);
+  background: var(--amber-5);
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
 
@@ -889,13 +944,12 @@
    something to sit on and reads the same here as in an app. The dashed border
    it replaced said "drop zone"; a surface says "this is running".
 
-   --gray-2, not --color-panel-solid: that variable is --gray-2 in dark but
-   plain white in light, which is exactly --color-background — so in light
-   appearance the "surface" was the page, and the canvas was the hole it was
-   drawn not to be. --gray-2 is a step off the page in both. */
+   --site-panel, not --color-panel-solid: that variable is plain white in light
+   appearance, which on this page is not a step off --color-background at all —
+   so the "surface" would be the page, and the canvas would be the hole it is
+   drawn not to be. --site-panel is a step off the page in both. */
 .example-canvas {
-  background: var(--gray-2);
-  border: 1px solid var(--gray-a5);
+  border: 1px solid var(--site-border);
   border-radius: var(--radius-3);
   background: var(--site-panel);
   overflow-x: auto;

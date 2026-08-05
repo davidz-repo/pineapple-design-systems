@@ -127,15 +127,17 @@ export function Sidebar({ id, isOpen, onNavigate }: SidebarProps) {
             <Stack key={category} gap="1" role="group" aria-labelledby={labelId}>
               {/* Bigger and heavier than the links it names — a section header
                   set SMALLER than its own contents reads as a link that does
-                  not work. No `color`: site.css owns it, and a `color="gray"`
-                  here would be a second claim on the same property in a second
-                  file, which is one more place for the header to go quiet
-                  again. */}
+                  not work, and set the SAME size it is only told from the
+                  current link (also bold) by hue and case. size="3" against
+                  the links' size="2" is the cue that carries both. No `color`:
+                  site.css owns it, and a `color="gray"` here would be a second
+                  claim on the same property in a second file, which is one
+                  more place for the header to go quiet again. */}
               <Text
                 as="p"
                 id={labelId}
                 className="site-nav-group-label"
-                size="2"
+                size="3"
                 weight="bold"
               >
                 {category}

@@ -12,6 +12,7 @@ import { MemoryRouter } from 'react-router';
 import { expect, vi } from 'vitest';
 
 import { App } from './App';
+import { SITE_ACCENT_COLOR } from './site-accent';
 
 // Shared by every test in this workspace: what the packages look like on disk,
 // and how to put the real app on screen. Both halves are here because both are
@@ -76,7 +77,10 @@ export async function renderApp(
   await act(async () => {
     render(
       <ThemePreferencesProvider>
-        <DesignSystemProvider>
+        {/* Pinned, because main.tsx pins it — this helper claims to mount the
+            tree the app mounts, and an unpinned provider here renders every
+            page under whatever accent the store happens to hold. */}
+        <DesignSystemProvider accentColor={SITE_ACCENT_COLOR}>
           <MemoryRouter basename={basename} initialEntries={[path]}>
             <App />
             {extra}
