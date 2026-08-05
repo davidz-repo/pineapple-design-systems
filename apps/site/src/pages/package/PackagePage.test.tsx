@@ -127,17 +127,22 @@ describe('overview tab', () => {
       .toEqual(['Variants', 'Sizes']);
   });
 
-  it('has one outline: the package, its Examples, its README', async () => {
+  it('has one outline: the package, its Examples, its README, its Props', async () => {
     await renderApp('/components/button');
     await screen.findByText('What it exports', undefined, SUSPENSE_TIMEOUT);
+    // Waited for separately: Props is under its own Suspense boundary, loading
+    // its own generated file, so the README arriving says nothing about whether
+    // this heading is up yet. Without this the assertion below is a race that
+    // passes locally and drops a heading on a loaded runner.
+    await screen.findByRole('heading', { name: 'Props', level: 2 }, SUSPENSE_TIMEOUT);
 
     // The same shape on every package page, whatever its README is written
     // like — which is what lets a reader move by heading and know where they
-    // are. Props joins the h2s when that table lands.
+    // are.
     expect(screen.getAllByRole('heading', { level: 1 }).map(h => h.textContent))
       .toEqual(['Button']);
     expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent))
-      .toEqual(['Examples', 'README']);
+      .toEqual(['Examples', 'README', 'Props']);
     // The README's own `##` sections belong to that h2 rather than standing
     // beside it: demoted, so the outline says whose sections they are.
     expect(screen.getByRole('heading', { name: 'What it exports' }).tagName).toBe('H3');
