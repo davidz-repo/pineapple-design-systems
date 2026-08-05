@@ -1,4 +1,5 @@
-import { Suspense, use, useId, useState } from 'react';
+import type { Ref } from 'react';
+import { Suspense, use, useId, useRef, useState } from 'react';
 
 import { Badge } from '@pineappleui/badge';
 import { Button } from '@pineappleui/button';
@@ -58,8 +59,17 @@ export function PropsSection({ slug }: { slug: string }) {
         <ErrorBoundary
           fallback={(error, retry) => (
             <Stack gap="2" align="start">
+              {/* Two ways out in one sentence, because the failure this names
+                  is DETERMINISTIC: a redeploy under an open tab leaves the
+                  page holding chunk hashes that no longer exist, and retrying
+                  asks for the same missing file again. PackagePage's fallback
+                  carries two BUTTONS for exactly this reason; a section-sized
+                  failure does not need a second control, but it does need to
+                  say the thing the second control would have done. */}
               <Text as="p" size="3" color="gray">
-                The props table for this package could not be loaded.
+                The props table for this package could not be loaded. Trying again is worth a
+                shot — and if the site was redeployed while this page was open, reloading it is
+                what fixes that one.
               </Text>
               <Text as="p" size="2" color="gray">{error.message}</Text>
               <Button size="2" variant="soft" onClick={retry}>Try again</Button>
@@ -137,36 +147,45 @@ function PropsBody({ slug }: { slug: string }) {
             term and that page, and it does it without lengthening the button's
             own label, which would drag its accessible name along too. */}
         {hasLayoutProps && ' Every component here also takes Radix Themes\' shared layout props — margin, padding, width, height and position — listed separately under each one below.'}
-        {/* Whose words these are. Most of the prose on a Radix wrapper's page
-            is Radix's, presented in a pineapple-branded table, and nothing said
-            so. Written by the KIND of prop rather than by a count, because the
-            counts are about to move: the JSDoc this repo has yet to write onto
-            its own wrapper props is a separate stream, and when it lands this
-            sentence is still the true one — a prop that comes from Radix still
-            carries Radix's description, and a prop the package declares carries
-            the package's.
-
-            "Corrected where" rather than "verbatim", because they are not
-            verbatim: extract-props.mjs overrides `gapX` and `gapY`, whose
-            upstream JSDoc describes the opposite axis from the one they set. */}
-        {hasLayoutProps && ' Descriptions for the props that come from Radix are Radix\'s own words, corrected where its types describe a prop wrongly.'}
-        {radix !== undefined && (
-          <>
-            {' '}
-            {/* The same label PackageLinks gives the same href on the same
-                page. Two names for one destination is the thing that file's
-                own header records removing. */}
-            <a href={radixDocsUrl(radix)} target="_blank" rel="noreferrer">
-              {`Radix ${radix.name}`}
-              <NewTabNote />
-            </a>
-            {' documents the primitive underneath.'}
-          </>
-        )}
       </Text>
       {doc.components.map(component => (
         <ComponentProps key={component.name} component={component} />
       ))}
+      {/* Provenance, AFTER the tables it is about. Above them it was the third
+          and fourth sentences of ~78 words of preamble, and the one sentence a
+          reader needs before they start reading — where the layout props went —
+          was buried behind them. Whose words these are is worth saying and is
+          not worth reading first. */}
+      {(hasLayoutProps || radix !== undefined) && (
+        <Text as="p" size="2" color="gray">
+          {/* Written by the KIND of prop rather than by a count, because the
+              counts are about to move: the JSDoc this repo has yet to write
+              onto its own wrapper props is a separate stream, and when it lands
+              this sentence is still the true one — a prop that comes from Radix
+              still carries Radix's description, and a prop the package declares
+              carries the package's.
+
+              "Corrected where" rather than "verbatim", because they are not
+              verbatim: extract-props.mjs overrides `gapX` and `gapY`, whose
+              upstream JSDoc describes the opposite axis from the one they set.
+              "Its own documentation" rather than "its types", which reads as a
+              reference to the Type column beside it. */}
+          {hasLayoutProps && 'Descriptions for the props that come from Radix are Radix\'s own words, corrected where its own documentation describes a prop wrongly.'}
+          {radix !== undefined && (
+            <>
+              {' '}
+              {/* The same label PackageLinks gives the same href on the same
+                  page. Two names for one destination is the thing that file's
+                  own header records removing. */}
+              <a href={radixDocsUrl(radix)} target="_blank" rel="noreferrer">
+                {`Radix ${radix.name}`}
+                <NewTabNote />
+              </a>
+              {' documents the primitive underneath.'}
+            </>
+          )}
+        </Text>
+      )}
     </>
   );
 }
@@ -174,6 +193,7 @@ function PropsBody({ slug }: { slug: string }) {
 function ComponentProps({ component }: { component: ComponentDoc }) {
   const [areLayoutPropsShown, setAreLayoutPropsShown] = useState(false);
   const layoutId = useId();
+  const openerRef = useRef<HTMLButtonElement>(null);
 
   // Radix gives every component the same margin/padding/size/position props —
   // 41 of Box's 44, and 41 of Stack's 51. Left in the table they bury the props
@@ -201,27 +221,14 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
         : <PropsTable caption={`${component.name} props`} props={ownProps} />}
       {layoutProps.length > 0 && (
         <>
-          {/* Inline so the button keeps its own width: a Stack is a flex column
-              and would stretch it across the page. */}
-          <Inline gap="2">
-            {/* The visible text repeats on every component that has layout
-                props, so the NAME says which component — and the name has to
-                START with the visible text, word for word, or a voice-control
-                user saying what they read gets no match (WCAG 2.5.3, Label in
-                Name, Level A). One inserted "the" is enough to break it. Same
-                shape as the examples' "Show code for …". */}
-            <Button
-              size="1"
-              variant="ghost"
-              color="gray"
-              aria-expanded={areLayoutPropsShown}
-              aria-controls={layoutId}
-              aria-label={`${areLayoutPropsShown ? 'Hide' : 'Show'} ${layoutProps.length} layout props for ${component.name}`}
-              onClick={() => setAreLayoutPropsShown(shown => !shown)}
-            >
-              {`${areLayoutPropsShown ? 'Hide' : 'Show'} ${layoutProps.length} layout props`}
-            </Button>
-          </Inline>
+          <LayoutPropsToggle
+            ref={openerRef}
+            component={component}
+            count={layoutProps.length}
+            controls={layoutId}
+            isShown={areLayoutPropsShown}
+            onToggle={() => setAreLayoutPropsShown(shown => !shown)}
+          />
           {/* The region stays in the document so `aria-controls` always names
               something real; the forty rows are drawn only once asked for. */}
           <div id={layoutId}>
@@ -229,9 +236,75 @@ function ComponentProps({ component }: { component: ComponentDoc }) {
               <PropsTable caption={`${component.name} layout props`} props={layoutProps} />
             )}
           </div>
+          {/* The same control again, at the bottom. Box's expanded layout table
+              is 41 rows and about 8,000px, so the only way to close it was to
+              scroll back past everything you had just opened.
+
+              It sits OUTSIDE the region it controls, and closing from here puts
+              focus back on the opener — a control that removes itself takes the
+              reader's focus to the document body with it, and the opener is
+              also where the page has just scrolled back to. */}
+          {areLayoutPropsShown && (
+            <LayoutPropsToggle
+              component={component}
+              count={layoutProps.length}
+              controls={layoutId}
+              isShown
+              onToggle={() => {
+                setAreLayoutPropsShown(false);
+                openerRef.current?.focus();
+              }}
+            />
+          )}
         </>
       )}
     </Stack>
+  );
+}
+
+function LayoutPropsToggle({
+  ref,
+  component,
+  count,
+  controls,
+  isShown,
+  onToggle,
+}: {
+  ref?: Ref<HTMLButtonElement>;
+  component: ComponentDoc;
+  count: number;
+  controls: string;
+  isShown: boolean;
+  onToggle: () => void;
+}) {
+  const verb = isShown ? 'Hide' : 'Show';
+
+  return (
+    // Inline so the button keeps its own width: a Stack is a flex column and
+    // would stretch it across the page.
+    <Inline gap="2">
+      {/* The visible text repeats on every component that has layout props, so
+          the NAME says which component — and the name has to START with the
+          visible text, word for word, or a voice-control user saying what they
+          read gets no match (WCAG 2.5.3, Label in Name, Level A). One inserted
+          "the" is enough to break it. Same shape as the examples' "Show code
+          for …".
+
+          Both copies of this control carry the same name, which is what two
+          controls doing one thing are supposed to do. */}
+      <Button
+        ref={ref}
+        size="1"
+        variant="ghost"
+        color="gray"
+        aria-expanded={isShown}
+        aria-controls={controls}
+        aria-label={`${verb} ${count} layout props for ${component.name}`}
+        onClick={onToggle}
+      >
+        {`${verb} ${count} layout props`}
+      </Button>
+    </Inline>
   );
 }
 

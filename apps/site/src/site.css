@@ -790,9 +790,25 @@
     font-weight: var(--font-weight-medium);
   }
 
+  /* Two `content` declarations, and they are a PAIR rather than an edit left
+     behind. The second is CSS Generated Content's speech-alternative form:
+     everything before the `/` is drawn, everything after it is what a screen
+     reader gets instead — here, nothing.
+
+     That is the point. The `thead` above stays in the accessibility tree, so
+     the cell-to-column association is the real one; without the alternative
+     text, an engine that exposes generated content (Chrome and Firefox both do)
+     announces the column's name a second time on every cell. `/ ""` drops the
+     duplicate and leaves the association untouched.
+
+     The plain form has to come FIRST because an engine that does not implement
+     the syntax treats the whole second declaration as invalid and discards it,
+     falling back to this one. Declaring only the `/ ""` form would lose the
+     visible label entirely wherever it is not understood. */
   .markdown td::before,
   .props-table td::before {
     content: attr(data-label);
+    content: attr(data-label) / "";
     display: block;
     color: var(--gray-11);
     font-size: var(--font-size-1);

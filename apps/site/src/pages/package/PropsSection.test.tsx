@@ -202,15 +202,35 @@ describe('the props table', () => {
     const props = await findPropsSection();
     const [table] = within(props).getAllByRole('table');
 
-    // Below 600px site.css sets `display: block` on the table and its parts, and
-    // changing a table's `display` drops its implicit ARIA semantics in every
-    // engine. Written out, they survive the restyle. jsdom evaluates no media
-    // query, so what is asserted here is the markup the stacked layout rests
-    // on — the layout itself is CSS and is verified by reading it.
+    // Below 600px site.css sets `display: block` on the table and its parts,
+    // and changing a table's `display` drops its implicit ARIA semantics in
+    // every engine. Written out, they survive the restyle. jsdom evaluates no
+    // media query, so what is asserted here is the markup the stacked layout
+    // rests on — the layout itself is CSS and was verified by reading it.
+    //
+    // ATTRIBUTES, not roles. `getAllByRole('row')` passes whether or not the
+    // `role` is written, because jsdom supplies the implicit one — so a query
+    // by role proves the a11y tree is right and proves NOTHING about the
+    // attribute that keeps it right once the display changes. Stripping every
+    // explicit `role=` from this component left the suite green. Each of these
+    // is the deletion test the queries could not be.
+    const attributes = (selector: string) =>
+      [...table.querySelectorAll(selector)].map(node => node.getAttribute('role'));
+
     expect(table).toHaveAttribute('role', 'table');
-    expect(within(table).getAllByRole('rowgroup')).toHaveLength(2);
+    expect(attributes('thead, tbody')).toEqual(['rowgroup', 'rowgroup']);
     // Header row plus one per prop.
-    expect(within(table).getAllByRole('row')).toHaveLength(4);
+    expect(attributes('tr')).toEqual(['row', 'row', 'row', 'row']);
+    expect(attributes('thead th')).toEqual(Array.from({ length: 4 }).fill('columnheader'));
+    expect(attributes('tbody th')).toEqual(['rowheader', 'rowheader', 'rowheader']);
+    expect(attributes('td')).toEqual(Array.from({ length: 9 }).fill('cell'));
+    // The caption is the table's name through `aria-labelledby`, and its own
+    // role goes with it for the same reason the rest do.
+    expect(table.querySelector('caption')).toHaveAttribute('role', 'caption');
+
+    // The a11y tree those attributes are there to preserve, read the way a
+    // screen reader would.
+    expect(within(table).getAllByRole('rowgroup')).toHaveLength(2);
     expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent))
       .toEqual(['Prop', 'Type', 'Default', 'Description']);
 
@@ -254,7 +274,7 @@ describe('the props table', () => {
     )).toBeInTheDocument();
   });
 
-  it('says whose words the descriptions are', async () => {
+  it('says whose words the descriptions are, after the tables they are in', async () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();
 
@@ -264,9 +284,16 @@ describe('the props table', () => {
     // a prop that comes from Radix still carries Radix's words afterwards.
     // "Corrected where" rather than "verbatim" because the extractor overrides
     // `gapX` and `gapY`, which upstream documents as the opposite axis.
-    expect(within(props).getByText(
-      /Descriptions for the props that come from Radix are Radix's own words, corrected where its types describe a prop wrongly\./,
-    )).toBeInTheDocument();
+    const note = within(props).getByText(
+      /Descriptions for the props that come from Radix are Radix's own words, corrected where its own documentation describes a prop wrongly\./,
+    );
+
+    // BELOW the tables. Above them it pushed the one sentence a reader needs
+    // before they start reading — where the layout props went — to fourth
+    // place in ~78 words of preamble.
+    const [table] = within(props).getAllByRole('table');
+    expect(table.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
   });
 
   it('leaves that sentence off a package with no layout props, and lists the props it does declare', async () => {
@@ -351,6 +378,43 @@ describe('the layout props', () => {
       .toEqual(['mt', 'mb']);
   });
 
+  it('repeats the control at the bottom, and hands focus back when it closes', async () => {
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+
+    // Box's expanded layout table is 41 rows and about 8,000px. With the only
+    // control at the top, closing it meant scrolling back past everything you
+    // had just opened.
+    const opener = within(props).getByRole('button', { name: /layout props/ });
+    await act(async () => {
+      fireEvent.click(opener);
+    });
+
+    const toggles = within(props).getAllByRole('button', { name: /layout props/ });
+    expect(toggles).toHaveLength(2);
+    expect(toggles[0]).toBe(opener);
+    // Two controls doing one thing say the same thing.
+    for (const toggle of toggles) {
+      expect(toggle).toHaveAccessibleName('Hide 2 layout props for Widget');
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      expect(toggle).toHaveAttribute('aria-controls', opener.getAttribute('aria-controls'));
+    }
+
+    // It sits OUTSIDE the region it controls, or closing from it would remove
+    // the reader's own focus along with the table.
+    const region = document.getElementById(opener.getAttribute('aria-controls') ?? '');
+    expect(region?.contains(toggles[1])).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(toggles[1]);
+    });
+
+    // A control that removes itself takes focus to the document body with it.
+    // This one puts it back where the page has just scrolled to.
+    expect(within(props).getAllByRole('button', { name: /layout props/ })).toHaveLength(1);
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('drops the Description column on a table where no prop has one', async () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();
@@ -404,11 +468,17 @@ describe('while the generated file is still on its way, and when it never arrive
 
     const props = await screen.findByRole('region', { name: 'Props' }, SUSPENSE_TIMEOUT);
     expect(await within(props).findByText(
-      'The props table for this package could not be loaded.',
+      /^The props table for this package could not be loaded\./,
       {},
       SUSPENSE_TIMEOUT,
     )).toBeInTheDocument();
     expect(within(props).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    // The named trigger is DETERMINISTIC — a redeploy under an open tab leaves
+    // this page asking for chunk hashes that no longer exist — so retrying
+    // fetches the same missing file again. The copy says the thing that does
+    // work, which PackagePage's fallback says with a second button.
+    expect(within(props).getByText(/reloading it is what fixes that one/))
+      .toBeInTheDocument();
 
     // The rest of the Overview is untouched, and the page-wide fallback never
     // ran.
