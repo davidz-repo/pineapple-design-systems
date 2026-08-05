@@ -110,7 +110,7 @@ describe('markdownView', () => {
       />,
     );
 
-    // Below 600px site.css stacks these rows into blocks, and changing a
+    // Below 768px site.css stacks these rows into blocks, and changing a
     // table's `display` drops its implicit ARIA semantics in every engine.
     // rehypeTableSemantics writes them out so they survive the restyle; above
     // the breakpoint they are the roles these elements already have. jsdom

@@ -3,7 +3,7 @@
 //
 // WHY A TABLE NEEDS HELP TO STACK
 //
-// Below 600px a reference table cannot be a grid — the columns are narrower
+// Below 768px a reference table cannot be a grid — the columns are narrower
 // than their content and the whole page scrolls sideways. The fix is to make
 // every row a block and every cell a labelled line (site.css), and it costs two
 // things that have to be put back:

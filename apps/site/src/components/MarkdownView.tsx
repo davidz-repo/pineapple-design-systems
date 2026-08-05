@@ -111,11 +111,11 @@ const components: Components = {
       : <CodeBlock code={fence.code} language={fence.language} />;
   },
   // READMEs carry prop tables far wider than a phone: the theme package's
-  // options table alone has 60-word cells. Above 600px the table scrolls rather
+  // options table alone has 60-word cells. Above 767px the table scrolls rather
   // than the page, so the surrounding prose keeps the reader's line length, and
   // the first-column min-width (site.css) stops the name column collapsing to
   // one character per line to buy the description room it does not have either.
-  // Below 600px it stacks instead and nothing scrolls — see
+  // Below 768px it stacks instead and nothing scrolls — see
   // `rehypeTableSemantics`, which is what keeps it a table while it does.
   //
   // Named and focusable for the same reason the props tables' wrapper is: a

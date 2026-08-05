@@ -389,7 +389,7 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
     // table rather than the page, so the prose around it keeps its line length
     // on a phone.
     //
-    // Focusable and named, because above 600px this container scrolls for all
+    // Focusable and named, because above 767px this container scrolls for all
     // sixteen packages, not occasionally like a wide README table. Chrome made
     // scroll containers keyboard-focusable by default in 127, and that is
     // neither universal nor something to rely on; where it does apply, an
@@ -401,7 +401,7 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
       aria-label={caption}
       tabIndex={0}
     >
-      {/* Every ARIA role below 600px is doing the work the element's own tag
+      {/* Every ARIA role below 768px is doing the work the element's own tag
           normally does: the stacked layout (site.css) sets `display: block` on
           the table and its parts, and changing a table's `display` DROPS its
           implicit semantics in every engine — the table, its rows, its cells

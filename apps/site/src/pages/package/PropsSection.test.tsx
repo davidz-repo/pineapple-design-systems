@@ -191,7 +191,7 @@ describe('the props table', () => {
 
     // And the table is NAMED by it through `aria-labelledby`, not only through
     // HTML's caption-names-the-table rule — that rule is a native mechanism,
-    // and below 600px this element stops being a native table.
+    // and below 768px this element stops being a native table.
     const [table] = within(props).getAllByRole('table');
     expect(table).toHaveAccessibleName('Widget props');
     expect(table).toHaveAttribute('aria-labelledby', caption.id);
@@ -202,7 +202,7 @@ describe('the props table', () => {
     const props = await findPropsSection();
     const [table] = within(props).getAllByRole('table');
 
-    // Below 600px site.css sets `display: block` on the table and its parts,
+    // Below 768px site.css sets `display: block` on the table and its parts,
     // and changing a table's `display` drops its implicit ARIA semantics in
     // every engine. Written out, they survive the restyle. jsdom evaluates no
     // media query, so what is asserted here is the markup the stacked layout
