@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Props-coverage guard: every package the reference site documents must have a
-// generated props table, and every package that ships a component must have at
-// least one component IN it.
+// generated props table, every package that ships a component must have at
+// least one component IN it, and every prop the packages declare themselves
+// must carry a description.
 //
 // The artifact this checks — `apps/site/generated/props/<slug>.json` — is
 // written by the site's `props` turbo task and is GITIGNORED, which is what
@@ -38,6 +39,26 @@
 //      guard that asked the generator which packages have components would
 //      agree with it by construction, and the failure being guarded is the
 //      generator finding nothing.
+//
+// WHY A BLANK DESCRIPTION IS A FAILURE
+//
+// The wrapper packages inherit their prop surface from Radix and re-state each
+// prop purely to hang a sentence on it — which means a prop RADIX ADDS arrives
+// through the intersection undescribed, correctly and by design. The cell is
+// then blank, the Description column stays (its siblings are filled), and
+// nothing anywhere reports it: the artifact is valid, the page renders, and the
+// table has one row that says nothing under a heading claiming it does. The
+// convention that a new prop gets a sentence is written in seven source
+// comments, and a convention cannot catch an absence.
+//
+// So it is asserted, over the props a package DECLARES — `isLayout` ones are
+// Radix's shared set and carry Radix's own JSDoc, which is a different question
+// (see the provenance sentence on the page). The one package that legitimately
+// describes none is allow-listed BY NAME with its reason in the message, so the
+// exemption is a decision a reader can see and argue with rather than a gap the
+// numbers imply. The allow-list is asserted in both directions: an entry whose
+// package now describes everything is removed, or the next real regression hides
+// behind it.
 //
 // WHY "ZERO PROPS" IS COVERED AND "ZERO COMPONENTS" IS NOT
 //
@@ -82,10 +103,36 @@ const COMPONENT_EXTENSION = '.tsx';
 // check-ref-tests makes, for the same reason.
 const NOT_A_SOURCE = /\.(?:test|stories)\.[cm]?[jt]sx?$/;
 
+// The packages whose own props are allowed to carry no description, and why —
+// by slug, so the exemption is one line a reader can see, and with the reason
+// carried into the failure message, so removing a package from this list tells
+// the next reader what they are taking on.
+//
+// Exactly one entry today, and it is a STRUCTURAL exemption rather than an
+// unfinished one: `text-field` re-exports Radix's compound namespace whole,
+// which is what keeps `TextField.RootProps` and `TextField.SlotProps` resolving
+// for consumers, and a re-export has no props type of its own to write JSDoc
+// into. An alternative exists (an `export namespace` whose members are annotated
+// to a local intersection) and costs the package its pure re-export emit; that
+// is a product call, and this list is where it is recorded either way.
+const UNDESCRIBED_BY_DESIGN = new Map([
+  [
+    'text-field',
+    're-exports Radix\'s compound `TextField` namespace whole — which is what keeps '
+    + '`TextField.RootProps` and `TextField.SlotProps` resolving for consumers — so it has no '
+    + 'props type of its own to hang JSDoc on',
+  ],
+]);
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** @type {string[]} */
 const failures = [];
+
+// Counted while walking, so the pass line states the description coverage
+// instead of implying it: "85 of 98" is a number a reader can watch move.
+let ownPropCount = 0;
+let describedCount = 0;
 
 /**
  * @param {string} subject the package or file the problem is about
@@ -269,6 +316,45 @@ for (const entry of packages) {
       + 'not.',
     );
   }
+
+  // Own props only: the layout ones are Radix's shared set carrying Radix's own
+  // JSDoc, and whether the site should republish that prose at all is a
+  // different question, argued where the extractor answers it.
+  const ownProps = doc.components.flatMap(
+    component => (component.props ?? [])
+      .filter(prop => prop.isLayout !== true)
+      .map(prop => ({ component: component.name, ...prop })),
+  );
+  const undescribed = ownProps.filter(prop => prop.description === '');
+  const exemption = UNDESCRIBED_BY_DESIGN.get(entry.slug);
+
+  ownPropCount += ownProps.length;
+  describedCount += ownProps.length - undescribed.length;
+
+  if (exemption === undefined && undescribed.length > 0) {
+    fail(
+      entry.name,
+      `declares ${undescribed.length} prop(s) with no description: ${
+        undescribed.map(prop => `${prop.component}.${prop.name}`).join(', ')}`,
+      'write the JSDoc beside the prop in the package\'s own source. A prop Radix ADDS arrives '
+      + 'through the intersection undescribed — which is the pattern working as intended — and '
+      + 'then sits as a blank cell under a Description column its siblings keep filled, with '
+      + 'nothing failing anywhere. If a package legitimately cannot describe its props, add its '
+      + `slug to UNDESCRIBED_BY_DESIGN in scripts/${GUARD_NAME}.mjs WITH the reason: an `
+      + 'exemption a reader can see and argue with, rather than a gap the numbers imply.',
+    );
+  }
+
+  if (exemption !== undefined && ownProps.length > 0 && undescribed.length === 0) {
+    fail(
+      entry.name,
+      `is allow-listed as describing none of its props, and now describes all ${ownProps.length}`,
+      `remove its entry from UNDESCRIBED_BY_DESIGN in scripts/${GUARD_NAME}.mjs. The reason `
+      + `recorded there — it ${exemption} — no longer holds, and a stale exemption is where the `
+      + 'next real regression hides: every prop this package loses a description to would pass '
+      + 'under it, silently.',
+    );
+  }
 }
 
 // A file for a package that is not there any more. The generator removes its
@@ -306,6 +392,9 @@ console.log(
   `${GUARD_NAME}: ${packages.length} package(s) with a generated props table\n`
   + `  ${componentPackages.length} ship a component source and name ${documented} component(s) `
   + `between them\n`
+  + `  ${describedCount} of ${ownPropCount} own prop(s) described; describing none by design: ${
+    [...UNDESCRIBED_BY_DESIGN.keys()].join(', ') || 'none'
+  }\n`
   + `  no component source, nothing required of them: ${
     packages.filter(entry => !entry.hasComponentSource).map(entry => entry.name).join(', ') || 'none'
   }`,

@@ -105,6 +105,9 @@ import path from 'node:path';
 /** Props React declares for every DOM element — documented by MDN, not here. */
 const REACT_TYPES_DIR = '/@types/react/';
 
+/** Everything installed rather than written here — see `ownDescription`. */
+const INSTALLED_DIR = '/node_modules/';
+
 /**
  * Radix Themes' SHARED prop modules — `props/margin.props.d.ts`,
  * `props/layout.props.d.ts` and friends — as opposed to `components/*.props.d.ts`,
@@ -167,6 +170,51 @@ function correctedDescription(prop) {
     correction => correction.name === prop.getName()
       && declaredIn.some(fileName => correction.module.test(fileName)),
   )?.description;
+}
+
+/**
+ * The description THIS REPO wrote for a prop, where it wrote one — and the
+ * reason it is asked for before the symbol's own.
+ *
+ * `Symbol.getDocumentationComment` CONCATENATES across declarations, upstream
+ * first. Every wrapper package here re-states a prop it inherits purely to hang
+ * a sentence on it, so the prop has two declarations — and the day Radix starts
+ * documenting one of them, the cell silently becomes two run-together sentences
+ * that may disagree, in a table whose own README says the words are the
+ * package's. Nothing fails: it is still a string, still one line, still
+ * plausible.
+ *
+ * So the local declaration's JSDoc WINS where there is one, rather than being
+ * appended to. Asked per declaration by resolving the name back to the symbol
+ * declared at that site — inside a type literal that is one constituent of an
+ * intersection, that symbol has exactly the one declaration, so its
+ * documentation comment is exactly that declaration's.
+ *
+ * A prop the repo does not describe still falls through to upstream's, which is
+ * what fills the layout tables. The path test is the same shape as
+ * `REACT_TYPES_DIR` above and sits beside it deliberately: "whose declaration is
+ * this" is one question this file answers twice.
+ *
+ * @param {import('typescript')} ts
+ * @param {import('typescript').TypeChecker} checker
+ * @param {import('typescript').Symbol} prop
+ * @returns {string|undefined} `undefined` when nothing declared here documents it
+ */
+function ownDescription(ts, checker, prop) {
+  for (const declaration of prop.declarations ?? []) {
+    if (declaration.getSourceFile().fileName.includes(INSTALLED_DIR)) {
+      continue;
+    }
+    const name = ts.getNameOfDeclaration(declaration);
+    const declared = name === undefined ? undefined : checker.getSymbolAtLocation(name);
+    const text = declared === undefined
+      ? ''
+      : plainText(ts.displayPartsToString(declared.getDocumentationComment(checker)));
+    if (text !== '') {
+      return text;
+    }
+  }
+  return undefined;
 }
 
 /** A default this can print: one string, number or boolean literal. */
@@ -624,6 +672,7 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
         required: (prop.flags & ts.SymbolFlags.Optional) === 0,
         ...pickDefault(defaults.get(name) ?? propDefDefault(ts, prop)),
         description: correctedDescription(prop)
+          ?? ownDescription(ts, checker, prop)
           ?? plainText(ts.displayPartsToString(prop.getDocumentationComment(checker))),
         isLayout: SHARED_PROP_MODULES.test(declaration.getSourceFile().fileName),
       });

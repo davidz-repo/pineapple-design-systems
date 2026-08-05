@@ -249,6 +249,33 @@ describe('the shapes a table has to render', () => {
   });
 });
 
+describe('a prop the package and the library underneath it both document', () => {
+  const [doc] = extract([fixture('overlay.tsx')]).docs;
+  const [panel] = doc.components;
+
+  it('prints the package\'s sentence, not both sentences run together', () => {
+    // `getDocumentationComment` concatenates across declarations, upstream
+    // first, and every wrapper here re-states a prop it inherits purely to hang
+    // a sentence on it. So the day Radix documents one of those props, the cell
+    // becomes two sentences that may disagree — still a string, still one line,
+    // still plausible, and nothing fails.
+    //
+    // Asserted as an EQUALITY rather than "contains the local words", because
+    // the failure is an appended sentence and `toContain` would pass on it.
+    expect(propNamed(panel, 'gap')?.description).toBe(
+      'The package\'s own words for a prop the library underneath also documents.',
+    );
+  });
+
+  it('keeps upstream\'s sentence where the package wrote none', () => {
+    // The other half, and what keeps the assertion above from being vacuous: if
+    // Radix ever stopped documenting these, "the local sentence wins" would
+    // still pass over a program with nothing to lose to. This is the layout
+    // tables' whole content, so it is also the behaviour that must NOT change.
+    expect(propNamed(panel, 'justify')?.description).toMatch(/^Sets the CSS justify-content/);
+  });
+});
+
 describe('a compound component written in this repo\'s style', () => {
   const [doc] = extract([fixture('compound.tsx')]).docs;
 
