@@ -396,7 +396,8 @@
 .site-sidebar-link:focus-visible,
 .site-footer-link:focus-visible,
 .package-link:focus-visible,
-.markdown a:focus-visible {
+.markdown a:focus-visible,
+.props-section a:focus-visible {
   outline: 2px solid var(--focus-8);
   outline-offset: 2px;
 }
@@ -507,23 +508,39 @@
    canvas measures 4.25:1, which is an AA failure for body-size prose. The
    underline is a border alpha at a6 and renders as a hairline nobody can see,
    so a8 — the visible end of the same ramp — carries the affordance that colour
-   alone must not. */
-.markdown a {
+   alone must not.
+
+   `.props-section` joins every rule in this block. It is prose on the same
+   page, one screen below a README that renders the identical elements, and
+   its own link had no class at all — so it drew as `#0000EE` browser blue on
+   an amber canvas, purple once visited, and fell outside the shared
+   `:focus-visible` ring above. If a third prose surface appears, this pair of
+   selectors is the thing to promote to a class; two is not yet a pattern. */
+.markdown a,
+.props-section a {
   color: var(--site-brand);
   text-decoration-color: var(--grass-a8);
   text-underline-offset: 2px;
 }
 
 .markdown a:hover,
-.markdown a:focus-visible {
+.markdown a:focus-visible,
+.props-section a:hover,
+.props-section a:focus-visible {
   text-decoration-color: currentcolor;
 }
 
 /* A panel, not a grey wash: an alpha grey over yellow tints towards olive, and
    inline code stops looking like the code blocks it is the short form of. The
    border is what keeps it legible where the panel and the canvas are only two
-   steps apart. */
-.markdown code {
+   steps apart.
+
+   One rule for both surfaces rather than two that agree today: the word
+   `children` is a chip in the README and was bare monospace in the paragraph
+   one screen below it, while `variant` was a chip again in the table below
+   that — three treatments of one element on one page. */
+.markdown code,
+.props-section code {
   font-family: var(--code-font-family, ui-monospace, monospace);
   font-size: 0.9em;
   background: var(--site-panel);
@@ -609,14 +626,6 @@
 .props-table tbody th {
   color: var(--gray-12);
   font-weight: var(--font-weight-regular);
-}
-
-.props-table code {
-  font-family: var(--code-font-family, ui-monospace, monospace);
-  font-size: 0.9em;
-  background: var(--gray-a3);
-  border-radius: var(--radius-1);
-  padding: 0.1em 0.35em;
 }
 
 /* A generated type is whatever the checker printed: Radix's accent union is 26

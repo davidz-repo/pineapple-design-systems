@@ -205,7 +205,9 @@ describe('the props table', () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();
 
-    const link = within(props).getByRole('link', { name: /^Radix Themes' Box/ });
+    // The same label the link row under the title gives the same href — two
+    // names for one destination is what PackageLinks' header records removing.
+    const link = within(props).getByRole('link', { name: /^Radix Box/ });
     expect(link).toHaveAttribute('href', 'https://www.radix-ui.com/themes/docs/components/box');
     expect(link).toHaveAttribute('target', '_blank');
     // Off-site, and it says so in the name — the same note the link row under

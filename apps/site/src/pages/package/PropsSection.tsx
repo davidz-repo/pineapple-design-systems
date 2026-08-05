@@ -40,7 +40,10 @@ export function PropsSection({ slug }: { slug: string }) {
     // README → nothing for the length of a dynamic import, with no
     // announcement that anything was coming: SectionSkeleton is `aria-hidden`,
     // deliberately.
-    <section aria-labelledby={labelId}>
+    // `props-section` is what gets this section's prose — its link, and the
+    // bare `<code>` in its paragraph and its h3s — the treatment the README one
+    // screen above already gives the identical elements (site.css).
+    <section className="props-section" aria-labelledby={labelId}>
       <Stack gap="5">
         <Heading as="h2" size="5" id={labelId}>Props</Heading>
         {/* A boundary scoped to this section, not the tab's. The nearest one up
@@ -112,8 +115,11 @@ function PropsBody({ slug }: { slug: string }) {
         {radix !== undefined && (
           <>
             {' '}
+            {/* The same label PackageLinks gives the same href on the same
+                page. Two names for one destination is the thing that file's
+                own header records removing. */}
             <a href={radixDocsUrl(radix)} target="_blank" rel="noreferrer">
-              {`Radix Themes' ${radix.name}`}
+              {`Radix ${radix.name}`}
               <NewTabNote />
             </a>
             {' documents the primitive underneath.'}
