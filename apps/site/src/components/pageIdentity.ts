@@ -11,7 +11,7 @@ import { bySlug } from '../registry';
 //     top or re-announce a page they never left;
 //   - the TITLE names the tab, because a title is what a browser history
 //     entry, a bookmark and a window switcher show, and four entries reading
-//     "Button — Pineapple Design Systems" are four entries nobody can tell apart.
+//     "Button — Pineapple Design" are four entries nobody can tell apart.
 //
 // Both read the pathname and nothing else: search params are not part of
 // either, so a playground writing its args into the URL cannot masquerade as
@@ -20,7 +20,7 @@ import { bySlug } from '../registry';
 // A slug this site does not know falls through to the not-found title, which
 // is what `PackagePage` renders for it.
 
-const SITE_NAME = 'Pineapple Design Systems';
+const SITE_NAME = 'Pineapple Design';
 const COMPONENT_PREFIX = '/components/';
 
 // Derived from the tab list itself, not a second copy of it: a segment the
@@ -62,10 +62,10 @@ export function pageKeyFor(rawPathname: string): string {
 export function pageTitleFor(rawPathname: string): string {
   const pathname = withoutTrailingSlash(rawPathname);
   if (pathname === '/') {
-    // Not "— React design system": the name now ends in "Design Systems", and
-    // a tab reading "Pineapple Design Systems — React design system" says the
-    // same word twice. The suffix's job is to tell a search result and a tab
-    // full of docs what this one IS, so it names the thing underneath instead.
+    // Not "— React design system": the name ends in "Design", so a tab reading
+    // "Pineapple Design — React design system" says the same word twice. The
+    // suffix's job is to tell a search result and a tab full of docs what this
+    // one IS, so it names the thing underneath instead.
     return `${SITE_NAME} — React components on Radix Themes`;
   }
   if (pathname === '/getting-started') {

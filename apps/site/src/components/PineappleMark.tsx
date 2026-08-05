@@ -40,7 +40,7 @@ const BODY = { x: 8, y: 9, width: 16, height: 20, rx: 7 } as const;
 export function PineappleMark() {
   return (
     // aria-hidden, because the wordmark beside it is already the link's
-    // accessible name — announcing "Pineapple Design Systems, Pineapple Design Systems" is what an
+    // accessible name — announcing "Pineapple Design, Pineapple Design" is what an
     // alt-texted logo next to its own wordmark actually does. focusable="false"
     // keeps legacy IE/Edge from putting the <svg> in the tab order.
     <svg

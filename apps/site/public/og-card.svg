@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Pineapple Design Systems — presentational React components on Radix Themes">
-  <title>Pineapple Design Systems — presentational React components on Radix Themes</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Pineapple Design — presentational React components on Radix Themes">
+  <title>Pineapple Design — presentational React components on Radix Themes</title>
   <!--
     SOURCE for /og-card.png, which is what index.html actually points og:image
     at: link scrapers (Slack, iMessage, Twitter, LinkedIn) do not rasterize SVG,
@@ -54,30 +54,38 @@
     <path id="og-pineapple-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
   </defs>
 
-  <!-- The name sets on TWO lines, and that is forced rather than styled. The
-       mark occupies x 813 to 1147 (see its transform above), so the text column
-       ends at about 790. "Pineapple Design Systems" is 1114px at font-size 88 —
-       it would cross the pineapple and run 2px off the right edge of the card.
-       Set on one line it would have to drop to about 55px to clear, which on a
-       1200x630 card scraped into a timeline is no longer a headline. Broken
-       after "Pineapple" the two lines are ~430px and ~660px, both inside the
-       column at the full 88.
+  <!-- The name sets on ONE line, and the size is what pays for it. The mark
+       occupies x 813 to 1147 (see its transform above) and the column starts at
+       88, so a single line has 702px. "Pineapple Design" measures 731px at
+       font-size 88 — 29px too wide, ending at x 819 and biting into the
+       pineapple's box. It is NOT the near-miss it looks like from the old name:
+       "Pineapple Design Systems" was 1114px, which is why that one set on two
+       lines of 415px and 675px.
 
-       Every baseline below therefore moved up, because the second line is 92px
-       the block did not have: the ink now spans y 118 to 508 and centres on
-       313, against the card's own 309 and the mark's 345.
+       84 rather than 88, therefore, which brings the line to 698px and lands it
+       at x 786 with a 27px gutter before the mark. A 4.5% step is invisible on a
+       card nobody sees next to its predecessor, and it is the cheaper of the two
+       ways out: breaking a TWO-WORD name across two lines reads as an accident,
+       where the three-word one broke at a real seam. The old note that one line
+       would mean "about 55px" was about that longer string and no longer binds.
 
-       The eyebrow no longer reads "REACT DESIGN SYSTEM": the name under it now
-       ends in "Design Systems", and the card would say it twice in two type
-       sizes. It names the thing you get instead. -->
+       Every baseline below therefore moved down, because the block lost the 92px
+       second line: the ink now spans y 160 to 458 and centres on 309, which is
+       the card's own centre (the two-line block sat at 313, against the mark's
+       345). The gaps between the rows are unchanged — 98 from the eyebrow to the
+       name, 68 to the first sub line, 44 between the sub lines, 64 to the URL —
+       so only the block's position moved, not its rhythm.
+
+       The eyebrow still does not read "REACT DESIGN SYSTEM": the name under it
+       ends in "Design", so the card would say that word twice in two type sizes.
+       It names the thing you get instead. -->
   <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" fill="#1F1B16">
-    <text x="88" y="135" font-size="24" font-weight="700" letter-spacing="4" fill="#ab6400">
+    <text x="88" y="177" font-size="24" font-weight="700" letter-spacing="4" fill="#ab6400">
       REACT COMPONENTS
     </text>
-    <text x="88" y="233" font-size="88" font-weight="700">Pineapple</text>
-    <text x="88" y="325" font-size="88" font-weight="700">Design Systems</text>
-    <text x="88" y="393" font-size="32" fill="#6B6157">Thin, typed wrappers over Radix Themes,</text>
-    <text x="88" y="437" font-size="32" fill="#6B6157">published under the @pineappleui scope.</text>
-    <text x="88" y="501" font-size="26" fill="#94897C">designpineapple.com</text>
+    <text x="88" y="275" font-size="84" font-weight="700">Pineapple Design</text>
+    <text x="88" y="343" font-size="32" fill="#6B6157">Thin, typed wrappers over Radix Themes,</text>
+    <text x="88" y="387" font-size="32" fill="#6B6157">published under the @pineappleui scope.</text>
+    <text x="88" y="451" font-size="26" fill="#94897C">designpineapple.com</text>
   </g>
 </svg>

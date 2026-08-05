@@ -9,7 +9,7 @@ export function Wrapping() {
     <div style={{ padding: 24, maxWidth: 300 }}>
       <Inline gap="2">
         {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} style={{ background: 'var(--gray-3)', padding: 8 }}>{`item-${i}`}</div>
+          <div key={i} style={{ background: 'var(--accent-a3)', padding: 8 }}>{`item-${i}`}</div>
         ))}
       </Inline>
     </div>
@@ -20,9 +20,9 @@ export function Aligned() {
   return (
     <div style={{ padding: 24 }}>
       <Inline gap="3" align="center">
-        <div style={{ background: 'var(--gray-3)', padding: 8, height: 40 }}>tall</div>
-        <div style={{ background: 'var(--gray-3)', padding: 8, height: 20 }}>short</div>
-        <div style={{ background: 'var(--gray-3)', padding: 8, height: 60 }}>taller</div>
+        <div style={{ background: 'var(--accent-a3)', padding: 8, height: 40 }}>tall</div>
+        <div style={{ background: 'var(--accent-a3)', padding: 8, height: 20 }}>short</div>
+        <div style={{ background: 'var(--accent-a3)', padding: 8, height: 60 }}>taller</div>
       </Inline>
     </div>
   );
@@ -42,7 +42,7 @@ export const Playground: Story<PlaygroundArgs> = ({ gap, ...rest }) => (
   <div style={{ padding: 24 }}>
     <Inline gap={gap} {...rest}>
       {['One', 'Two', 'Three', 'Four'].map(t => (
-        <div key={t} style={{ background: 'var(--gray-3)', padding: 8 }}>{t}</div>
+        <div key={t} style={{ background: 'var(--accent-a3)', padding: 8 }}>{t}</div>
       ))}
     </Inline>
   </div>

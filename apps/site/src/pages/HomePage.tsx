@@ -102,25 +102,27 @@ export function HomePage() {
       <div className="home-hero">
         <Stack gap="4">
           {/* Responsive, and what it buys is a LINE, not a fit: size 9 is 66px
-              at every width, and at 66px this name is 818px on one line, so it
-              never fits a phone either way. Measured — size 8 (38.5px) against
-              size 9 at the same width: 390px gives 2 lines / 88px against 3
-              lines / 198px, and 320px gives 3 against 4. One line saved
-              everywhere below the `sm` breakpoint (768px), and on the
-              commonest phone width that is 110px of hero the reader does not
-              scroll past before reaching the sentence under it.
+              at every width, and at 66px this name is 536px on one line, which
+              needs a 600px viewport — so it never fits a phone either way.
+              Re-measured for the shorter name, and it still earns its place:
+              size 8 (38.5px, 322px wide) against size 9 at the same width gives
+              1 line / 44px against 2 lines / 132px at 390px, and 2 lines / 88px
+              against 2 / 132px at 320px. On the commonest phone width that is
+              88px of hero the reader does not scroll past before reaching the
+              sentence under it.
 
-              The name wraps above the breakpoint too, and that is fine: two
-              lines from 768px until the main column can hold 818px at about
-              1151px, one line from there. A heading wrapping is not a defect —
-              a heading taller than the viewport's first screen is, which is
-              what size 9 does on a phone. Nothing else on the site needs this;
-              it is the only type on the page set large enough for the width to
-              matter. */}
-          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple Design Systems</Heading>
-          {/* Does not say "design system" — the h1 one line up already does,
-              and a subtitle that restates its own heading's words spends the
-              first thing anyone reads on nothing. */}
+              What DID change with the name is the top end: at 536px the heading
+              clears the main column the moment the `sm` breakpoint (768px)
+              switches it to size 9, so it no longer wraps above the breakpoint
+              at all — the old name needed about 1151px for that. A heading
+              wrapping was never the defect; a heading taller than the
+              viewport's first screen is, which is what size 9 still does on a
+              phone. Nothing else on the site needs this; it is the only type on
+              the page set large enough for the width to matter. */}
+          <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple Design</Heading>
+          {/* Does not say "design system" — the h1 one line up ends in
+              "Design", and a subtitle that restates its own heading's words
+              spends the first thing anyone reads on nothing. */}
           <Text as="p" size="4" color="gray">
             Thin, typed React wrappers over Radix Themes. Every package is a
             shell — props in, callbacks out — published independently under the
