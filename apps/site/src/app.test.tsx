@@ -57,7 +57,7 @@ function BackButton() {
 
 it('renders the home page with a card per registry entry', async () => {
   await renderAt('/');
-  expect(screen.getByRole('heading', { name: 'Pineapple UI', level: 1 })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Pineapple Design Systems', level: 1 })).toBeInTheDocument();
   // The Button card (the sidebar link has no blurb text).
   expect(screen.getByText('The action trigger, in six variants.')).toBeInTheDocument();
 });
@@ -129,29 +129,29 @@ it('opens with a skip link that targets the main region', async () => {
 
 it('retitles the document per page and per tab', async () => {
   await renderAt('/');
-  await expectTitle('Pineapple UI — React design system');
+  await expectTitle('Pineapple Design Systems — React components on Radix Themes');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Button' }));
   });
-  await expectTitle('Button — Pineapple UI');
+  await expectTitle('Button — Pineapple Design Systems');
 
   // A tab is not a new page, but it is a new history entry — three of them
-  // reading "Button — Pineapple UI" is three entries nobody can tell apart.
+  // reading "Button — Pineapple Design Systems" is three entries nobody can tell apart.
   await act(async () => {
     fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button changelog — Pineapple UI');
+  await expectTitle('Button changelog — Pineapple Design Systems');
 
   await act(async () => {
     fireEvent.click(await findTabLink(/Playground/));
   });
-  await expectTitle('Button playground — Pineapple UI');
+  await expectTitle('Button playground — Pineapple Design Systems');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Getting started' }));
   });
-  await expectTitle('Getting started — Pineapple UI');
+  await expectTitle('Getting started — Pineapple Design Systems');
 });
 
 it('scrolls to the top and focuses the main region on a page change only', async () => {
@@ -162,7 +162,7 @@ it('scrolls to the top and focuses the main region on a page change only', async
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Button' }));
   });
-  await expectTitle('Button — Pineapple UI');
+  await expectTitle('Button — Pineapple Design Systems');
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0 });
   expect(document.activeElement).toBe(document.getElementById('main'));
 
@@ -172,7 +172,7 @@ it('scrolls to the top and focuses the main region on a page change only', async
   await act(async () => {
     fireEvent.click(await findTabLink(/Changelog/));
   });
-  await expectTitle('Button changelog — Pineapple UI');
+  await expectTitle('Button changelog — Pineapple Design Systems');
   expect(scrollTo).not.toHaveBeenCalled();
 });
 
@@ -232,7 +232,7 @@ it('discloses the nav panel from the header and closes it on navigation', async 
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: 'Getting started' }));
   });
-  await expectTitle('Getting started — Pineapple UI');
+  await expectTitle('Getting started — Pineapple Design Systems');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
   expect(panel).toHaveAttribute('data-open', 'false');
 });
@@ -269,13 +269,13 @@ it('does not reopen the panel when history returns to the page it was opened on'
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: /The action trigger/ }));
   });
-  await expectTitle('Button — Pineapple UI');
+  await expectTitle('Button — Pineapple Design Systems');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'test-only: back' }));
   });
-  await expectTitle('Pineapple UI — React design system');
+  await expectTitle('Pineapple Design Systems — React components on Radix Themes');
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
 

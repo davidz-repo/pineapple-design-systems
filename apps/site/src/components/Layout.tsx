@@ -96,7 +96,11 @@ export function Layout() {
       <header className="site-header">
         <Link to="/" className="site-header-brand">
           <PineappleMark />
-          <Text size="3" weight="bold">Pineapple UI</Text>
+          {/* Classed because the name is long enough that the phone header
+              cannot hold it at this size — site.css scales it down below
+              860px. size="3" stays the desktop value; the class only ever
+              overrides it where the row would otherwise wrap. */}
+          <Text className="site-header-wordmark" size="3" weight="bold">Pineapple Design Systems</Text>
           <Badge className="site-docs-badge" variant="soft" size="1">docs</Badge>
         </Link>
         <Inline gap="4" align="center">
