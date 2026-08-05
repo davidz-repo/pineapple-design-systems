@@ -13,9 +13,10 @@ import type { ReactNode, Ref } from 'react';
 // What is deliberately in here: a required prop beside optional ones, a default
 // written in the destructuring parameter, a union long enough to matter, JSDoc
 // on some props and not others (one of them written in markdown, which is how
-// Radix writes all of its), `children` and `ref` for the carve-out, and two
+// Radix writes all of its), `children` and `ref` for the carve-out, and three
 // exports that are NOT components — one lower-case, one capitalised and not
-// callable — because the component predicate has to say no to both.
+// callable, one capitalised and callable that returns a primitive — because
+// the component predicate has to say no to all three.
 
 /**
  * Ten members: long enough that the page has to wrap it. Every name is invented
@@ -69,3 +70,14 @@ export function widgetTone(props: WidgetProps): Tone {
  * component with 35 props.
  */
 export const WIDGET_TONES: readonly Tone[] = ['apricot', 'blue', 'cerise'];
+
+/**
+ * Not a component, and the hardest of the three to see: capitalised, callable
+ * with one argument, and `string` IS assignable to `ReactNode` — so it passes
+ * every test the predicate used to make. Its props would then be the members
+ * of a `number`, and this helper would ship a table of `toExponential`,
+ * `toFixed`, `toPrecision` and `valueOf`.
+ */
+export function Rem(px: number): string {
+  return `${px / 16}rem`;
+}

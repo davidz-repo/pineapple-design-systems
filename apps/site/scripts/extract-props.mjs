@@ -18,6 +18,12 @@
 // an array method is callable and returns an array, and a predicate written on
 // callability alone documented `Array.prototype` as a component.
 //
+// One more, for the same reason from the other side: an export whose argument
+// is a PRIMITIVE is not a component either. `ReactNode` includes `string |
+// number | boolean`, so `export function Rem(px: number): string` passes all
+// three tests above, and the props of a `number` are `toFixed` and friends —
+// a wrong table rather than no table, which is worse.
+//
 // A namespace export is descended into one level, because `text-field` ships
 // one: `TextField` is Radix's compound component re-exported whole, and
 // `TextField.Root` / `TextField.Slot` are the things with props. Only members
@@ -261,9 +267,38 @@ function functionOf(ts, declaration) {
   const initializer = (ts.isVariableDeclaration(declaration) || ts.isPropertyAssignment(declaration))
     ? declaration.initializer
     : undefined;
-  if (initializer !== undefined
-    && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer))) {
+  if (initializer === undefined) {
+    return undefined;
+  }
+  if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) {
     return initializer;
+  }
+  // `const Chip = forwardRef(function Chip({ tone = 'iris' }, ref) {…})`, and
+  // `memo(...)` wrapped around that. The defaults are in there, one call deep,
+  // and a lookup that stops at a direct function finds no parameter list at
+  // all — so every Default cell on such a component goes blank while the props
+  // themselves are all still found. Silent degradation, which is the one thing
+  // the rest of this file refuses to do.
+  return ts.isCallExpression(initializer) ? functionArgumentOf(ts, initializer) : undefined;
+}
+
+/**
+ * @param {import('typescript')} ts
+ * @param {import('typescript').CallExpression} call
+ * @returns {import('typescript').SignatureDeclaration|undefined} the first
+ * function this call is handed, looking through nested calls
+ */
+function functionArgumentOf(ts, call) {
+  for (const argument of call.arguments) {
+    if (ts.isArrowFunction(argument) || ts.isFunctionExpression(argument)) {
+      return argument;
+    }
+    if (ts.isCallExpression(argument)) {
+      const nested = functionArgumentOf(ts, argument);
+      if (nested !== undefined) {
+        return nested;
+      }
+    }
   }
   return undefined;
 }
@@ -404,6 +439,22 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
       && ownSources.some(dir => diagnostic.file.fileName.startsWith(dir)),
   );
 
+  // A props type nothing has props: `ReactNode` includes `string | number |
+  // boolean`, so a capitalised helper like `export function Rem(px: number):
+  // string` satisfies "callable with one argument, returns a ReactNode" and
+  // gets taken for a component. Its props are then `getPropertiesOfType` of a
+  // `number` — the APPARENT type's members — and `Rem` ships a table of
+  // `toExponential`, `toFixed`, `toPrecision`, `valueOf`. A wrong table, not a
+  // missing one, on a page that looks confident. Same class as the
+  // `Array.prototype` bug in the header: the capitalisation check closed the
+  // route in through the return type, and this is the one through the
+  // parameter.
+  const PRIMITIVE_PROPS = ts.TypeFlags.StringLike
+    | ts.TypeFlags.NumberLike
+    | ts.TypeFlags.BooleanLike
+    | ts.TypeFlags.BigIntLike
+    | ts.TypeFlags.ESSymbolLike;
+
   /**
    * Whether this export is a component, and what its props type is — the two
    * answers are one lookup, and they are different answers: a component
@@ -428,9 +479,16 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
         continue;
       }
       const [parameter] = parameters;
-      return {
-        propsType: parameter === undefined ? undefined : checker.getTypeOfSymbol(parameter),
-      };
+      if (parameter === undefined) {
+        // A component declared to take no argument at all — a component with
+        // no props, not a non-component.
+        return { propsType: undefined };
+      }
+      const propsType = checker.getTypeOfSymbol(parameter);
+      if ((propsType.flags & PRIMITIVE_PROPS) !== 0) {
+        continue;
+      }
+      return { propsType };
     }
     return undefined;
   }
@@ -587,8 +645,8 @@ function aliasedSymbol(ts, checker, symbol) {
  */
 const MARKDOWN_MARKERS = [
   /`+([^`]+)`+/g,
-  /\*\*(?!\s)([^*]+?)(?<!\s)\*\*/g,
-  /\*(?!\s)([^*]+?)(?<!\s)\*/g,
+  /\*\*(?!\s)([^*]+)(?<!\s)\*\*/g,
+  /\*(?!\s)([^*]+)(?<!\s)\*/g,
 ];
 
 /**

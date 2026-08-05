@@ -157,6 +157,12 @@ describe('the shapes a table has to render', () => {
     // `widgetTone` is a function and lower-case; `WIDGET_TONES` is capitalised
     // and every member of it is callable, which is how an array of icon names
     // once came to be documented as a component with 35 props.
+    //
+    // `Rem` is the third route in and the quietest: capitalised, callable with
+    // one argument, and `string` is assignable to `ReactNode`, so it passed
+    // every test the predicate made. Its props were the members of a `number`
+    // — `toExponential`, `toFixed`, `toPrecision`, `valueOf` — which is a
+    // WRONG table on a confident-looking page, not an absent one.
     expect(doc.components.map(component => component.name)).toEqual(['Widget']);
   });
 
@@ -230,6 +236,21 @@ describe('a compound component written in this repo\'s style', () => {
     expect(propNamed(doc.components[0], 'isOpen')?.default).toBe('true');
     expect(propNamed(doc.components[1], 'side')?.default).toBe('"left"');
     expect(propNamed(doc.components[0], 'title')?.required).toBe(true);
+  });
+});
+
+describe('a component whose declaration is a call', () => {
+  const [doc] = extract([fixture('wrapped.tsx')]).docs;
+
+  it('reads the defaults out of the function the call is handed', () => {
+    // `forwardRef(function Chip({ tone = 'apricot' }, ref) {…})`, and
+    // `memo(forwardRef(…))` around it. A lookup that stops at a direct
+    // function finds a CallExpression, no parameter list, and no defaults —
+    // and says nothing, because the props themselves all still resolve. The
+    // Default column just goes blank for props that have one.
+    expect(doc.components.map(component => component.name)).toEqual(['Chip', 'Pill']);
+    expect(propNamed(doc.components[0], 'tone')?.default).toBe('"apricot"');
+    expect(propNamed(doc.components[1], 'tone')?.default).toBe('"cerise"');
   });
 });
 
