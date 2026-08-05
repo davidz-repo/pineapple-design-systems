@@ -1,6 +1,6 @@
 import { act } from 'react';
 
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -31,10 +31,22 @@ import '@testing-library/jest-dom/vitest';
 // Everything else reads the file on disk, which is what makes this suite the
 // proof that the turbo edge from `test` to `props` is wired at all.
 
-const { FIXTURE_SLUG, MISSING_SLUG, fixtureDoc } = vi.hoisted(() => ({
+const {
+  FIXTURE_SLUG,
+  MISSING_SLUG,
+  PENDING_SLUG,
+  FAILING_SLUG,
+  chunkFailure,
+  fixtureDoc,
+} = vi.hoisted(() => ({
   // A Radix wrapper, so the section's link to the primitive underneath renders.
   FIXTURE_SLUG: 'box',
   MISSING_SLUG: 'card',
+  // A load that never settles, and one that rejects the way a stale chunk hash
+  // does after a redeploy.
+  PENDING_SLUG: 'badge',
+  FAILING_SLUG: 'heading',
+  chunkFailure: new Error('Failed to fetch dynamically imported module'),
   fixtureDoc: {
     slug: 'box',
     components: [
@@ -95,9 +107,15 @@ vi.mock('../../content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../content')>();
   // Stable promises, not fresh ones per call: `use()` needs the same instance
   // across render retries — the same reason content.ts caches its loaders.
+  const failing = Promise.reject(chunkFailure);
+  // Marks it handled so Node does not report an unhandled rejection before the
+  // render gets to it. The promise is still rejected, and `use()` still throws.
+  failing.catch(() => {});
   const stubbed = new Map<string, Promise<unknown>>([
     [FIXTURE_SLUG, Promise.resolve(fixtureDoc)],
     [MISSING_SLUG, Promise.resolve(null)],
+    [PENDING_SLUG, new Promise(() => {})],
+    [FAILING_SLUG, failing],
   ]);
   return {
     ...actual,
@@ -108,8 +126,14 @@ vi.mock('../../content', async (importOriginal) => {
 
 /** The Props section, once its own Suspense boundary has resolved. */
 async function findPropsSection(): Promise<HTMLElement> {
-  await screen.findByRole('heading', { name: 'Props', level: 2 }, SUSPENSE_TIMEOUT);
-  return screen.getByRole('region', { name: 'Props' });
+  const section = await screen.findByRole('region', { name: 'Props' }, SUSPENSE_TIMEOUT);
+  // The heading is OUTSIDE the boundary now, on purpose, so finding the region
+  // no longer means the body has landed. The skeleton going is what does.
+  await waitFor(
+    () => { expect(section.querySelector('.tab-skeleton')).toBeNull(); },
+    SUSPENSE_TIMEOUT,
+  );
+  return section;
 }
 
 /** One prop's row, found by the row header that names it. */
@@ -260,6 +284,48 @@ describe('the layout props', () => {
       .toEqual(['Prop', 'Type', 'Default']);
     // And no orphan cell left behind the missing header.
     expect(within(rowFor(layout, 'mt')).getAllByRole('cell')).toHaveLength(2);
+  });
+});
+
+describe('while the generated file is still on its way, and when it never arrives', () => {
+  it('keeps the Props heading on the page for the whole load', async () => {
+    // docs/plan.md: "Every package page has the same heading outline, whatever
+    // its README says. h1 package name -> h2 Examples (h3 per story) -> h2
+    // README -> h2 Props (h3 per component)." The props file loads after the
+    // page is already up, and inside the boundary the outline read h1 ->
+    // Examples -> README -> nothing until it landed — with no announcement
+    // that anything was coming, since the skeleton is `aria-hidden`.
+    await renderApp(`/components/${PENDING_SLUG}`);
+
+    // Not `findPropsSection`: the point is the state that helper waits past.
+    const heading = await screen.findByRole('heading', { name: 'Props', level: 2 }, SUSPENSE_TIMEOUT);
+    const section = screen.getByRole('region', { name: 'Props' });
+    expect(heading).toBeInTheDocument();
+    // Still loading — this is the heading standing over the skeleton, which is
+    // the whole claim.
+    expect(section.querySelector('.tab-skeleton')).not.toBeNull();
+  });
+
+  it('costs the props section rather than the whole Overview when its chunk fails', async () => {
+    // The trigger is ordinary: the site redeploys, a reader's open tab still
+    // holds the old chunk hashes, and the import 404s. Without a boundary here
+    // the nearest one up covers the entire tab, so the examples and the README
+    // that had ALREADY rendered are replaced by "Heading's docs failed to
+    // render". ExamplesSection refuses the same trade one section up.
+    await renderApp(`/components/${FAILING_SLUG}`);
+
+    const props = await screen.findByRole('region', { name: 'Props' }, SUSPENSE_TIMEOUT);
+    expect(await within(props).findByText(
+      'The props table for this package could not be loaded.',
+      {},
+      SUSPENSE_TIMEOUT,
+    )).toBeInTheDocument();
+    expect(within(props).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+
+    // The rest of the Overview is untouched, and the page-wide fallback never
+    // ran.
+    expect(screen.getByRole('heading', { name: 'README', level: 2 })).toBeInTheDocument();
+    expect(screen.queryByText(/docs failed to render/)).not.toBeInTheDocument();
   });
 });
 

@@ -1,11 +1,8 @@
-import { Suspense } from 'react';
-
 import { Stack } from '@pineappleui/stack';
 
 import { ExamplesSection } from './ExamplesSection';
 import { PropsSection } from './PropsSection';
 import { ReadmeSection } from './ReadmeSection';
-import { SectionSkeleton } from './TabSkeleton';
 
 import type { StoryExport } from '../../stories';
 
@@ -19,11 +16,13 @@ import type { StoryExport } from '../../stories';
 // reader has to decide to go, and the live component is the reason the page is
 // open — so it is the page, not a destination inside it.
 //
-// Props gets its own Suspense boundary, and the two above it do not: their
-// chunks are what the tab's boundary (PackagePage) already waits on, while the
-// props table is a separate lazy JSON that nothing above the fold needs. Held
-// under the same boundary it would keep the examples and the README off the
-// screen for a file that sits four screens down.
+// Props carries its own Suspense and error boundaries, and the two above it do
+// not: their chunks are what the tab's boundary (PackagePage) already waits on,
+// while the props table is a separate lazy JSON that nothing above the fold
+// needs. Both live INSIDE PropsSection rather than here, so that its `<section>`
+// and its h2 can sit outside them — the page's heading outline is a guarantee
+// (docs/plan.md) and a heading that disappears for the length of an import is
+// not one.
 export function OverviewTab({
   slug,
   examples,
@@ -35,9 +34,7 @@ export function OverviewTab({
     <Stack gap="6">
       {examples.length > 0 && <ExamplesSection slug={slug} examples={examples} />}
       <ReadmeSection slug={slug} />
-      <Suspense fallback={<SectionSkeleton />}>
-        <PropsSection slug={slug} />
-      </Suspense>
+      <PropsSection slug={slug} />
     </Stack>
   );
 }

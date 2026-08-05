@@ -1,4 +1,4 @@
-import { use, useId, useState } from 'react';
+import { Suspense, use, useId, useState } from 'react';
 
 import { Badge } from '@pineappleui/badge';
 import { Button } from '@pineappleui/button';
@@ -7,12 +7,14 @@ import { Inline } from '@pineappleui/inline';
 import { Stack } from '@pineappleui/stack';
 import { Text } from '@pineappleui/text';
 
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { propsFor } from '../../content';
 import { radixDocsUrl } from '../../packageLinks';
 import { bySlug } from '../../registry';
 import { NewTabNote } from './NewTabNote';
+import { SectionSkeleton } from './TabSkeleton';
 
-import type { ComponentDoc, PackagePropsDoc, PropDoc } from '../../content';
+import type { ComponentDoc, PropDoc } from '../../content';
 
 // The last section of the Overview: h1 package name → h2 Examples → h2 README →
 // h2 Props. Generated at build time from each package's own TypeScript types
@@ -27,20 +29,54 @@ import type { ComponentDoc, PackagePropsDoc, PropDoc } from '../../content';
 // component. Both omissions are in the paragraph under the heading.
 
 export function PropsSection({ slug }: { slug: string }) {
-  const doc = use(propsFor(slug));
   const labelId = useId();
 
   return (
+    // The section and its heading are OUTSIDE both wrappers below, and that is
+    // the whole shape of this component. docs/plan.md guarantees every package
+    // page the same outline — h1 name → h2 Examples → h2 README → h2 Props —
+    // and the props table is the one section that loads after the page is
+    // already up. Held inside the boundary, the outline read h1 → Examples →
+    // README → nothing for the length of a dynamic import, with no
+    // announcement that anything was coming: SectionSkeleton is `aria-hidden`,
+    // deliberately.
     <section aria-labelledby={labelId}>
       <Stack gap="5">
         <Heading as="h2" size="5" id={labelId}>Props</Heading>
-        <PropsBody slug={slug} doc={doc} />
+        {/* A boundary scoped to this section, not the tab's. The nearest one up
+            is PackagePage's, which covers the whole Overview — so a props chunk
+            that fails takes the examples and the README that had ALREADY
+            rendered down with it. The trigger is ordinary: the site redeploys,
+            a reader's open tab still holds the old chunk hashes, and the import
+            of `generated/props/<slug>.json` 404s. ExamplesSection refuses the
+            same trade one section up, and Props is the last section on the page
+            and the cheapest of the three to lose. */}
+        <ErrorBoundary
+          fallback={(error, retry) => (
+            <Stack gap="2" align="start">
+              <Text as="p" size="3" color="gray">
+                The props table for this package could not be loaded.
+              </Text>
+              <Text as="p" size="2" color="gray">{error.message}</Text>
+              <Button size="2" variant="soft" onClick={retry}>Try again</Button>
+            </Stack>
+          )}
+        >
+          {/* Props waits on its own generated JSON, which nothing above the
+              fold needs; under the tab's boundary it would keep the examples
+              and the README off the screen for a file four screens down. */}
+          <Suspense fallback={<SectionSkeleton />}>
+            <PropsBody slug={slug} />
+          </Suspense>
+        </ErrorBoundary>
       </Stack>
     </section>
   );
 }
 
-function PropsBody({ slug, doc }: { slug: string; doc: PackagePropsDoc | null }) {
+function PropsBody({ slug }: { slug: string }) {
+  const doc = use(propsFor(slug));
+
   // Not the same thing as "this package exports no components", and worth
   // saying differently: the generated file is missing, which means this build
   // ran without the site's `props` task. `scripts/check-props-coverage.mjs`
