@@ -19,6 +19,13 @@ type RadixIconButtonProps = ComponentPropsWithRef<typeof RadixIconButton>;
 // defs and the docs site builds its tables from these types: without them the
 // Description column is empty on every row of this package's table.
 //
+// The restatement is CHECKED rather than trusted, which is the answer to
+// "isn't this a second source of truth?": `RadixIconButtonProps['loading']` is an
+// INDEXED ACCESS, so a prop Radix renames or removes is `error TS2339:
+// Property … does not exist` here, at build time. The one thing no check
+// catches is Radix RETYPING a prop — the overlay follows it silently and stays
+// correct, and only the sentence beside it can go stale.
+//
 // The one prop this control cannot do without — an accessible name, since a
 // glyph reads as nothing — is React's own `aria-label`, so it is not in the
 // table below and the README's contract is where it is stated.
