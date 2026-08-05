@@ -191,7 +191,7 @@ describe('the props table', () => {
 
     // And the table is NAMED by it through `aria-labelledby`, not only through
     // HTML's caption-names-the-table rule — that rule is a native mechanism,
-    // and below 600px this element stops being a native table.
+    // and below 768px this element stops being a native table.
     const [table] = within(props).getAllByRole('table');
     expect(table).toHaveAccessibleName('Widget props');
     expect(table).toHaveAttribute('aria-labelledby', caption.id);
@@ -202,7 +202,7 @@ describe('the props table', () => {
     const props = await findPropsSection();
     const [table] = within(props).getAllByRole('table');
 
-    // Below 600px site.css sets `display: block` on the table and its parts,
+    // Below 768px site.css sets `display: block` on the table and its parts,
     // and changing a table's `display` drops its implicit ARIA semantics in
     // every engine. Written out, they survive the restyle. jsdom evaluates no
     // media query, so what is asserted here is the markup the stacked layout
@@ -279,13 +279,16 @@ describe('the props table', () => {
     const props = await findPropsSection();
 
     // Most of the prose on a Radix wrapper's page is Radix's, in a
-    // pineapple-branded table. Phrased by the KIND of prop rather than by a
-    // count, so it survives this repo writing JSDoc onto its own wrapper props:
-    // a prop that comes from Radix still carries Radix's words afterwards.
-    // "Corrected where" rather than "verbatim" because the extractor overrides
-    // `gapX` and `gapY`, which upstream documents as the opposite axis.
+    // pineapple-branded table. Phrased by the DECLARATION SITE rather than by
+    // where a prop comes from: every wrapper package now re-states the props it
+    // passes through purely to describe them, so "the props that come from
+    // Radix" is precisely the set whose sentences the package wrote. Whoever
+    // wrote the sentence owns it, which is the one line that stays true as more
+    // of them get written. "Corrected where" rather than "verbatim" because the
+    // extractor overrides `gapX` and `gapY`, which upstream documents as the
+    // opposite axis.
     const note = within(props).getByText(
-      /Descriptions for the props that come from Radix are Radix's own words, corrected where its own documentation describes a prop wrongly\./,
+      /Where a package describes a prop itself, the words here are the package's\. The rest are Radix's own, corrected where its own documentation describes a prop wrongly\./,
     );
 
     // BELOW the tables. Above them it pushed the one sentence a reader needs
@@ -308,10 +311,63 @@ describe('the props table', () => {
 
     expect(within(props).queryByText(/shared layout props/)).not.toBeInTheDocument();
     // And nothing is credited to Radix, because none of these descriptions are
-    // Radix's — the same signal decides both sentences.
-    expect(within(props).queryByText(/Radix's own words/)).not.toBeInTheDocument();
+    // Radix's — the same signal decides both sentences. Matched on the opening
+    // clause rather than on the words "Radix's own", which appear in the
+    // paragraph above this one too: a negative assertion that cannot match the
+    // sentence it is about passes whether the sentence renders or not.
+    expect(within(props).queryByText(/Where a package describes a prop itself/))
+      .not
+      .toBeInTheDocument();
     const [table] = within(props).getAllByRole('table');
     expect(within(table).getByRole('rowheader', { name: /^className\b/ })).toBeInTheDocument();
+  });
+
+  it('says a table has no Description column BEFORE the reader meets it', async () => {
+    // Real artifact. `text-field` is the one package whose own props carry no
+    // JSDoc — it re-exports Radix's compound namespace whole, so there is no
+    // props type of its own to write one into — and since every sibling gained
+    // descriptions it went from 9-of-16 tables without the column to the only
+    // one, which reads as an unfinished page rather than as a decision.
+    //
+    // In the INTRO paragraph, which is the claim: after the column-less table
+    // an explanation is worth nothing.
+    await renderApp('/components/text-field');
+    const props = await findPropsSection();
+
+    const note = within(props).getByText(/There is no Description column on this package's own props/);
+    // Named from the registry, the same field the Radix link is built from.
+    //
+    // "Own props", not "these tables": this package HAS layout props, so the
+    // sentence in front of this one is the layout-props sentence — and the
+    // layout tables do carry a Description column, since Radix documents all
+    // 41. A demonstrative would take them as its antecedent and be false.
+    // Asserted as the whole sentence rather than a phrase, because the
+    // ambiguity this fixes lives in one word.
+    expect(note).toHaveTextContent(
+      'There is no Description column on this package\'s own props either: it passes Radix\'s '
+      + 'TextField through whole, so there is no props type of its own to describe them in. '
+      + 'Radix\'s own documentation, linked below, is where they are described.',
+    );
+    // And the sentence it has to be read against is the one immediately before
+    // it, in the same paragraph.
+    expect(note).toHaveTextContent(/shared layout props[^.]*\.\s*There is no Description column/);
+
+    const [table] = within(props).getAllByRole('table');
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent))
+      .toEqual(['Prop', 'Type', 'Default']);
+    expect(table.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_PRECEDING)
+      .toBeTruthy();
+  });
+
+  it('leaves that sentence off a package whose own props are described', async () => {
+    // DERIVED from the artifact and the registry, never from the slug: it
+    // disappears the day text-field's props are described, and would reappear if
+    // another package regressed. Hardcoding the slug would have made it a
+    // sentence about one page rather than about a condition.
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+
+    expect(within(props).queryByText(/no Description column/)).not.toBeInTheDocument();
   });
 
   it('links the primitive underneath, from the registry rather than a written URL', async () => {
@@ -419,10 +475,14 @@ describe('the layout props', () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();
 
-    // Per TABLE. 68 of the artifact's 98 own props carry no JSDoc, and on
-    // eight of the sixteen packages that is EVERY row — a Description header
+    // Per TABLE. 13 of the artifact's 98 own props carry no JSDoc, and all 13
+    // are `text-field`'s — every row of both its tables — a Description header
     // over nothing, holding a 14rem floor that starves the Type column beside
     // it on a phone. The same component's other table keeps its column.
+    //
+    // Still a FIXTURE rather than text-field, deliberately: this asserts the
+    // rule, and a real package is one JSDoc comment away from stopping being an
+    // example of it.
     const [own] = within(props).getAllByRole('table');
     expect(within(own).getAllByRole('columnheader').map(cell => cell.textContent))
       .toEqual(['Prop', 'Type', 'Default', 'Description']);

@@ -105,6 +105,9 @@ import path from 'node:path';
 /** Props React declares for every DOM element — documented by MDN, not here. */
 const REACT_TYPES_DIR = '/@types/react/';
 
+/** Everything installed rather than written here — see `ownDescription`. */
+const INSTALLED_DIR = '/node_modules/';
+
 /**
  * Radix Themes' SHARED prop modules — `props/margin.props.d.ts`,
  * `props/layout.props.d.ts` and friends — as opposed to `components/*.props.d.ts`,
@@ -167,6 +170,51 @@ function correctedDescription(prop) {
     correction => correction.name === prop.getName()
       && declaredIn.some(fileName => correction.module.test(fileName)),
   )?.description;
+}
+
+/**
+ * The description THIS REPO wrote for a prop, where it wrote one — and the
+ * reason it is asked for before the symbol's own.
+ *
+ * `Symbol.getDocumentationComment` CONCATENATES across declarations, upstream
+ * first. Every wrapper package here re-states a prop it inherits purely to hang
+ * a sentence on it, so the prop has two declarations — and the day Radix starts
+ * documenting one of them, the cell silently becomes two run-together sentences
+ * that may disagree, in a table whose own README says the words are the
+ * package's. Nothing fails: it is still a string, still one line, still
+ * plausible.
+ *
+ * So the local declaration's JSDoc WINS where there is one, rather than being
+ * appended to. Asked per declaration by resolving the name back to the symbol
+ * declared at that site — inside a type literal that is one constituent of an
+ * intersection, that symbol has exactly the one declaration, so its
+ * documentation comment is exactly that declaration's.
+ *
+ * A prop the repo does not describe still falls through to upstream's, which is
+ * what fills the layout tables. The path test is the same shape as
+ * `REACT_TYPES_DIR` above and sits beside it deliberately: "whose declaration is
+ * this" is one question this file answers twice.
+ *
+ * @param {import('typescript')} ts
+ * @param {import('typescript').TypeChecker} checker
+ * @param {import('typescript').Symbol} prop
+ * @returns {string|undefined} `undefined` when nothing declared here documents it
+ */
+function ownDescription(ts, checker, prop) {
+  for (const declaration of prop.declarations ?? []) {
+    if (declaration.getSourceFile().fileName.includes(INSTALLED_DIR)) {
+      continue;
+    }
+    const name = ts.getNameOfDeclaration(declaration);
+    const declared = name === undefined ? undefined : checker.getSymbolAtLocation(name);
+    const text = declared === undefined
+      ? ''
+      : plainText(ts.displayPartsToString(declared.getDocumentationComment(checker)));
+    if (text !== '') {
+      return text;
+    }
+  }
+  return undefined;
 }
 
 /** A default this can print: one string, number or boolean literal. */
@@ -337,6 +385,97 @@ function propDefDefault(ts, prop) {
   return undefined;
 }
 
+/** Code point, which is the order the props themselves are listed in. */
+function byCodePoint(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** A member that IS a number, quoted or not — `"9"`, `"-1"`, `3`. */
+const NUMERIC_MEMBER = /^["']?(-?\d+(?:\.\d+)?)["']?$/;
+
+/**
+ * @param {string} text a member as it prints
+ * @returns {number|undefined} its value, or `undefined` when it is not a number
+ */
+function numericValue(text) {
+  const digits = NUMERIC_MEMBER.exec(text)?.[1];
+  return digits === undefined ? undefined : Number(digits);
+}
+
+/**
+ * A union's members in the order the table prints them: a NUMBER LINE when every
+ * member is a number, code point otherwise.
+ *
+ * Code point alone is wrong for exactly one shape, and it is the commonest one
+ * in the artifact — Radix's space scale, `"0"…"9" | "-1"…"-9"`, which sorted
+ * lexicographically puts all nine negatives first and starts the scale a reader
+ * wants at position ten. That is neither alphabetical-meaningful nor a number
+ * line. It reaches 92 cells, all of them margin props behind the layout
+ * disclosure; no non-layout prop in the artifact carries a negative member.
+ *
+ * The test is on EVERY member, so a union that mixes `"1"` with `"auto"` keeps
+ * code point rather than being half-ordered — and `size`, `radius` and the 26
+ * accents are unaffected either way, since a numeric-only union sorts to the
+ * same sequence under both rules whenever the values are single digits.
+ *
+ * @template T
+ * @param {readonly T[]} members
+ * @param {(member: T) => string} textOf
+ * @returns {T[]} a new array, ordered
+ */
+function inMemberOrder(members, textOf) {
+  const ranked = members.map(member => ({ member, text: textOf(member) }));
+  const values = ranked.map(entry => numericValue(entry.text));
+  const isNumberLine = values.every(value => value !== undefined);
+
+  return ranked
+    .map((entry, index) => ({ ...entry, value: values[index] }))
+    .sort((a, b) => (isNumberLine ? a.value - b.value : byCodePoint(a.text, b.text)))
+    .map(entry => entry.member);
+}
+
+/**
+ * The same union rendering, with every all-literal union inside it sorted.
+ *
+ * Written as a node transform because the union that needs sorting is usually
+ * not the type being printed: 179 of the artifact's 277 props print through a
+ * PRESERVED ALIAS — `Responsive<"center" | "start" | "end">` — and the members
+ * are inside its type arguments, where no operation on the top-level type can
+ * reach them.
+ *
+ * Only unions whose every member is a string or number LITERAL are touched, the
+ * same rule `typeText` applies at the top level, so `T | undefined` and
+ * `Union<string, …>` keep the order the checker gave them and `undefined` stays
+ * where the trim below expects it. A union that mixes literals with anything
+ * else — including `undefined` at its own level — is left alone rather than
+ * partly ordered.
+ *
+ * @param {import('typescript')} ts
+ * @param {import('typescript').TypeNode} node
+ * @param {(node: import('typescript').Node) => string} print
+ * @returns {import('typescript').TypeNode} the same tree, unions ordered
+ */
+function withSortedUnions(ts, node, print) {
+  const isLiteral = member => ts.isLiteralTypeNode(member)
+    && (ts.isStringLiteral(member.literal) || ts.isNumericLiteral(member.literal));
+
+  const transform = context => (root) => {
+    const visit = (current) => {
+      const visited = ts.visitEachChild(current, visit, context);
+      if (!ts.isUnionTypeNode(visited) || !visited.types.every(isLiteral)) {
+        return visited;
+      }
+      return ts.factory.updateUnionTypeNode(
+        visited,
+        ts.factory.createNodeArray(inMemberOrder(visited.types, print)),
+      );
+    };
+    return ts.visitNode(root, visit);
+  };
+
+  return ts.transform(node, [transform]).transformed[0];
+}
+
 /**
  * The type as the table prints it.
  *
@@ -353,22 +492,35 @@ function propDefDefault(ts, prop) {
  * saying the useful thing. `boolean` is excluded by the same line — it is
  * `true | false` inside, and nobody wants to read that.
  *
- * Members come out sorted by code point. `UnionType.types` is ALREADY id-
- * ordered, so the branch above buys EXPANSION and nothing else — the sequence
- * it would print is a function of the whole program's type ids, not of the
- * union. Radix declares `radius` as none/small/medium/large/full and the
- * artifact printed `"small" | "none" | "large" | "medium" | "full"`; adding a
- * seventeenth package can reshuffle every enum cell in every table, which is
- * churn nothing explains and a pinned test failure that names no cause.
- * Sorting makes the order a function of the members alone — the same code-
- * point order the props themselves are listed in.
+ * Members come out ordered — by code point, or as a NUMBER LINE where every
+ * member is a number (see `inMemberOrder`) — wherever in the rendering they sit.
+ * `UnionType.types` is ALREADY id-ordered, so the branch above buys EXPANSION
+ * and nothing else — the sequence it would print is a function of the whole
+ * program's type ids, not of the union. Radix declares `radius` as
+ * none/small/medium/large/full and the artifact printed `"small" | "none" |
+ * "large" | "medium" | "full"`; adding a seventeenth package can reshuffle every
+ * enum cell in every table, which is churn nothing explains and a pinned test
+ * failure that names no cause.
  *
- * It is NOT declaration order, which would be the useful one (a scale read as
- * a scale). Recovering that means resolving each prop back to a `UnionTypeNode`
- * in its declaration, and Radix's props are mapped out of `values: readonly
- * [...]` arrays, so there is no union type node to read. Explicable and stable
- * is what is on offer here; a comment claiming more than the code does is what
- * this replaces.
+ * "Wherever in the rendering they sit" is the second half, and it is why the
+ * fallback goes through `typeToTypeNode` rather than `typeToString`. Sorting the
+ * TOP-LEVEL union covers under a hundred of the artifact's 277 cells: the rest
+ * print through a preserved alias, and `Heading.trim`, `Text.weight`,
+ * `Inline.align`, `Stack.justify` and eleven more moved on a docs-only commit
+ * that changed no type at all — including two in `box`, which that commit did
+ * not touch. Rewriting the union NODES reaches inside the alias, keeps the alias
+ * (which is the useful thing in the cell), and stays on the compiler API this
+ * file already restricts itself to.
+ *
+ * It is NOT declaration order, which would be the useful one for a union whose
+ * members are words. Recovering that means resolving each prop back to a
+ * `UnionTypeNode` in its DECLARATION, and Radix's props are mapped out of
+ * `values: readonly [...]` arrays, so there is no union type node to read — the
+ * nodes rewritten here are the checker's own rendering of the resolved type,
+ * which carries no memory of how it was written. For a union of NUMBERS,
+ * declaration order and the number line are the same sequence, which is why the
+ * space scale reads correctly anyway: `"-9" … "-1" | "0" … "9"`, not the
+ * lexicographic `"-1" … "-9" | "0" …` that code point alone produced.
  *
  * @param {import('typescript')} ts
  * @param {import('typescript').TypeChecker} checker
@@ -384,14 +536,31 @@ function typeText(ts, checker, type, enclosing) {
   if (type.isUnion()) {
     const members = type.types.filter(member => (member.flags & ts.TypeFlags.Undefined) === 0);
     if (members.length > 0 && members.every(member => (member.flags & LITERAL_FLAGS) !== 0)) {
-      return members
-        .map(member => checker.typeToString(member, enclosing, flags))
-        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-        .join(' | ');
+      return inMemberOrder(
+        members.map(member => checker.typeToString(member, enclosing, flags)),
+        text => text,
+      ).join(' | ');
     }
   }
 
-  return checker.typeToString(type, enclosing, flags).replace(/\s*\|\s*undefined$/, '');
+  const node = checker.typeToTypeNode(
+    type,
+    enclosing,
+    ts.NodeBuilderFlags.NoTruncation | ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope,
+  );
+
+  // The node builder gives up on some types and answers `undefined`; the
+  // checker's own string is always available, and an unsorted cell is the state
+  // every cell was in before this.
+  if (node === undefined) {
+    return checker.typeToString(type, enclosing, flags).replace(/\s*\|\s*undefined$/, '');
+  }
+
+  const printer = ts.createPrinter({ removeComments: true });
+  const blank = ts.createSourceFile('types.ts', '', ts.ScriptTarget.Latest);
+  const print = current => printer.printNode(ts.EmitHint.Unspecified, current, blank);
+
+  return print(withSortedUnions(ts, node, print)).replace(/\s*\|\s*undefined$/, '');
 }
 
 /**
@@ -548,6 +717,7 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
         required: (prop.flags & ts.SymbolFlags.Optional) === 0,
         ...pickDefault(defaults.get(name) ?? propDefDefault(ts, prop)),
         description: correctedDescription(prop)
+          ?? ownDescription(ts, checker, prop)
           ?? plainText(ts.displayPartsToString(prop.getDocumentationComment(checker))),
         isLayout: SHARED_PROP_MODULES.test(declaration.getSourceFile().fileName),
       });

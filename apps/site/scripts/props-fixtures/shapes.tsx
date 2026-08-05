@@ -37,6 +37,15 @@ type Tone
     | 'plum'
     | 'ruby';
 
+/**
+ * A PRESERVED alias, the shape 179 of the artifact's 277 props print through:
+ * Radix's `Responsive<T>` is this, one member wider. The union that needs
+ * ordering is inside the type argument, where nothing done to the top-level
+ * type can reach it — so `reach` below is the only prop in these fixtures that
+ * fails if `typeText` sorts the printed type and not the nodes under it.
+ */
+type Wrapped<T> = T | { at?: T };
+
 export interface WidgetProps {
   /** How many times to draw it. There is no sensible guess, so it is required. */
   count: number;
@@ -49,6 +58,22 @@ export interface WidgetProps {
    * not. This one passes only if it does.
    */
   spread?: 'wide' | 'narrow' | 'auto';
+  /**
+   * How far it reaches. Declared REVERSE alphabetical inside a preserved alias,
+   * for the same reason `spread` is declared that way outside one — and this is
+   * the half a top-level sort never saw.
+   */
+  reach?: Wrapped<'c' | 'b' | 'a'>;
+  /**
+   * Which step of the scale. Radix's space scale is this shape — `"0"…"9" |
+   * "-1"…"-9"` — and code point alone puts all nine negatives in front, so the
+   * scale a reader wants starts at position ten. Two digits and a negative are
+   * what tell a number line from a lexicographic sort: `"10"` sorts before `"9"`
+   * as text and after it as a number.
+   */
+  step?: Wrapped<'2' | '-1' | '10' | '0' | '-2'>;
+  /** The same claim outside an alias, on the branch that expands a union. */
+  level?: '2' | '-1' | '10' | '0';
   /** Whether it says so **loudly** — the `data-loud` attribute, not a style. */
   isLoud?: boolean;
   label?: string;

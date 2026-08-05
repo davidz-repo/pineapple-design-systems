@@ -42,14 +42,22 @@
 //   - `export { … } from '@radix-ui/themes'` — a Radix component re-exported
 //     whole rather than wrapped. `text-field` is this: it ships `TextField.Root`,
 //     whose ref Radix composes onto the inner `<input>`.
-//   - a props interface that `extends` something — `interface IconProps extends
-//     Omit<LucideProps, …>`. A props type built on an imported one INHERITS that
-//     type's `ref`: `icons` picks up `RefAttributes<SVGSVGElement>` through the
-//     `Omit` (which removes `size` and the a11y props, not `ref`), the prop rides
-//     in `...rest` onto the Lucide glyph — itself a `forwardRef` component — and
-//     `<Icon ref={…}>` gets a real `<svg>` back. Nothing in the package's own
-//     source spells `ref` anywhere, which is exactly how `icons` came to carry a
-//     `refTestNotApplicable` that was false.
+//   - a props type BUILT ON an imported one, in either of the two ways this repo
+//     writes that: `interface IconProps extends Omit<LucideProps, …>`, or the
+//     intersection `type IconProps = Omit<LucideProps, …> & { … }`. Either INHERITS
+//     the imported type's `ref`: `icons` picks up `RefAttributes<SVGSVGElement>`
+//     through the `Omit` (which removes `size` and the a11y props, not `ref`), the
+//     prop rides in `...rest` onto the Lucide glyph — itself a `forwardRef`
+//     component — and `<Icon ref={…}>` gets a real `<svg>` back. Nothing in the
+//     package's own source spells `ref` anywhere, which is exactly how `icons` came
+//     to carry a `refTestNotApplicable` that was false.
+//
+//     The intersection is matched BECAUSE `icons` moved to it: `interface X
+//     extends Omit<Up, …>` re-declaring an inherited prop REPLACES it rather than
+//     intersecting with it, which shipped a TS2430 to consumers under
+//     `exactOptionalPropertyTypes`. The two forms are the same claim about `ref`,
+//     and only one of them was recognised — so for one commit `icons` was
+//     unmatched again, from the third direction.
 //   - a `ref` prop written out by hand, or any of React's ref TYPES —
 //     `ref?: Ref<HTMLElement>`, `RefObject<…>`, `ElementRef<…>`,
 //     `RefAttributes<…>`, `MutableRefObject<…>`. Nothing here matches this today,
@@ -216,6 +224,23 @@ const REF_MARKERS = [
     // take, so there is no imported `ref` to inherit.
     label: 'interface …Props extends …',
     pattern: /\binterface\s+\w*Props\b[^{]+\bextends\b/,
+  },
+  {
+    // The same claim written as a type alias — `type IconProps = Omit<LucideProps,
+    // …> & { … }` — which is what `icons` became once the `interface … extends`
+    // form turned out to ship a TS2430 to consumers on `exactOptionalPropertyTypes`
+    // (an interface member REPLACES what it inherits; an intersection AND-s with
+    // it). Ten packages here are written this way and nine of them also spell
+    // `ComponentPropsWithRef`, so this marker's real subject is the tenth.
+    //
+    // `[^;{]+` for the same reason the `extends` above uses `[^{]`: the `&` has to
+    // sit between the `=` and the first `{`, so it belongs to THIS alias's head
+    // rather than to something later in the file. It therefore under-matches
+    // `type FooProps = { own: string } & Imported` — the members-first spelling —
+    // which nothing here writes, and which is the safe direction: an unmatched
+    // package is REFUSED rather than passed, so the failure is loud.
+    label: 'type …Props = … & …',
+    pattern: /\btype\s+\w*Props\s*=[^;{]+&/,
   },
   {
     // The hand-written route: a package that spells the prop out itself

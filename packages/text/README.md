@@ -26,7 +26,7 @@ import type { TextProps } from '@pineappleui/text';
 | Export | What it is |
 | --- | --- |
 | `Text` | The element. Takes every prop Radix's `Text` takes, including `ref`. |
-| `TextProps` | Its props — `ComponentPropsWithRef<typeof Text>` from Radix, re-exported so consumers do not import the type from Radix either. |
+| `TextProps` | Its props — `ComponentPropsWithRef<typeof Text>` from Radix, re-exported so consumers do not import the type from Radix either, and described here in this package's own words. |
 
 This README does not hand-write the prop set: `TextProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.

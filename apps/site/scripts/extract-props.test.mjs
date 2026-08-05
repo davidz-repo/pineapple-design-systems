@@ -168,7 +168,7 @@ describe('the shapes a table has to render', () => {
 
   it('puts the required props first, then goes alphabetical', () => {
     expect(doc.components[0].props.map(prop => prop.name))
-      .toEqual(['count', 'isLoud', 'label', 'spread', 'tone']);
+      .toEqual(['count', 'isLoud', 'label', 'level', 'reach', 'spread', 'step', 'tone']);
   });
 
   it('sorts an expanded union rather than printing it in the checker\'s order', () => {
@@ -184,6 +184,43 @@ describe('the shapes a table has to render', () => {
     // reasons of its own.
     expect(propNamed(doc.components[0], 'spread')?.type)
       .toBe('"auto" | "narrow" | "wide"');
+  });
+
+  it('sorts a union inside a preserved alias, which is where most of them are', () => {
+    // The half a top-level sort could not reach, and the reason this is a node
+    // rewrite rather than an operation on the printed type: 179 of the
+    // artifact's 277 props print as `Responsive<…>`, so the union is inside the
+    // type ARGUMENT. `Heading.trim`, `Text.weight`, `Inline.align`,
+    // `Stack.justify` and ten more moved on a docs commit that changed no type,
+    // two of them in `box`, which that commit did not touch.
+    //
+    // The alias survives, which is the other half of the claim: expanding
+    // `Wrapped<…>` here would print the whole breakpoint object where the name
+    // was saying the useful thing.
+    expect(propNamed(doc.components[0], 'reach')?.type)
+      .toBe('Wrapped<"a" | "b" | "c">');
+  });
+
+  it('orders a union of numbers as a number line, not lexicographically', () => {
+    // Code point is right for words and wrong for exactly one shape, and it is
+    // the commonest one in the artifact: Radix's space scale, `"0"…"9" |
+    // "-1"…"-9"`, which sorts to nine negatives followed by the scale a reader
+    // actually wants. That is neither alphabetical-meaningful nor a number line.
+    //
+    // `"10"` is what tells the two rules apart in both directions — it sorts
+    // before `"9"` as text and after it as a number — and the negatives are what
+    // the 92 margin cells in the artifact are about.
+    expect(propNamed(doc.components[0], 'step')?.type)
+      .toBe('Wrapped<"-2" | "-1" | "0" | "2" | "10">');
+    // The same rule on the other branch: a top-level union is EXPANDED rather
+    // than printed as its alias, and it has its own sort.
+    expect(propNamed(doc.components[0], 'level')?.type)
+      .toBe('"-1" | "0" | "2" | "10"');
+    // And a union that only LOOKS numeric keeps code point rather than being
+    // half-ordered — `spread` above is words, and this is the mixed case the
+    // every-member test is for.
+    expect(propNamed(doc.components[0], 'tone')?.type)
+      .toBe('"apricot" | "blue" | "cerise" | "grass" | "iris" | "jade" | "lime" | "mint" | "plum" | "ruby"');
   });
 
   it('reads the required flag, the type, the default and the JSDoc', () => {
@@ -231,6 +268,33 @@ describe('the shapes a table has to render', () => {
     // case the `@types/react` filter alone would not catch.
     expect(propNamed(doc.components[0], 'children')).toBeUndefined();
     expect(propNamed(doc.components[0], 'ref')).toBeUndefined();
+  });
+});
+
+describe('a prop the package and the library underneath it both document', () => {
+  const [doc] = extract([fixture('overlay.tsx')]).docs;
+  const [panel] = doc.components;
+
+  it('prints the package\'s sentence, not both sentences run together', () => {
+    // `getDocumentationComment` concatenates across declarations, upstream
+    // first, and every wrapper here re-states a prop it inherits purely to hang
+    // a sentence on it. So the day Radix documents one of those props, the cell
+    // becomes two sentences that may disagree — still a string, still one line,
+    // still plausible, and nothing fails.
+    //
+    // Asserted as an EQUALITY rather than "contains the local words", because
+    // the failure is an appended sentence and `toContain` would pass on it.
+    expect(propNamed(panel, 'gap')?.description).toBe(
+      'The package\'s own words for a prop the library underneath also documents.',
+    );
+  });
+
+  it('keeps upstream\'s sentence where the package wrote none', () => {
+    // The other half, and what keeps the assertion above from being vacuous: if
+    // Radix ever stopped documenting these, "the local sentence wins" would
+    // still pass over a program with nothing to lose to. This is the layout
+    // tables' whole content, so it is also the behaviour that must NOT change.
+    expect(propNamed(panel, 'justify')?.description).toMatch(/^Sets the CSS justify-content/);
   });
 });
 

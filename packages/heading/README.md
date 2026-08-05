@@ -26,7 +26,7 @@ import type { HeadingProps } from '@pineappleui/heading';
 | Export | What it is |
 | --- | --- |
 | `Heading` | The element. Every prop Radix's `Heading` takes, including `ref`, with `size` defaulted from `as`. |
-| `HeadingProps` | Its props — `ComponentPropsWithRef<typeof Heading>` from Radix, re-exported so consumers do not import the type from Radix either. |
+| `HeadingProps` | Its props — `ComponentPropsWithRef<typeof Heading>` from Radix, re-exported so consumers do not import the type from Radix either, and described here in this package's own words. |
 
 This README does not hand-write the prop set: `HeadingProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.

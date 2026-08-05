@@ -126,6 +126,24 @@ function PropsBody({ slug }: { slug: string }) {
     component => component.props.some(prop => prop.isLayout),
   );
 
+  // Whether any table on this page will DROP its Description column — the same
+  // `prop.description !== ''` test `PropsTable` makes, asked across the page so
+  // the omission can be stated before a reader meets it rather than after.
+  //
+  // Derived from the artifact and from the registry, never from the slug. It
+  // disappears the day `text-field`'s props are described and reappears if
+  // another package ever regresses, which is the whole reason it is not written
+  // as `slug === 'text-field'`. Both halves are needed: a package with own props
+  // and no descriptions is the visible gap, and `radix !== undefined` is what
+  // makes the last sentence true — it is the link this paragraph promises, and
+  // it is rendered below by the same signal.
+  const ownProps = doc.components.flatMap(
+    component => component.props.filter(prop => !prop.isLayout),
+  );
+  const hasUndescribedOwnTable = radix !== undefined
+    && ownProps.length > 0
+    && ownProps.every(prop => prop.description === '');
+
   return (
     <>
       <Text as="p" size="2" color="gray">
@@ -146,6 +164,40 @@ function PropsBody({ slug }: { slug: string }) {
             term and that page, and it does it without lengthening the button's
             own label, which would drag its accessible name along too. */}
         {hasLayoutProps && ' Every component here also takes Radix Themes\' shared layout props — margin, padding, width, height and position — listed separately under each one below.'}
+        {/* The third omission this paragraph declares, and the only one a
+            reader will actually notice: a missing Description column used to be
+            the norm (9 tables of 16 lacked one) and is now the sole exception,
+            so arriving from Button and getting three columns reads as an
+            unfinished page. Section header, line 25: what the table does NOT
+            list is stated on the page rather than left silent.
+
+            In the INTRO rather than beside the table, because an explanation
+            that arrives after the column-less table has already been read is
+            worth nothing.
+
+            "This package's OWN props", not "these tables", and the wording is
+            load-bearing at this position: the sentence in front of it is the
+            layout-props one, so a demonstrative takes the layout tables as its
+            nearest antecedent — and those DO carry a Description column, since
+            Radix documents all 41. A reader who opened the disclosure to check
+            would find the page contradicting itself. "Own" contrasts with
+            "shared" in the sentence before, and "either" ties it to the two
+            omissions this paragraph has already declared.
+
+            The primitive is NAMED from the registry, the same field the link
+            below is built from, so the sentence cannot come to name the wrong
+            component on a page it was not written for. And it cannot arrive on
+            an unexpected page either: `scripts/check-props-coverage.mjs` fails
+            the build on an undescribed own prop unless the package is
+            allow-listed there with its reason, so the only page this can render
+            on is one where that reason has been written down. */}
+        {hasUndescribedOwnTable && (
+          <>
+            {' There is no Description column on this package\'s own props either: it passes Radix\'s '}
+            {radix.name}
+            {' through whole, so there is no props type of its own to describe them in. Radix\'s own documentation, linked below, is where they are described.'}
+          </>
+        )}
       </Text>
       {doc.components.map(component => (
         <ComponentProps key={component.name} component={component} />
@@ -157,19 +209,33 @@ function PropsBody({ slug }: { slug: string }) {
           not worth reading first. */}
       {(hasLayoutProps || radix !== undefined) && (
         <Text as="p" size="2" color="gray">
-          {/* Written by the KIND of prop rather than by a count, because the
-              counts are about to move: the JSDoc this repo has yet to write
-              onto its own wrapper props is a separate stream, and when it lands
-              this sentence is still the true one — a prop that comes from Radix
-              still carries Radix's description, and a prop the package declares
-              carries the package's.
+          {/* Written by the KIND of prop rather than by a count, which is the
+              property worth keeping: it survives text-field gaining
+              descriptions, Radix shipping JSDoc, and another wrapper being
+              added. What it can NOT be written by is where a prop comes from.
+              Every wrapper package now DECLARES the props it passes through —
+              same types, same defaults, re-stated only to carry a description —
+              so a prop that "comes from Radix" is exactly a prop whose sentence
+              is the package's, which is the opposite of what a provenance
+              sentence phrased that way says. The declaration site is the line
+              that holds: whoever wrote the sentence owns it.
+
+              And Radix-worded rows are NOT confined to the disclosure, which is
+              what an earlier draft of this claimed. `inline.json` and
+              `stack.json` each carry nine of them in the MAIN table — align,
+              as, asChild, display, gap, gapX, gapY, justify, wrap — and all
+              three of box's own props likewise. `hasLayoutProps` is still the
+              right gate for a different reason: every page with layout props has
+              Radix-worded rows somewhere, and the three without (icons,
+              live-region, theme) are 100% this repo's own words, where silence
+              reads as "these are ours".
 
               "Corrected where" rather than "verbatim", because they are not
               verbatim: extract-props.mjs overrides `gapX` and `gapY`, whose
               upstream JSDoc describes the opposite axis from the one they set.
               "Its own documentation" rather than "its types", which reads as a
               reference to the Type column beside it. */}
-          {hasLayoutProps && 'Descriptions for the props that come from Radix are Radix\'s own words, corrected where its own documentation describes a prop wrongly.'}
+          {hasLayoutProps && 'Where a package describes a prop itself, the words here are the package\'s. The rest are Radix\'s own, corrected where its own documentation describes a prop wrongly.'}
           {radix !== undefined && (
             <>
               {' '}
@@ -317,10 +383,11 @@ function LayoutPropsToggle({
 function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
   const captionId = useId();
 
-  // Per TABLE, not per section: 68 of the 98 non-layout props in the artifact
-  // carry no JSDoc at all, and on eight of the sixteen packages — Button, Text,
-  // Heading, Card, Badge among them — that is every row of the own-props table.
-  // A Description header over four empty cells is a column that says the page
+  // Per TABLE, not per section: 13 of the 98 non-layout props in the artifact
+  // carry no JSDoc, and all 13 are `text-field`'s — the one package that
+  // re-exports Radix's compound namespace whole rather than declaring a props
+  // type it could describe them in, so both its tables are entirely undescribed.
+  // A Description header over seven empty cells is a column that says the page
   // is missing something; worse, it holds a 14rem floor that is exactly what
   // starves the Type column beside it on a phone. The layout tables keep theirs,
   // because Radix documents all 41.
@@ -331,7 +398,7 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
     // table rather than the page, so the prose around it keeps its line length
     // on a phone.
     //
-    // Focusable and named, because above 600px this container scrolls for all
+    // Focusable and named, because above 767px this container scrolls for all
     // sixteen packages, not occasionally like a wide README table. Chrome made
     // scroll containers keyboard-focusable by default in 127, and that is
     // neither universal nor something to rely on; where it does apply, an
@@ -343,7 +410,7 @@ function PropsTable({ caption, props }: { caption: string; props: PropDoc[] }) {
       aria-label={caption}
       tabIndex={0}
     >
-      {/* Every ARIA role below 600px is doing the work the element's own tag
+      {/* Every ARIA role below 768px is doing the work the element's own tag
           normally does: the stacked layout (site.css) sets `display: block` on
           the table and its parts, and changing a table's `display` DROPS its
           implicit semantics in every engine — the table, its rows, its cells

@@ -7,6 +7,10 @@ import { Flex } from '@radix-ui/themes';
 // layout should reach for @pineappleui/inline instead.
 type FlexProps = ComponentPropsWithRef<typeof Flex>;
 export type StackProps = Omit<FlexProps, 'direction'> & {
+  /**
+   * Down the page, or up it. A row is not on offer here — that is what keeps this primitive's
+   * name honest, and `@pineappleui/inline` is the one that goes across.
+   */
   direction?: 'column' | 'column-reverse';
 };
 

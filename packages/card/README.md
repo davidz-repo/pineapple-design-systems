@@ -25,7 +25,7 @@ import type { CardProps } from '@pineappleui/card';
 | Export | What it is |
 | --- | --- |
 | `Card` | The element. Takes every prop Radix's `Card` takes, including `ref`. |
-| `CardProps` | Its props — `ComponentPropsWithRef<typeof Card>` from Radix, re-exported so consumers do not import the type from Radix either. |
+| `CardProps` | Its props — `ComponentPropsWithRef<typeof Card>` from Radix, re-exported so consumers do not import the type from Radix either, and described here in this package's own words. |
 
 This README does not hand-write the prop set: `CardProps` is the authoritative one, your
 editor completes from it, and a second copy in prose is a copy that goes stale without failing.

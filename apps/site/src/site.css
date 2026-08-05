@@ -704,19 +704,32 @@ body {
    12rem is ~22 monospace characters after the cell's padding at this font
    size, so the union wraps at its own ` | ` and a member is never split.
 
-   This governs the GRID, which is what the table is down to 600px: at 700px
-   the content column is 668px and the minimum is 128 + 192 + 100 (+ 224 with a
-   Description column), so a described table still scrolls a little and an
-   undescribed one fits. Below 600px there is no grid to floor — every cell is
-   a full-width block — and the stacked block at the end of this file releases
-   this floor along with the others. The two never apply at once. */
+   This governs the GRID, which is what the table is down to 768px. There is no
+   global `box-sizing: border-box` on this site — only .site-header, .site-sidebar
+   and Radix's own .rt-reset set it — so every floor below is a CONTENT box and
+   each column carries 24px of padding on top of it. A described table's minimum
+   is therefore
+
+     name 128+24  |  type 192+24  |  default ~79+24  |  description 224+24  =  ~719px
+
+   and an undescribed one's is ~471px. Below the breakpoint there is no grid to
+   floor — every cell is a full-width block — and the stacked block at the end of
+   this file releases this floor along with the others. The two never apply at
+   once. */
 .props-table td:nth-child(2) {
   min-width: 12rem;
 }
 
-/* Descriptions are Radix's own JSDoc, up to about 20 words. A floor so the
-   column is not squeezed to one word per line by the type beside it, and a
-   ceiling so it does not take the whole page on a wide screen.
+/* Descriptions are mostly the packages' OWN sentences now — 85 of the 98 own
+   props — and they run well past the ~20 words of Radix JSDoc these two numbers
+   were first reasoned about. The distribution: ~40 words at the top of the
+   wrapper packages (`live-region.className`, 237 characters), and two outliers
+   at 173 and 149 (`theme.accentColor`, `theme.storageKey`) that were already
+   this long and are the reason for the ceiling as much as the floor.
+
+   A floor so the column is not squeezed to one word per line by the type beside
+   it, and a ceiling so it does not take the whole page on a wide screen. Both
+   still hold — what moved is the population, not the shape of the problem.
 
    Addressed by position, not by `:last-child`: the Description column is the
    fourth one, and a table that has no descriptions to show does not draw it —
@@ -728,7 +741,7 @@ body {
 
 /* ---- Reference tables, stacked --------------------------------------- */
 
-/* Below 600px a reference table stops being a grid. Every rule above it is a
+/* Below 768px a reference table stops being a grid. Every rule above it is a
    column width, and the widths are the problem: the floors that make the
    columns readable (8rem name, 12rem type, 14rem description) add up to more
    than a phone has, so the table scrolled sideways on every package page and
@@ -739,6 +752,30 @@ body {
    the name of the column it came from — which is what a phone has room for and
    what most component-docs sites do. Nothing scrolls horizontally after this:
    there is no content wider than the column any more.
+
+   THE BREAKPOINT IS 767px, AND IT WAS 600px
+   Re-decided rather than inherited, because the population it was reasoned
+   about moved: 600px was chosen when 7 of 16 tables carried a Description
+   column, and it is now 15 of 16. Below 860px the shell is one column and
+   .site-main pads it by --space-4 a side, so a table has `viewport − 32` to fit
+   in — and a described table's content-box minimum is ~719px (see the arithmetic
+   on the Type column above), which needs a 751px viewport. So 601–750px was a
+   band where a table that used to fit now overflowed its scroll container, with
+   the Description column the part clipped off the right edge: iPhone landscape
+   (667, 736) and any small window. Reaching for a horizontal scrollbar to finish
+   reading a sentence is worse than the stacked layout that exists for exactly
+   this reason. At 768px the available 736px clears the ~719px minimum, so
+   nothing between the breakpoint and 860px scrolls.
+
+   Two things a later reader should know rather than rediscover. The headroom at
+   768px is 17px, and the Default column in that sum is CONTENT-driven (~79px for
+   `"surface"`, the longest default in the artifact) — a package shipping a
+   longer default literal spends that headroom. And above 860px the sidebar
+   returns: the table then has `viewport − 248 − 64`, which does not reach 719px
+   until about 1031px, so 861–1030px is a second band where a described table
+   still scrolls. That one is not this breakpoint's to fix — the levers are the
+   column floors themselves, or the page's own width — and it is named here so
+   it is a known gap rather than a surprise.
 
    Applied to `.markdown table` as well as `.props-table`, because they are the
    same object and share every rule above. The theme package's options table
@@ -763,7 +800,7 @@ body {
    table you have arrived in, not a stop that does nothing. Removing it would
    mean two behaviours for one element across a breakpoint, and CSS is not
    where a tabindex lives anyway. */
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   .markdown table,
   .props-table,
   .markdown tbody,
