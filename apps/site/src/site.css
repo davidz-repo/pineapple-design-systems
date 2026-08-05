@@ -717,17 +717,40 @@ body {
    on 1.41:1, the same hairline the rules use, which is a fine weight for a card
    sitting on Radix's own panel-grey page and far too little on white.
 
-   The two shadow VARIABLES are the override, not the `::after` rule: they are
-   the seam Radix designed for this, they keep the ring geometry (and the
-   hover/active states that read from their own variables) exactly as shipped,
+   The shadow VARIABLES are the override, not the `::after` rule: they are the
+   seam Radix designed for this, they keep the ring geometry exactly as shipped,
    and they mean this file never has to restate a selector Radix may change.
    The alpha is dropped for a solid, because an alpha over a white canvas is
    just a lighter grey with an extra step to reason about.
 
-   Hover keeps the one-step lift Radix gives it, so the card still responds. */
-.radix-themes {
+   ALL THREE STATES, because two was a bug. The active variable was left to
+   Radix and fell back to --gray-a6, which is a GREY ring — on the amber canvas
+   that is verbatim the defect this block exists to fix — and, worse, a fainter
+   one than the card's resting edge. Measured against the page canvas, the
+   ladder was
+
+     light   rest 1.92:1  ->  hover 3.34:1   ->  active 1.44:1  (#d8d7d3, grey)
+     dark    rest 3.57:1  ->  hover 11.82:1  ->  active 1.62:1  (#3c3932, grey)
+
+   so pressing a card made it RECEDE. Radix's own ladder (a5 rest, a7 hover, a6
+   active) puts active between the two; the floor is that it must not sit below
+   rest. Active takes the HOVER edge here rather than a third token — 3.34:1 and
+   11.82:1 — because this file has two enclosure-edge steps and a state that
+   lasts one tap does not earn a third. It lands hardest on touch: Radix gates
+   its `:hover` rule behind `@media (hover: hover)`, so on a phone this is the
+   only feedback a tap gets, and the home page's cards are `<Card asChild><Link>`
+   — they render as <a> and so match Radix's
+   `:where(:any-link, button, label):where(:active)` on every one.
+
+   The selector is DOUBLED for the reason the palette block at the top of this
+   file gives. It was already safe: Radix declares all three of these under
+   `:where(.radix-themes)`, specificity 0,0,0, which a single class already
+   beats. But "safe because of the shape the vendor's selector happens to have
+   today" is not a rule, and the file states its convention once. */
+.radix-themes.radix-themes {
   --base-card-surface-box-shadow: 0 0 0 1px var(--site-enclosure-border);
   --base-card-surface-hover-box-shadow: 0 0 0 1px var(--site-enclosure-border-hover);
+  --base-card-surface-active-box-shadow: 0 0 0 1px var(--site-enclosure-border-hover);
 }
 
 /* ---- Markdown -------------------------------------------------------- */
