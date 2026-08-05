@@ -221,6 +221,21 @@ describe('the props table', () => {
     )).toBeInTheDocument();
   });
 
+  it('says whose words the descriptions are', async () => {
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+
+    // Most of the prose on a Radix wrapper's page is Radix's, in a
+    // pineapple-branded table. Phrased by the KIND of prop rather than by a
+    // count, so it survives this repo writing JSDoc onto its own wrapper props:
+    // a prop that comes from Radix still carries Radix's words afterwards.
+    // "Corrected where" rather than "verbatim" because the extractor overrides
+    // `gapX` and `gapY`, which upstream documents as the opposite axis.
+    expect(within(props).getByText(
+      /Descriptions for the props that come from Radix are Radix's own words, corrected where its types describe a prop wrongly\./,
+    )).toBeInTheDocument();
+  });
+
   it('leaves that sentence off a package with no layout props, and lists the props it does declare', async () => {
     // Real artifact. `live-region` has components and no layout prop on any of
     // them, so the sentence would describe a disclosure that is not on the
@@ -232,6 +247,9 @@ describe('the props table', () => {
     const props = await findPropsSection();
 
     expect(within(props).queryByText(/shared layout props/)).not.toBeInTheDocument();
+    // And nothing is credited to Radix, because none of these descriptions are
+    // Radix's — the same signal decides both sentences.
+    expect(within(props).queryByText(/Radix's own words/)).not.toBeInTheDocument();
     const [table] = within(props).getAllByRole('table');
     expect(within(table).getByRole('rowheader', { name: /^className\b/ })).toBeInTheDocument();
   });

@@ -105,8 +105,14 @@ function PropsBody({ slug }: { slug: string }) {
 
   const radix = bySlug.get(slug)?.radix;
   // Derived, not assumed from "this package wraps Radix": theme wraps Radix and
-  // has no layout prop on it, so the sentence below would be describing a
-  // disclosure that is not on the page.
+  // has no layout prop on it, so the two sentences below would be describing a
+  // disclosure that is not on the page and crediting prose that is not there.
+  //
+  // One signal for both, because it is the same fact twice: a package whose
+  // props carry Radix's shared layout set is a package whose descriptions are
+  // partly Radix's, and the five that carry none of them — icons, live-region,
+  // theme, tokens, use-local-storage — are exactly the ones whose descriptions
+  // are all this repo's own.
   const hasLayoutProps = doc.components.some(
     component => component.props.some(prop => prop.isLayout),
   );
@@ -131,6 +137,19 @@ function PropsBody({ slug }: { slug: string }) {
             term and that page, and it does it without lengthening the button's
             own label, which would drag its accessible name along too. */}
         {hasLayoutProps && ' Every component here also takes Radix Themes\' shared layout props — margin, padding, width, height and position — listed separately under each one below.'}
+        {/* Whose words these are. Most of the prose on a Radix wrapper's page
+            is Radix's, presented in a pineapple-branded table, and nothing said
+            so. Written by the KIND of prop rather than by a count, because the
+            counts are about to move: the JSDoc this repo has yet to write onto
+            its own wrapper props is a separate stream, and when it lands this
+            sentence is still the true one — a prop that comes from Radix still
+            carries Radix's description, and a prop the package declares carries
+            the package's.
+
+            "Corrected where" rather than "verbatim", because they are not
+            verbatim: extract-props.mjs overrides `gapX` and `gapY`, whose
+            upstream JSDoc describes the opposite axis from the one they set. */}
+        {hasLayoutProps && ' Descriptions for the props that come from Radix are Radix\'s own words, corrected where its types describe a prop wrongly.'}
         {radix !== undefined && (
           <>
             {' '}
