@@ -103,15 +103,33 @@ function PropsBody({ slug }: { slug: string }) {
   }
 
   const radix = bySlug.get(slug)?.radix;
+  // Derived, not assumed from "this package wraps Radix": theme wraps Radix and
+  // has no layout prop on it, so the sentence below would be describing a
+  // disclosure that is not on the page.
+  const hasLayoutProps = doc.components.some(
+    component => component.props.some(prop => prop.isLayout),
+  );
 
   return (
     <>
       <Text as="p" size="2" color="gray">
-        {'Generated from each component\'s own types. The standard DOM attributes React passes through are not listed, and neither are '}
+        {/* What the table lists, stated as the rule the extractor actually
+            applies: a prop is here when the package — or the library
+            underneath it — declares it. The claim used to be "the standard DOM
+            attributes React passes through are not listed", which is not true
+            of live-region's own `className` and `id`, and a reader who meets
+            one of those in the table learns the sentence is approximate. */}
+        {'Generated from each component\'s own types: every prop the package, or the library underneath it, declares. The DOM attributes React declares for every element are not listed, and neither are '}
         <code>children</code>
         {' or '}
         <code>ref</code>
         .
+        {/* "Layout props" is vocabulary this section invents, and on Box
+            everything the component exists for — p, m, width, position — sits
+            behind a control labelled with it. Naming them here fixes both the
+            term and that page, and it does it without lengthening the button's
+            own label, which would drag its accessible name along too. */}
+        {hasLayoutProps && ' Every component here also takes Radix Themes\' shared layout props — margin, padding, width, height and position — listed separately under each one below.'}
         {radix !== undefined && (
           <>
             {' '}

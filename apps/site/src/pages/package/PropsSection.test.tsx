@@ -201,6 +201,33 @@ describe('the props table', () => {
     expect(table.closest('.props-table-scroll')).not.toBeNull();
   });
 
+  it('names what a layout prop is, where there are any', async () => {
+    await renderApp(`/components/${FIXTURE_SLUG}`);
+    const props = await findPropsSection();
+
+    // The section invents the term and then labels a collapsed control with
+    // it. On Box that control holds p, m, width and position — everything the
+    // component exists for — while the table above it shows as/asChild/display.
+    expect(within(props).getByText(
+      /shared layout props — margin, padding, width, height and position/,
+    )).toBeInTheDocument();
+  });
+
+  it('leaves that sentence off a package with no layout props, and lists the props it does declare', async () => {
+    // Real artifact. `live-region` has components and no layout prop on any of
+    // them, so the sentence would describe a disclosure that is not on the
+    // page — and it declares `className` and `id` ITSELF, which is why the
+    // paragraph claims "the DOM attributes React declares for every element"
+    // rather than "the standard DOM attributes React passes through": the
+    // second one is false right here.
+    await renderApp('/components/live-region');
+    const props = await findPropsSection();
+
+    expect(within(props).queryByText(/shared layout props/)).not.toBeInTheDocument();
+    const [table] = within(props).getAllByRole('table');
+    expect(within(table).getByRole('rowheader', { name: /^className\b/ })).toBeInTheDocument();
+  });
+
   it('links the primitive underneath, from the registry rather than a written URL', async () => {
     await renderApp(`/components/${FIXTURE_SLUG}`);
     const props = await findPropsSection();
