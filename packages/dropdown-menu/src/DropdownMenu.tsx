@@ -265,6 +265,12 @@ export namespace DropdownMenu {
     );
   }
 
+  // `& {}` on this member and on `Label`, `Group` and `Separator` is not a
+  // leftover: those four declare ZERO own props today (everything they take is
+  // React's or Radix's shared layout set), and the empty overlay is where the
+  // JSDoc goes on the day one of them gains one. Written the same way as the
+  // nine members that have props, so "no own props" reads as a measurement
+  // rather than as a member somebody forgot.
   export type TriggerProps = RadixTriggerProps & {};
 
   /**
