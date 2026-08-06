@@ -157,14 +157,18 @@ const NOT_A_SOURCE = /\.(?:test|stories)\.[cm]?[jt]sx?$/;
 // written in two files.
 const MAX_DEFAULT_LENGTH = 11;
 
-const UNDESCRIBED_BY_DESIGN = new Map([
-  [
-    'text-field',
-    're-exports Radix\'s compound `TextField` namespace whole — which is what keeps '
-    + '`TextField.RootProps` and `TextField.SlotProps` resolving for consumers — so it has no '
-    + 'props type of its own to hang JSDoc on',
-  ],
-]);
+// Empty, and worth keeping rather than deleting: the two checks it drives are
+// both live, and the second one is what emptied it. `text-field` sat here
+// because it was a bare `export { TextField } from '@radix-ui/themes'` with no
+// props type of its own to hang JSDoc on; it now wraps each member in an
+// intersection overlay like every other package, so all thirteen rows are
+// described and the exemption would be a lie.
+//
+// The bidirectional check below is the reason that could not be forgotten: a
+// package that describes even ONE prop while listed here fails, so an exemption
+// cannot outlive its premise quietly.
+/** @type {Map<string, string>} */
+const UNDESCRIBED_BY_DESIGN = new Map();
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 

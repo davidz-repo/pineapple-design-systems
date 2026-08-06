@@ -26,9 +26,15 @@ import { TextField } from '@pineappleui/text-field';
 
 | Export | What it is |
 | --- | --- |
-| `TextField` | Radix's compound namespace, re-exported whole — this package adds no third part to it. |
+| `TextField` | The compound namespace — the same two parts Radix ships, and no third one. |
 | `TextField.Root` | The field. A `<div>` wrapping a native `<input>`; takes every prop Radix's `Root` takes, including `ref`. |
 | `TextField.Slot` | An adornment rendered inside the field — an icon, a unit, a prefix. `side` places it left or right. |
+
+Each part is wrapped rather than re-exported, and the wrapper adds no behaviour: its whole job is to
+intersect Radix's props type with a local one that carries a sentence per prop, so the table below
+has no blank cells. The restatement is checked rather than trusted — every prop is an indexed access
+into Radix's own type, so a prop Radix renames or drops is a build error here rather than a stale
+row on the site.
 
 The prop types ride along on the namespace as `TextField.RootProps` and `TextField.SlotProps`, so
 consumers do not import those from Radix either. This README does not hand-write the prop set:

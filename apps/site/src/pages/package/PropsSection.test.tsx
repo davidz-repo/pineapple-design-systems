@@ -36,12 +36,22 @@ const {
   MISSING_SLUG,
   PENDING_SLUG,
   FAILING_SLUG,
+  UNDESCRIBED_SLUG,
   chunkFailure,
   fixtureDoc,
+  undescribedDoc,
 } = vi.hoisted(() => ({
   // A Radix wrapper, so the section's link to the primitive underneath renders.
   FIXTURE_SLUG: 'box',
   MISSING_SLUG: 'card',
+  // A package whose own props are ALL undescribed. This used to be `text-field`
+  // for real, and is now a fixture for the same reason `box` above is one: no
+  // package in the repo is in this state any more. `check-props-coverage.mjs`
+  // is what keeps it that way, and its `UNDESCRIBED_BY_DESIGN` map is the door
+  // back in — so the state is reachable by decision, and the page still has to
+  // say something when a reader arrives on it. Also a Radix wrapper, because
+  // the sentence names the primitive and links to it.
+  UNDESCRIBED_SLUG: 'text-area',
   // A load that never settles, and one that rejects the way a stale chunk hash
   // does after a redeploy.
   PENDING_SLUG: 'badge',
@@ -101,6 +111,31 @@ const {
       { name: 'Widget.Empty', description: '', props: [] },
     ],
   },
+  // Every OWN prop bare, and a layout prop that is described — which is the real
+  // shape of the case, not a simplification of it. Radix documents all 41 of its
+  // layout props, so the disclosure below still draws a Description column while
+  // the table above it does not, and that contrast is exactly why the sentence
+  // has to say "this package's OWN props" rather than "these tables".
+  undescribedDoc: {
+    slug: 'text-area',
+    components: [
+      {
+        name: 'TextArea',
+        description: 'A multi-line text input.',
+        props: [
+          { name: 'resize', type: '"none" | "vertical"', required: false, description: '', isLayout: false },
+          { name: 'size', type: '"1" | "2" | "3"', required: false, default: '"2"', description: '', isLayout: false },
+          {
+            name: 'mt',
+            type: 'string',
+            required: false,
+            description: 'Margin top.',
+            isLayout: true,
+          },
+        ],
+      },
+    ],
+  },
 }));
 
 vi.mock('../../content', async (importOriginal) => {
@@ -116,6 +151,7 @@ vi.mock('../../content', async (importOriginal) => {
     [MISSING_SLUG, Promise.resolve(null)],
     [PENDING_SLUG, new Promise(() => {})],
     [FAILING_SLUG, failing],
+    [UNDESCRIBED_SLUG, Promise.resolve(undescribedDoc)],
   ]);
   return {
     ...actual,
@@ -323,15 +359,24 @@ describe('the props table', () => {
   });
 
   it('says a table has no Description column BEFORE the reader meets it', async () => {
-    // Real artifact. `text-field` is the one package whose own props carry no
-    // JSDoc — it re-exports Radix's compound namespace whole, so there is no
-    // props type of its own to write one into — and since every sibling gained
-    // descriptions it went from 9-of-16 tables without the column to the only
-    // one, which reads as an unfinished page rather than as a decision.
+    // FIXTURE doc, and it did not used to be: this was the real `text-field`,
+    // the one package whose own props carried no JSDoc, back when it re-exported
+    // Radix's compound namespace whole. It now wraps each member and describes
+    // all thirteen, so no package in the repo is in this state and the real
+    // artifact can no longer stand for it — the same reason `box` above is a
+    // fixture.
+    //
+    // Worth keeping rather than deleting with its last subject. The page's
+    // condition is derived from the artifact (see `hasUndescribedOwnTable`),
+    // never from a slug, precisely so it survives text-field gaining
+    // descriptions and returns for whatever lands here next — and
+    // `UNDESCRIBED_BY_DESIGN` in `scripts/check-props-coverage.mjs` is the door
+    // that lets something land here on purpose. Deleting this would leave that
+    // door open onto a column-less table with no sentence explaining it.
     //
     // In the INTRO paragraph, which is the claim: after the column-less table
     // an explanation is worth nothing.
-    await renderApp('/components/text-field');
+    await renderApp(`/components/${UNDESCRIBED_SLUG}`);
     const props = await findPropsSection();
 
     const note = within(props).getByText(/There is no Description column on this package's own props/);
@@ -345,7 +390,7 @@ describe('the props table', () => {
     // ambiguity this fixes lives in one word.
     expect(note).toHaveTextContent(
       'There is no Description column on this package\'s own props either: it passes Radix\'s '
-      + 'TextField through whole, so there is no props type of its own to describe them in. '
+      + 'TextArea through whole, so there is no props type of its own to describe them in. '
       + 'Radix\'s own documentation, linked below, is where they are described.',
     );
     // And the sentence it has to be read against is the one immediately before
