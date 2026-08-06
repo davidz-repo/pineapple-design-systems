@@ -1,7 +1,7 @@
 # @pineappleui/button
 
 The button primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a thin wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a thin wrapper over
 [`@radix-ui/themes`](https://www.radix-ui.com/themes)' `Button`, so call sites reach for the design
 system rather than importing Radix directly.
 
@@ -9,7 +9,7 @@ No styling of its own, no state, no effects: it renders one element and passes e
 through. The point is the indirection — a change to the default variant, or a swap of the layer
 underneath, happens here once instead of at every import site. A button whose whole content is a
 glyph is
-[`@pineappleui/icon-button`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/icon-button).
+[`@pineappleui/icon-button`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/icon-button).
 
 ```bash
 npm install @pineappleui/button

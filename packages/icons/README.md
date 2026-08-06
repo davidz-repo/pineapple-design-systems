@@ -1,7 +1,7 @@
 # @pineappleui/icons
 
 The icon primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a thin wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a thin wrapper over
 [Lucide](https://lucide.dev) that fixes the size scale and the accessibility default, so call
 sites never reach for `lucide-react` directly.
 

@@ -1,13 +1,13 @@
 # @pineappleui/stack
 
 The vertical layout primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a
 [`@radix-ui/themes`](https://www.radix-ui.com/themes) `Flex` whose `direction` is narrowed to
 the column variants, so the name and the behaviour cannot drift apart.
 
 A stack that can be told to lay out horizontally is a `Flex` with a misleading name. Constraining
 the prop is what makes "stack" mean something at a glance; rows are
-[`@pineappleui/inline`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/inline).
+[`@pineappleui/inline`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/inline).
 
 ```bash
 npm install @pineappleui/stack

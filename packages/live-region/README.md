@@ -1,7 +1,7 @@
 # @pineappleui/live-region
 
 The `aria-live` announcement wrapper for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — one reviewed
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — one reviewed
 primitive for every screen-reader announcement region, so politeness, atomicity and the
 stay-mounted rule live in one place instead of being hand-rolled per feature.
 

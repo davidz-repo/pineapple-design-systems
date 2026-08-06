@@ -1,14 +1,14 @@
 # @pineappleui/text
 
 The body-copy primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a thin wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a thin wrapper over
 [`@radix-ui/themes`](https://www.radix-ui.com/themes)' `Text`, so call sites reach for the design
 system rather than importing Radix directly.
 
 No styling of its own, no state, no effects: it renders one element and passes everything
 through. The point is the indirection — a type-scale change or a swap of the layer underneath
 happens here once instead of at every import site. Headings are
-[`@pineappleui/heading`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/heading).
+[`@pineappleui/heading`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/heading).
 
 ```bash
 npm install @pineappleui/text

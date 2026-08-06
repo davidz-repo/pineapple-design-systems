@@ -1,7 +1,7 @@
 # @pineappleui/badge
 
 The badge primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a thin wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a thin wrapper over
 [`@radix-ui/themes`](https://www.radix-ui.com/themes)' `Badge`, so call sites reach for the design
 system rather than importing Radix directly.
 

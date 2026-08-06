@@ -1,4 +1,4 @@
-# pineapple-design-systems
+# pineapple-design-system
 
 Monorepo for **`@pineappleui`** — a presentational React design system, extracted from a
 private product monorepo and published to the public npm registry.

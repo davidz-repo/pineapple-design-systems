@@ -111,7 +111,7 @@ export function Playground({ story, entry }: PlaygroundProps) {
   // Through useHref, not `location.pathname` raw: useLocation reports the path
   // with the router's basename stripped, and this app's base is '/' only while
   // the custom domain is attached (vite.config.ts documents the fallback to
-  // '/pineapple-design-systems/'). useHref puts the basename back, so the
+  // '/pineapple-design-system/'). useHref puts the basename back, so the
   // copied link keeps the segment that makes it resolve.
   const href = useHref(location);
   const [linkStatus, setLinkStatus] = useState('');

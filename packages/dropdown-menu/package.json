@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/davidz-repo/pineapple-design-systems.git",
+    "url": "https://github.com/davidz-repo/pineapple-design-system.git",
     "directory": "packages/dropdown-menu"
   },
   "scripts": {

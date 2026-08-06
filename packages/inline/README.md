@@ -1,14 +1,14 @@
 # @pineappleui/inline
 
 The horizontal layout primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a
 [`@radix-ui/themes`](https://www.radix-ui.com/themes) `Flex` whose `direction` is narrowed to the
 row variants and whose `wrap` defaults to wrapping.
 
 The default is the interesting part. A row of chips, tags or buttons that does not wrap overflows
 its container at the first narrow viewport, and overflow is the failure nobody sees on a desktop
 screen. Columns are
-[`@pineappleui/stack`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/stack).
+[`@pineappleui/stack`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/stack).
 
 ```bash
 npm install @pineappleui/inline
