@@ -43,15 +43,22 @@ scripts/
   check-ci-invariants.mjs                                       the cache's two keys pair, the guard lists agree, scripts/ stays linted
   check-ref-tests.mjs                                           a package that forwards a ref proves the ref arrives
   check-peer-placement.mjs                                      a peer of any workspace is in no publishable package's dependencies or optionalDependencies
+Makefile                                                        the two local dev servers; wraps each app's own npm script
 ```
 
 ## Working on it
 
 ```bash
-npm install
+make ladle            # the story gallery on http://localhost:6006
+make site             # designpineapple.com on http://localhost:6007
 npm run verify        # the pre-build guards, then build + lint + test + typecheck, then the rest
-npm run ladle -w @pineappleui/gallery   # the story gallery on http://localhost:6006
 ```
+
+Both `make` targets install first when `package-lock.json` has moved, so a dependency added
+in any workspace does not surface later as an unresolved import from whichever app you
+started next. Each wraps that app's own npm script (`npm run ladle -w @pineappleui/gallery`,
+`npm run dev -w @pineappleui/site`), which stays the place to change how it starts. Checks
+stay on npm — nothing in the build, test or release path goes through `make`.
 
 The gallery resolves every `@pineappleui/*` import to that package's `src/`, not to its
 `dist/` — so a component edit shows up on reload with no build in between. Its `build` task
