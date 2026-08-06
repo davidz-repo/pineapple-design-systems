@@ -1,16 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Pineapple Design — presentational React components on Radix Themes">
   <title>Pineapple Design — presentational React components on Radix Themes</title>
   <!--
-    SOURCE for /og-card.png, which is what index.html actually points og:image
-    at: link scrapers (Slack, iMessage, Twitter, LinkedIn) do not rasterize SVG,
-    so the shipped card has to be a PNG. This file is the thing to edit; the PNG
-    is a render of it.
+    SOURCE for /og-card-v2.png, which is what index.html actually points
+    og:image at: link scrapers (Slack, iMessage, Twitter, LinkedIn) do not
+    rasterize SVG, so the shipped card has to be a PNG. This file is the thing
+    to edit; the PNG is a render of it.
 
-    Regenerate after editing, from apps/site/public/ (one-shot, deliberately not
-    a dependency of this workspace — a card redrawn twice a year does not earn a
-    build step):
+    THE OUTPUT IS VERSIONED, and the version is the point. A scraper caches a
+    card by its URL and holds it for weeks, storing the fetched BYTES rather
+    than re-reading the file — so re-rendering over the same path leaves every
+    preview already in the wild showing the old artwork, with no way to ask for
+    the new one. A new filename is the whole cache-bust. Deleting the previous
+    PNG is free for the same reason: what is cached is the image data, not the
+    path. So when the drawing changes materially, render the NEXT version,
+    delete the one before it, and update the absolute og:image/twitter:image
+    URLs in apps/site/index.html — which cannot follow a rename on their own —
+    all in the one commit.
 
-      npx sharp-cli -i og-card.svg -o og-card.png
+    The render, from apps/site/public/ (one-shot, deliberately not a dependency
+    of this workspace — a card redrawn twice a year does not earn a build step),
+    with the NEXT version number in the output name — v2 is the one on disk:
+
+      npx sharp-cli -i og-card.svg -o og-card-v3.png
 
     Both the geometry and the palette are duplicated from favicon.svg (and from
     apps/site/src/components/PineappleMark.tsx) on purpose: these are static
@@ -54,27 +65,43 @@
     <path id="og-pineapple-pip" d="M0 -3 L2.5 0 L0 3 L-2.5 0 Z" />
   </defs>
 
-  <!-- The name sets on ONE line, and the size is what pays for it. The mark
-       occupies x 813 to 1147 (see its transform above) and the column starts at
-       88, so a single line has 702px. "Pineapple Design" measures 731px at
-       font-size 88 — 29px too wide, ending at x 819 and biting into the
-       pineapple's box. It is NOT the near-miss it looks like from the old name:
-       "Pineapple Design Systems" was 1114px, which is why that one set on two
-       lines of 415px and 675px.
+  <!-- The name sets on ONE line, and the size is what pays for it. MEASURE THE
+       COLUMN AGAINST THE MARK'S INK, NOT ITS TRANSFORM BOX — getting that wrong
+       is what cost this card a type size. The group above is `translate(830)
+       scale(9.4)`, so its box runs x 813 to 1147, but the drawing inside spans
+       only x 8..24 of a 32-unit viewBox and the rest of that box is empty
+       padding. Through the transform, the body's rect edge plus its 5.2px
+       half-stroke puts the leftmost INK at 891.6 (the crown's leftmost point is
+       926.7, inboard of it) and the rightmost at 1069.2. So a single line
+       starting at x 88 has ~803px to the mark's ink, not the 702px this note
+       used to claim.
 
-       84 rather than 88, therefore, which brings the line to 698px and lands it
-       at x 786 with a 27px gutter before the mark. A 4.5% step is invisible on a
-       card nobody sees next to its predecessor, and it is the cheaper of the two
-       ways out: breaking a TWO-WORD name across two lines reads as an accident,
-       where the three-word one broke at a real seam. The old note that one line
-       would mean "about 55px" was about that longer string and no longer binds.
+       88 is what the card uses. "Pineapple Design" advances 731.47px at that
+       size, ending at x 819.5 with a 72px gutter before the mark's ink — the
+       render agrees, its last inked column is 814, the difference being the
+       final `n`'s right side bearing. The earlier drop to 84 was measured
+       against 813, the transform box, and was never needed: nothing was going to
+       touch. For scale, "Pineapple Design Systems" was 1114px at 88, which is
+       why THAT name set on two lines of 415px and 675px; breaking a two-word
+       name across two lines would read as an accident where the three-word one
+       broke at a real seam.
 
-       Every baseline below therefore moved down, because the block lost the 92px
-       second line: the ink now spans y 160 to 458 and centres on 309, which is
-       the card's own centre (the two-line block sat at 313, against the mark's
-       345). The gaps between the rows are unchanged — 98 from the eyebrow to the
-       name, 68 to the first sub line, 44 between the sub lines, 64 to the URL —
-       so only the block's position moved, not its rhythm.
+       THE BASELINES DID NOT MOVE for 84 -> 88, and did not need to: the block's
+       ink is topped by the eyebrow's cap line and floored by the URL's
+       descenders, and the name is neither. Confirmed on the render rather than
+       assumed — the text column's ink measures y 159 to 456, centre 307.5, at
+       BOTH sizes; only the name row's own extent changes (y 215..291 at 84,
+       212..292 at 88), which stays well inside that span.
+
+       Losing the second line at the rename moved the block, but not the way this
+       note used to say ("every baseline moved down"): the three rows BELOW the
+       name moved UP by 50 (393->343, 437->387, 501->451) and the eyebrow and the
+       name moved DOWN by 42 (135->177, 233->275). The net is a re-CENTRING, not
+       a shift — nominally y 160 to 458, centring on 309, the card's own centre,
+       where the two-line block sat at 313 against the mark's 345. The gaps
+       between the rows are unchanged — 98 from the eyebrow to the name, 68 to
+       the first sub line, 44 between the sub lines, 64 to the URL — so only the
+       block's position moved, not its rhythm.
 
        The eyebrow still does not read "REACT DESIGN SYSTEM": the name under it
        ends in "Design", so the card would say that word twice in two type sizes.
@@ -83,7 +110,7 @@
     <text x="88" y="177" font-size="24" font-weight="700" letter-spacing="4" fill="#ab6400">
       REACT COMPONENTS
     </text>
-    <text x="88" y="275" font-size="84" font-weight="700">Pineapple Design</text>
+    <text x="88" y="275" font-size="88" font-weight="700">Pineapple Design</text>
     <text x="88" y="343" font-size="32" fill="#6B6157">Thin, typed wrappers over Radix Themes,</text>
     <text x="88" y="387" font-size="32" fill="#6B6157">published under the @pineappleui scope.</text>
     <text x="88" y="451" font-size="26" fill="#94897C">designpineapple.com</text>

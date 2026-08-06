@@ -693,16 +693,23 @@ body {
      control set and survived the rename untouched (confirmed at two widths:
      the same 207.8 falls out at 390px and at 484px). The divisor is the LABEL:
      it is that string's px of width per px of type, so it is the one number a
-     new name invalidates. "Pineapple Design Systems" was 229/17.6 = 13.01, and
-     the rule divided by 13; "Pineapple Design" is 149.9/17.6 = 8.51, so it
-     divides by 8.5. Left at 13 the clamp went on sizing the row for a name a
-     third longer than the one in it — 10.4px at 390px with 58px of the row
-     standing empty.
+     new name invalidates. "Pineapple Design Systems" measured 228.594px at
+     17.6px, i.e. 12.9883, and the rule divided by 13; "Pineapple Design"
+     measures 149.859px, i.e. 8.5147, so it divides by 8.5. Left at 13 the clamp
+     went on sizing the row for a name a third longer than the one in it —
+     10.4px at 390px with 58px of the row standing empty.
 
-     Rounding the divisor DOWN (8.51 to 8.5, as 13.01 was to 13) sizes the label
-     a hair large and spends a hair of the slack, which is the safe direction:
-     it errs toward filling the row rather than toward a gap that reads as a
-     mistake.
+     THE TWO ROUNDINGS WENT OPPOSITE WAYS, and the direction is the whole point.
+     13 is 12.9883 rounded UP; 8.5 is 8.5147 rounded DOWN. Those are not the
+     same move and they do not have the same effect. A LARGER divisor asks the
+     clamp for less type, so the label comes out a hair small and the row GAINS
+     slack — the safe direction. A SMALLER one asks for more, so the label comes
+     out a hair large and the row SPENDS slack. 8.5 is the spending one, and it
+     is right here only because there is slack to spend from: the 0.0147 it
+     discards is worth a fraction of a pixel of label against the 11.59px of
+     cushion measured at 390px below. "The old name rounded the same way" was
+     never the reason and was not even true; a rename that lands on a thinner
+     cushion should round UP instead.
 
      The slope leaves ~12px of slack rather than filling the row exactly —
      measured 11.65px at 340 and 360, 11.59px at 390, 12.12px at 405. Sized to
@@ -712,11 +719,18 @@ body {
      rounding going its way. The slack is the difference between one row and
      two on the commonest phone width there is.
 
-     The bound is 10px and it is a LEGIBILITY floor, not a fit one. The shorter
-     name reaches it later than the long one did: below about 340px of window
-     (325px of header content) the clamp is pinned at 10px and the row wraps to
-     two, against 373px before. .site-header is built to survive that (flex-wrap
-     plus min-height, not height). One row at any cost would mean single digits.
+     The bound is 10px and it is a LEGIBILITY floor, not a fit one. TWO
+     THRESHOLDS LIVE DOWN HERE, on two different rulers, and they are different
+     numbers — this note used to give one number for both. The clamp pins at
+     10px once the header's CONTENT BOX is under 304.6px (the rule read
+     backwards: 10 x 8.5 + 219.6), which is about 339.8px of window. The ROW
+     does not wrap until 320px of WINDOW: measured, 330px and 340px each hold
+     one row at 62.6px, and 320px holds two at 105.5px. So from roughly 340px
+     down the label sits at its floor while the header is still a single row,
+     and the wrap arrives 20px later. The shorter name reaches both later than
+     the long one did. .site-header is built to survive the wrap when it comes
+     (flex-wrap plus min-height, not height). One row at any cost would mean
+     single digits.
 
      Literal px here, against this file's habit of tokens, for two reasons: the
      thing being fitted INTO is a box measured in px; and a floor for legibility

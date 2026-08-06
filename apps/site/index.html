@@ -7,9 +7,14 @@
     <!-- The same sentence serves description, og:description and
          twitter:description below, and it deliberately does NOT contain the
          words "design system": every surface that renders it renders the title
-         directly above it, so a search snippet that opened "A presentational
-         React design system" spent its first four words repeating the line
-         above. It names what the packages ARE instead. -->
+         directly above it, and the title ends in "Design", so a search snippet
+         opening "A presentational React design system" says that word twice in
+         two lines. ONE word overlaps now, not the two the old "Pineapple Design
+         Systems" repeated — but it is the word the title ends on and the word
+         the snippet's first line leads with, i.e. the two places a reader is
+         actually looking. It names what the packages ARE instead. (Same
+         reasoning as the title suffix in src/components/pageIdentity.ts and the
+         eyebrow in public/og-card.svg; all three are copies of one decision.) -->
     <meta
       name="description"
       content="Thin, typed React wrappers over Radix Themes, published independently under the @pineappleui scope."
@@ -31,16 +36,27 @@
          much larger change than a link preview justifies. og:image is an
          absolute URL because scrapers resolve it without a document base, and
          a PNG because none of them rasterize SVG — apps/site/public/og-card.svg
-         is its source. -->
+         is its source. The `-v2` in that URL is a cache-bust and is meant to
+         keep moving: scrapers hold a card's BYTES against its URL for weeks, so
+         a corrected card only reaches them under a name they have not seen.
+         That SVG's header comment owns the procedure.
+
+         og:title and twitter:title carry the SUFFIX, matching the home page's
+         own document.title. The bare name reads like the name of a studio, and
+         an unfurl often shows title and image alone — Slack and iMessage both
+         drop the description on a narrow card — so the title is the only line
+         guaranteed to say what this is. og:site_name stays the bare name,
+         because naming the site is exactly what site_name is for; the two are
+         not duplicates of each other. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Pineapple Design" />
-    <meta property="og:title" content="Pineapple Design" />
+    <meta property="og:title" content="Pineapple Design — React components on Radix Themes" />
     <meta
       property="og:description"
       content="Thin, typed React wrappers over Radix Themes, published independently under the @pineappleui scope."
     />
     <meta property="og:url" content="https://designpineapple.com/" />
-    <meta property="og:image" content="https://designpineapple.com/og-card.png" />
+    <meta property="og:image" content="https://designpineapple.com/og-card-v2.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -49,12 +65,12 @@
       content="Pineapple Design — thin, typed wrappers over Radix Themes, published under the @pineappleui scope."
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Pineapple Design" />
+    <meta name="twitter:title" content="Pineapple Design — React components on Radix Themes" />
     <meta
       name="twitter:description"
       content="Thin, typed React wrappers over Radix Themes, published independently under the @pineappleui scope."
     />
-    <meta name="twitter:image" content="https://designpineapple.com/og-card.png" />
+    <meta name="twitter:image" content="https://designpineapple.com/og-card-v2.png" />
   </head>
   <body>
     <div id="root"></div>
