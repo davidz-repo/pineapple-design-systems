@@ -129,7 +129,10 @@ site generates the full table from those same types —
 - **`ArrowUp` on a closed trigger opens the menu at its last item.** The other APG requirement Radix
   leaves out. It is implemented by handing the question back to Radix's own last-enabled-item logic,
   so a disabled last item is skipped. One consequence worth knowing: a real `keydown` for `End` is
-  dispatched on the panel to do it, and a consumer's own `Content.onKeyDown` will see it.
+  dispatched on the panel to do it, and a consumer's own `Content.onKeyDown` will see it. Like
+  `Enter`, `Space` and `ArrowDown`, it is refused when the `Trigger` is `disabled` — read off the
+  prop rather than the DOM, which is what makes it hold for a trigger that stays focusable and
+  carries its disabled state as `aria-disabled`.
 - **`PageUp` and `PageDown` alias `Home` and `End`.** They jump to the first and last enabled item
   rather than paging a scrolled panel, which is Radix's behaviour and the APG's option. Worth
   knowing because a keyboard reader in a long menu expects paging and gets the ends.

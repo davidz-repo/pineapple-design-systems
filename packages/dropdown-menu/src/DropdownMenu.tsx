@@ -461,7 +461,23 @@ export namespace DropdownMenu {
         ref={setTriggerRef}
         onKeyDown={(event) => {
           onKeyDown?.(event);
-          if (event.defaultPrevented || event.key !== 'ArrowUp') {
+          // `rest.disabled`, not the DOM, because that is what Radix reads: its
+          // own trigger handler opens with `if (disabled) return` before it
+          // looks at the key (`@radix-ui/react-dropdown-menu`, the `onKeyDown`
+          // it composes). Without the same guard here, `Enter`, `Space` and
+          // `ArrowDown` are refused on a disabled trigger and `ArrowUp` alone
+          // opens the menu — the one key this package added, behaving unlike
+          // the three it did not.
+          //
+          // Not merely a jsdom artifact. A real `disabled` button fires no
+          // keydown at all, so this is unreachable through one — but a trigger
+          // stays focusable, and keeps firing keydown, whenever the disabled
+          // state is carried some other way: `aria-disabled` with `disabled`
+          // passed here for Radix's benefit, or an `asChild` child that takes
+          // the prop and renders something other than a `<button disabled>`.
+          // Keeping a disabled control focusable is the accessible pattern, not
+          // an edge case, which is exactly why Radix guards on the prop.
+          if (event.defaultPrevented || event.key !== 'ArrowUp' || rest.disabled === true) {
             return;
           }
           // PATCH 1 of 2 — the APG lists ArrowUp on a menu button as "open and
