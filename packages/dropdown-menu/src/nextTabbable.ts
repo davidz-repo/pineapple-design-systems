@@ -17,7 +17,7 @@
 // layer is up. Landing focus on one of those would be visibly nothing.
 //
 // WHAT IT DOES NOT DO — each of these is a real browser rule this approximates,
-// and all four are published in the package README so a consumer can tell:
+// and all five are published in the package README so a consumer can tell:
 //
 //   - POSITIVE `tabindex` ORDERING IS IGNORED. The browser visits `tabindex="1"`
 //     before every `tabindex="0"`; this returns document order among everything
@@ -31,6 +31,23 @@
 //   - IFRAMES ARE NOT ENTERED, and neither is the browser's own chrome, which is
 //     why running off either end CLAMPS (see `nextTabbableFrom`) instead of
 //     handing focus somewhere unrepresentable.
+//   - CSS VISIBILITY IS NOT READ, and neither is an ANCESTOR's `hidden`.
+//     `isUnreachable` tests the candidate's own `hidden` ATTRIBUTE, and the
+//     walker returns `FILTER_SKIP` rather than `FILTER_REJECT`, which still
+//     descends — so a `<button>` inside a `display: none` accordion, a
+//     `visibility: hidden` drawer or a `[hidden]` ANCESTOR is still a candidate.
+//     A layout-dependent test (`offsetParent`, `checkVisibility()`) cannot run
+//     here: jsdom does no layout, so it would answer "invisible" for every
+//     element in this package's own suite.
+//
+// The last two of those five are why `focusNextTabbableFrom` VERIFIES THE
+// LANDING rather than trusting the candidate. A browser's `.focus()` is a no-op
+// on an element it considers unreachable, and by the time this runs the panel
+// that held focus is already gone — so an unchecked `.focus()` leaves focus on
+// `<body>`, which is a WCAG 2.4.3 failure and restarts the reader's next `Tab`
+// at the top of the document. Checking where focus actually went converts every
+// divergence between this scan and the browser — these two, and any future one —
+// from lost focus into the documented fallback.
 
 /** Which way `Tab` was going: forward, or `Shift+Tab` backward. */
 export type TabDirection = 'forward' | 'backward';
@@ -53,6 +70,27 @@ export function nextTabbableFrom(from: HTMLElement, direction: TabDirection): HT
     return null;
   }
   return candidates[index + (direction === 'forward' ? 1 : -1)] ?? null;
+}
+
+/**
+ * Move focus one place in `direction` from `from`, and return the element it
+ * ended up on.
+ *
+ * Clamped at both ends: off the end of the document the honest destination is
+ * the browser's own UI, and no page element stands in for it, so focus stays on
+ * `from`. Verified at the end: an element this scan accepted can still refuse
+ * focus in a real browser (see the fifth limit above), and `from` — the trigger,
+ * at the one call site — is a destination that demonstrably takes focus, because
+ * it is what the reader just came from.
+ */
+export function focusNextTabbableFrom(from: HTMLElement, direction: TabDirection): HTMLElement {
+  const destination = nextTabbableFrom(from, direction) ?? from;
+  destination.focus();
+  if (from.ownerDocument.activeElement === destination) {
+    return destination;
+  }
+  from.focus();
+  return from;
 }
 
 /**

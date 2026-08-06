@@ -1,9 +1,18 @@
 import type { ComponentPropsWithRef, Ref, RefCallback, RefObject } from 'react';
-import { createContext, use, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { DropdownMenu as RadixDropdownMenu } from '@radix-ui/themes';
 
-import { nextTabbableFrom } from './nextTabbable';
+import { focusNextTabbableFrom } from './nextTabbable';
 
 import type { TabDirection } from './nextTabbable';
 
@@ -29,6 +38,16 @@ import type { TabDirection } from './nextTabbable';
 //
 // A reviewer who flags the statefulness gets this comment, not a refactor. Do
 // not "simplify" `Root` back to stateless: the `Tab` patch goes with it.
+//
+// `Root` holds one more thing for the same reason: the PENDING REQUEST (see
+// `MenuRequest`). Both patches record what a keystroke asked for and act on it
+// later, once the panel has opened or closed — and a request that is only ever
+// held in a ref outlives the keystroke that made it, because a `Root` whose
+// consumer refuses to open or close renders for nothing and so nothing ever
+// observes the refusal. Scoping the request to the transition it asked for is
+// what keeps `Escape` returning focus to the trigger after a refused `Tab`, and
+// keeps a pointer open from inheriting a refused `ArrowUp`'s "land on the last
+// item".
 //
 // One side effect worth knowing: because `Root` now ALWAYS hands Radix an `open`
 // prop, Radix's own uncontrolled-to-controlled development warning can never
@@ -78,22 +97,55 @@ type RadixSeparatorProps = ComponentPropsWithRef<typeof RadixDropdownMenu.Separa
 type RadixSubTriggerProps = ComponentPropsWithRef<typeof RadixDropdownMenu.SubTrigger>;
 type RadixSubContentProps = ComponentPropsWithRef<typeof RadixDropdownMenu.SubContent>;
 
-/** Which item the panel should focus when it opens by keyboard. */
-type OpenIntent = 'first' | 'last';
+/**
+ * What a keystroke asked the panel to do, held from the keystroke until the
+ * panel gets there. Both patches need one: `ArrowUp` has to say "land on the
+ * last item" before the panel that will do it exists, and `Tab` has to say
+ * "focus was leaving, this way" before the panel that holds focus is gone.
+ *
+ * `wantsOpen` is what makes a request CHECKABLE, and it is why this is a request
+ * rather than a bare direction. One commit after it is made, the panel either is
+ * in the state the request asked for — the transition happened, and the handler
+ * that consumes the request has run or is about to — or it is not, and the
+ * request is dropped instead of being honoured by some later, unrelated open or
+ * close. A `Root` is allowed to refuse: a controlled consumer that ignores
+ * `onOpenChange(false)` is a menu that will not close, which is legal.
+ */
+type MenuRequest
+  = | {
+    wantsOpen: true;
+    /** Which end of the list the open should land on. */
+    landOn: 'last';
+  }
+  | {
+    wantsOpen: false;
+    /** Which way `Tab` was going: forward, or `Shift+Tab` backward. */
+    tabDirection: TabDirection;
+  };
 
 /**
- * The one piece of state this package holds, shared from `Root` down to
- * `Trigger` and `Content`. Private — it is not exported, and no member takes it
- * as a prop.
+ * The state this package holds, shared from `Root` down to `Trigger`, `Content`
+ * and `SubContent`. Private — it is not exported, and no member takes it as a
+ * prop.
  */
 interface MenuState {
-  /** Open or close the panel, honouring a controlled `open` prop. */
-  setOpen: (open: boolean) => void;
   /**
-   * Set by `Trigger` when a key implies which end of the list to land on, read
-   * and cleared by `Content` the moment focus enters the panel.
+   * Open or close the panel, honouring a controlled `open` prop, and record what
+   * the keystroke asking for it needs done when the panel gets there.
+   *
+   * Also where a request from an EARLIER interaction is dropped: every open and
+   * close Radix reports arrives here, so an `Escape`, an outside press or a
+   * selection that follows a refused `Tab` clears that `Tab`'s direction on its
+   * way through.
    */
-  openIntentRef: RefObject<OpenIntent>;
+  setOpen: (open: boolean, request?: MenuRequest | null) => void;
+  /**
+   * The live request. A ref rather than the state it mirrors because both of its
+   * readers run after the render that could have closed over it: `onEntryFocus`
+   * fires from inside `FocusScope`'s mount effect, and `onCloseAutoFocus` fires
+   * from a timeout scheduled while `Content` was being unmounted.
+   */
+  requestRef: RefObject<MenuRequest | null>;
   /**
    * The trigger's DOM node, which is where the `Tab` patch measures the next
    * tabbable element FROM. Kept as a real reference rather than re-derived from
@@ -101,7 +153,32 @@ interface MenuState {
    * the day Radix labels the panel some other way.
    */
   triggerRef: RefObject<HTMLButtonElement | null>;
+  /**
+   * What held focus when the panel last opened — the `Tab` close's answer when
+   * there is no trigger to measure from.
+   *
+   * There has to be one. Radix's own `onCloseAutoFocus` focuses
+   * `triggerRef.current?.focus()` and then `preventDefault()`s UNCONDITIONALLY
+   * (`react-dropdown-menu/dist/index.mjs:114-118`), which cancels `FocusScope`'s
+   * restore for every close — so "let Radix restore it" is not an answer
+   * available to this package. With no trigger in the tree, nothing focuses
+   * anything and focus lands on `<body>`: a WCAG 2.4.3 failure, and the reader's
+   * next `Tab` restarts at the top of the document. `Escape` has the same hole
+   * one layer down, in Radix, where this package cannot reach without taking
+   * focus placement over for every close.
+   */
+  focusBeforeOpenRef: RefObject<HTMLElement | null>;
 }
+
+/**
+ * `useLayoutEffect` where there is a document and a no-op where there is not, the
+ * same shape `@radix-ui/react-use-layout-effect` has — which cannot be imported
+ * here, because it is a transitive of the `@radix-ui/themes` peer and naming it
+ * would be a phantom dependency. Layout rather than passive because `FocusScope`
+ * moves focus into the panel from a PASSIVE effect, and every layout effect in a
+ * commit runs before any passive one; a server has no focus to record.
+ */
+const useFocusRecordEffect = globalThis.document === undefined ? useEffect : useLayoutEffect;
 
 const MenuStateContext = createContext<MenuState | null>(null);
 
@@ -182,6 +259,53 @@ function isPlainTab(event: { key: string; altKey: boolean; ctrlKey: boolean; met
   return event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey;
 }
 
+/**
+ * PATCH 2 of 2 — the APG requires `Tab` to close the menu and move focus onward.
+ * Radix swallows the key, and `FocusScope` swallows it again under `modal`, so
+ * the destination cannot be reached natively and has to be computed. Only the
+ * DIRECTION is recorded here: the panel is still in the DOM and still holds the
+ * focused item, so a scan taken now would answer with a menu item. It runs in
+ * `Content`'s `onCloseAutoFocus`, after `FocusScope`'s unmount timeout, when the
+ * panel is gone and the trap's listeners are with it.
+ *
+ * Shared by `Content` and `SubContent` so that the panel a `Tab` came FROM is
+ * the one that handles it — one level down, `SubContent` is that panel. The
+ * pending direction lands in `Root`'s shared state either way, so the root
+ * panel's `onCloseAutoFocus` is still the single place focus is placed.
+ */
+function panelTabHandler(
+  state: MenuState,
+  consumerOnKeyDown: RadixContentProps['onKeyDown'],
+): NonNullable<RadixContentProps['onKeyDown']> {
+  return (event) => {
+    // WHICH PANEL the keystroke came from. React bubbles a portalled event up
+    // the REACT tree, so a `Tab` pressed inside an open `SubContent` reaches the
+    // ROOT panel's handler too — and by then the submenu's own handler has
+    // already run and prevented it. `event.defaultPrevented` cannot tell that
+    // apart from a consumer's own `Item.onKeyDown` preventing the key, because an
+    // `Item` is deeper in the DOM as well: reading it as "a nested panel did it"
+    // silently ignored every consumer opt-out.
+    //
+    // `target.closest('[data-radix-menu-content]') === currentTarget` answers
+    // "did this keydown originate in MY panel" exactly, and it is Radix's own
+    // test for the same question — the line that decides whether `react-menu`
+    // swallows the key at all. With the origin settled, `defaultPrevented` after
+    // the consumer's handler means what it says: somebody in this panel opted
+    // out, and the only somebody left is the consumer.
+    const { target } = event;
+    const isFromThisPanel = target instanceof Element
+      && target.closest('[data-radix-menu-content]') === event.currentTarget;
+    consumerOnKeyDown?.(event);
+    if (!isFromThisPanel || event.defaultPrevented || !isPlainTab(event)) {
+      return;
+    }
+    state.setOpen(false, {
+      wantsOpen: false,
+      tabDirection: event.shiftKey ? 'backward' : 'forward',
+    });
+  };
+}
+
 // A value namespace, so `DropdownMenu.Item` is the call site and
 // `DropdownMenu.ItemProps` is the type — the shape `TextField.RootProps` already
 // set here. `dist/index.mjs` stops being a pure re-export as a result: a value
@@ -242,19 +366,63 @@ export namespace DropdownMenu {
     const [openState, setOpenState] = useState(defaultOpen ?? false);
     const isOpen = isControlled ? open : openState;
 
-    const setOpen = useCallback((next: boolean) => {
+    // Two copies of one value, each doing a job the other cannot. The REF is what
+    // `Content` reads, because both readers run after the render that could have
+    // closed over the state. The STATE is what guarantees a COMMIT: without it a
+    // controlled `Root` whose consumer ignores `onOpenChange` never re-renders,
+    // so nothing would ever observe the refusal and the request would sit armed
+    // for the next open or close, whenever and whatever that was.
+    const requestRef = useRef<MenuRequest | null>(null);
+    const [request, setRequest] = useState<MenuRequest | null>(null);
+
+    const setOpen = useCallback((next: boolean, nextRequest: MenuRequest | null = null) => {
+      // Radix's own controlled path reports a change, never a no-op, and this
+      // matches it: `ArrowUp` on a trigger whose panel is already open asks for
+      // nothing, so it reports nothing and arms nothing. It does not weaken the
+      // double-close detector — two calls inside one event both read the same
+      // render's `isOpen`.
+      if (next === isOpen) {
+        return;
+      }
+      requestRef.current = nextRequest;
+      setRequest(nextRequest);
       // A controlled Root reports and obeys: the consumer's `open` decides, and
       // this is what keeps `open={false}` closed while the trigger is pressed.
       if (!isControlled) {
         setOpenState(next);
       }
       onOpenChange?.(next);
-    }, [isControlled, onOpenChange]);
+    }, [isControlled, isOpen, onOpenChange]);
 
-    const openIntentRef = useRef<OpenIntent>('first');
+    // A request lives exactly as long as the transition it asked for. One commit
+    // after it was made, the panel is either in the state it asked for — in which
+    // case `onEntryFocus` has already consumed it, or `onCloseAutoFocus` is about
+    // to — or the transition did not happen and the request is dropped here,
+    // rather than being honoured by a later close (which is what sent `Escape`'s
+    // focus onward instead of back to the trigger) or a later open (which is what
+    // highlighted an item on a pointer open).
+    useEffect(() => {
+      if (request === null || request.wantsOpen === isOpen) {
+        return;
+      }
+      requestRef.current = null;
+    }, [request, isOpen]);
+
     const triggerRef = useRef<HTMLButtonElement | null>(null);
+    const focusBeforeOpenRef = useRef<HTMLElement | null>(null);
+    useFocusRecordEffect(() => {
+      if (!isOpen) {
+        return;
+      }
+      // The same element `FocusScope` records as its own restore target, read at
+      // the same point in the commit — before anything has moved focus into the
+      // panel.
+      const active = document.activeElement;
+      focusBeforeOpenRef.current = active instanceof HTMLElement ? active : null;
+    }, [isOpen]);
+
     const state = useMemo<MenuState>(
-      () => ({ setOpen, openIntentRef, triggerRef }),
+      () => ({ setOpen, requestRef, triggerRef, focusBeforeOpenRef }),
       [setOpen],
     );
 
@@ -279,8 +447,8 @@ export namespace DropdownMenu {
    * Radix throws on a text or fragment child rather than rendering a trigger
    * nothing can be attached to.
    */
-  export function Trigger({ ref, onKeyDown, onPointerDown, ...rest }: TriggerProps) {
-    const { setOpen, openIntentRef, triggerRef } = useMenuState('DropdownMenu.Trigger');
+  export function Trigger({ ref, onKeyDown, ...rest }: TriggerProps) {
+    const { setOpen, triggerRef } = useMenuState('DropdownMenu.Trigger');
     const setTriggerRef = useMemo(() => composeTriggerRef(triggerRef, ref), [triggerRef, ref]);
 
     return (
@@ -289,7 +457,7 @@ export namespace DropdownMenu {
         ref={setTriggerRef}
         onKeyDown={(event) => {
           onKeyDown?.(event);
-          if (event.defaultPrevented) {
+          if (event.defaultPrevented || event.key !== 'ArrowUp') {
             return;
           }
           // PATCH 1 of 2 — the APG lists ArrowUp on a menu button as "open and
@@ -298,19 +466,13 @@ export namespace DropdownMenu {
           // panel, which is what Radix does for ArrowDown.
           //
           // Which item is last and enabled is deliberately NOT re-derived here:
-          // the intent is recorded and `Content` hands the question back to
-          // Radix's own first/last branch. See `onEntryFocus` below.
-          openIntentRef.current = event.key === 'ArrowUp' ? 'last' : 'first';
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setOpen(true);
-          }
-        }}
-        onPointerDown={(event) => {
-          onPointerDown?.(event);
-          // A pointer open focuses nothing, so a stale 'last' from an ArrowUp
-          // that a controlled Root refused to open must not survive into it.
-          openIntentRef.current = 'first';
+          // the request records only which END to land on, and `Content` hands
+          // the question back to Radix's own first/last branch. See
+          // `onEntryFocus` below. Nothing has to scrub the request afterwards —
+          // an open that this keystroke did not cause drops it, in `setOpen` for
+          // an open Radix reports and in `Root`'s effect for one it does not.
+          event.preventDefault();
+          setOpen(true, { wantsOpen: true, landOn: 'last' });
         }}
       />
     );
@@ -475,17 +637,18 @@ export namespace DropdownMenu {
     onCloseAutoFocus,
     ...rest
   }: ContentProps) {
-    const { setOpen, openIntentRef, triggerRef } = useMenuState('DropdownMenu.Content');
-
-    // Which way `Tab` was going, held from the keydown that closed the panel
-    // until focus is placed. `null` means this close was not a Tab.
-    const pendingTabRef = useRef<TabDirection | null>(null);
+    const state = useMenuState('DropdownMenu.Content');
+    const { requestRef, triggerRef, focusBeforeOpenRef } = state;
 
     const entryFocus: EntryFocusEscapeHatch = {
       onEntryFocus: (event) => {
-        const intent = openIntentRef.current;
-        openIntentRef.current = 'first';
-        if (intent !== 'last' || !(event.currentTarget instanceof HTMLElement)) {
+        const request = requestRef.current;
+        // Consumed here, whatever it was: entry focus can happen more than once
+        // in one open — focus returning from a submenu re-enters this panel's
+        // roving group — and an open lands on its requested end once.
+        requestRef.current = null;
+        if (request === null || !request.wantsOpen
+          || !(event.currentTarget instanceof HTMLElement)) {
           return;
         }
         // PATCH 1 of 2, second half. `preventDefault()` suppresses Radix's own
@@ -509,50 +672,40 @@ export namespace DropdownMenu {
         loop={loop}
         {...rest}
         {...entryFocus}
-        onKeyDown={(event) => {
-          // Whether the CONSUMER opted out, which is not the same question as
-          // `event.defaultPrevented`. A `Tab` pressed inside an open `SubContent`
-          // reaches this handler already prevented: React bubbles a portalled
-          // event up the REACT tree, so the submenu's own content handler — which
-          // is deeper, and swallows Tab exactly as this panel's does — has
-          // already run. Reading `defaultPrevented` alone would make the Tab
-          // patch silently not work one level down, which is the case the spec
-          // has no entry for and the build brief flagged as unprobed.
-          const preventedBefore = event.defaultPrevented;
-          onKeyDown?.(event);
-          const preventedByConsumer = !preventedBefore && event.defaultPrevented;
-          if (preventedByConsumer || !isPlainTab(event)) {
-            return;
-          }
-          // PATCH 2 of 2 — the APG requires `Tab` to close the menu and move
-          // focus onward. Radix swallows the key, and `FocusScope` swallows it
-          // again under `modal`, so the destination cannot be reached natively
-          // and has to be computed. Only the DIRECTION is recorded here: the
-          // panel is still in the DOM and still holds the focused item, so a scan
-          // taken now would answer with a menu item. It runs in
-          // `onCloseAutoFocus`, after FocusScope's unmount timeout, when the
-          // panel is gone and the trap's listeners are with it.
-          pendingTabRef.current = event.shiftKey ? 'backward' : 'forward';
-          setOpen(false);
-        }}
+        onKeyDown={panelTabHandler(state, onKeyDown)}
         onCloseAutoFocus={(event) => {
           onCloseAutoFocus?.(event);
-          const direction = pendingTabRef.current;
-          pendingTabRef.current = null;
-          if (direction === null || event.defaultPrevented) {
+          const request = requestRef.current;
+          requestRef.current = null;
+          if (request === null || request.wantsOpen || event.defaultPrevented) {
             return;
           }
-          // Suppresses Radix's `triggerRef.current.focus()`, which is the whole
-          // point: the menu closed because focus was leaving.
-          event.preventDefault();
+          // The destination is resolved BEFORE anything is cancelled, in both
+          // arms. Radix's own handler runs after this one and only while the
+          // default stands, so `preventDefault()` is what takes focus placement
+          // over — and taking it over with nowhere to put focus is how focus ends
+          // up on `<body>`.
           const trigger = triggerRef.current;
-          if (trigger === null) {
+          if (trigger !== null) {
+            event.preventDefault();
+            focusNextTabbableFrom(trigger, request.tabDirection);
             return;
           }
-          // Clamped at both ends: off the end of the document the honest
-          // destination is the browser's own UI, and no page element stands in
-          // for it, so focus stays on the trigger.
-          (nextTabbableFrom(trigger, direction) ?? trigger).focus();
+          // Nothing to measure the next tabbable element FROM: a `Root` driven
+          // entirely by `open` need not render a `Trigger` at all, and one that
+          // does can unmount it while the panel is open. Focus goes back where it
+          // was before the panel opened — which is what Radix's own
+          // trigger-refocus stands in for, and it has to happen here because
+          // Radix's version cancels `FocusScope`'s restore whether or not it
+          // found a trigger to focus. `Tab` then behaves as `Escape` does: there
+          // is no anchor to move onward FROM, and a defined destination beats the
+          // document's top.
+          const restore = focusBeforeOpenRef.current;
+          if (restore === null || !restore.isConnected) {
+            return;
+          }
+          event.preventDefault();
+          restore.focus();
         }}
       />
     );
@@ -871,7 +1024,20 @@ export namespace DropdownMenu {
    * from the `Content` it opens out of, so a submenu cannot drift from the menu it
    * belongs to.
    */
-  export function SubContent({ loop = true, ...rest }: SubContentProps) {
-    return <RadixDropdownMenu.SubContent loop={loop} {...rest} />;
+  export function SubContent({ loop = true, onKeyDown, ...rest }: SubContentProps) {
+    // `Tab` is handled in the panel it was pressed in, one level down as well:
+    // the root panel cannot tell a submenu's swallowed Tab from a consumer's own
+    // `preventDefault()`, and a menu that closes on Tab has to keep doing so with
+    // a submenu open. The direction lands in the shared state either way, so the
+    // root panel's `onCloseAutoFocus` still places focus.
+    const state = useMenuState('DropdownMenu.SubContent');
+
+    return (
+      <RadixDropdownMenu.SubContent
+        loop={loop}
+        {...rest}
+        onKeyDown={panelTabHandler(state, onKeyDown)}
+      />
+    );
   }
 }
