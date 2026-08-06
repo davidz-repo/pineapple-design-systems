@@ -333,6 +333,46 @@ describe('a component whose declaration is a call', () => {
   });
 });
 
+describe('a component declared `React.FC`', () => {
+  const [doc] = extract([fixture('react-fc.tsx')]).docs;
+
+  it('takes both arms of the union `FunctionComponent` returns', () => {
+    // `@types/react@19` types a function component's return as `ReactNode |
+    // Promise<ReactNode>`, which is NOT assignable to `ReactNode` — `ReactNode`
+    // contains `Promise<AwaitedReactNode>`, and `AwaitedReactNode` is itself
+    // `ReactNode` minus that arm. A predicate asking only for assignability
+    // finds neither of these, and Radix declares three of `DropdownMenu`'s
+    // members this way.
+    //
+    // Sorted, because the order here is the module's symbol table — function
+    // declarations hoist ahead of consts — and this fix claims nothing about
+    // that. `Latch` is the row that matters: miss its `React.FC` member and it
+    // still reports `Latch.Trigger` alone, which is a table, in the right place,
+    // one row short.
+    expect(doc.components.map(component => component.name).sort()).toEqual([
+      'Gate',
+      'Latch.Root',
+      'Latch.Trigger',
+      'Stream',
+    ]);
+  });
+
+  it('reads a `React.FC`\'s props and the defaults in its arrow', () => {
+    const gate = doc.components.find(component => component.name === 'Gate');
+    expect(gate?.props.map(prop => prop.name)).toEqual(['dir', 'isOpen']);
+    expect(propNamed(gate, 'isOpen')?.default).toBe('true');
+    expect(propNamed(gate, 'dir')?.default).toBe('"ltr"');
+  });
+
+  it('leaves a capitalised async helper that resolves to nothing renderable', () => {
+    // The fix is an awaited-type test, not "callable and async". `SaveLatch`
+    // resolves to `void`, which is not assignable to `ReactNode` — so the
+    // widening stops here rather than documenting every capitalised async
+    // helper's argument as a props table.
+    expect(doc.components.map(component => component.name)).not.toContain('SaveLatch');
+  });
+});
+
 describe('a package with no components', () => {
   // Extracted in the describe body, like the three above it. `extract` builds a
   // whole TypeScript program, which is by far the most expensive thing in this
