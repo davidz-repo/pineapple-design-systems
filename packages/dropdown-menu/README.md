@@ -55,7 +55,7 @@ import { Icon } from '@pineappleui/icons';
     </DropdownMenu.CheckboxItem>
 
     <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger>Move to…</DropdownMenu.SubTrigger>
+      <DropdownMenu.SubTrigger>Move to</DropdownMenu.SubTrigger>
       <DropdownMenu.SubContent>{/* Items */}</DropdownMenu.SubContent>
     </DropdownMenu.Sub>
 
@@ -103,14 +103,33 @@ site generates the full table from those same types —
   that Radix leaves out: `Tab` closes the panel and focuses the next tabbable element after the
   trigger, `Shift+Tab` the previous one. The destination is **computed**, because Radix and its
   focus trap both cancel the key and native sequential focus navigation is unreachable from inside
-  the panel. Four limits of that scan, published so you can tell: **positive `tabindex` ordering is
+  the panel. Five limits of that scan, published so you can tell: **positive `tabindex` ordering is
   ignored** (document order among everything with `tabIndex >= 0`), **`inert` is ignored**, **shadow
-  trees are not crossed**, and **iframes are not entered** — off either end of the document, focus
-  stays on the trigger.
+  trees are not crossed**, **iframes are not entered**, and **CSS visibility is not read** — the
+  scan tests a candidate's own `hidden` attribute, not its ancestors', so a control inside a
+  `display: none` accordion or a `visibility: hidden` drawer is still a candidate. Where the scan
+  and the browser disagree, focus is checked after the move and falls back to the trigger, which is
+  also where it stays when you run off either end of the document.
+- **`Tab` and `Content`'s `forceMount` do not compose, in v1.** Radix fires the close-focus event
+  only when the panel really unmounts, so a `Tab` out of a force-mounted panel closes the menu and
+  leaves focus inside the closed panel. `forceMount` is here for an external exit animation; a menu
+  a keyboard reader tabs out of should not use it. `Escape`, a press outside and selecting an item
+  are unaffected.
 - **`ArrowUp` on a closed trigger opens the menu at its last item.** The other APG requirement Radix
   leaves out. It is implemented by handing the question back to Radix's own last-enabled-item logic,
   so a disabled last item is skipped. One consequence worth knowing: a real `keydown` for `End` is
   dispatched on the panel to do it, and a consumer's own `Content.onKeyDown` will see it.
+- **`PageUp` and `PageDown` alias `Home` and `End`.** They jump to the first and last enabled item
+  rather than paging a scrolled panel, which is Radix's behaviour and the APG's option. Worth
+  knowing because a keyboard reader in a long menu expects paging and gets the ends.
+- **What a screen reader should say.** The trigger reads as "*label*, menu pop-up, collapsed", and
+  "expanded" once open. An item reads as "*label*, menu item, *n* of *m*" — the count comes from
+  `role="menu"` and needs no markup from you. A `CheckboxItem` adds "checked" or "not checked" and
+  "partially checked" for the mixed state; a `RadioItem` adds "selected"; a `SubTrigger` adds
+  "submenu". A `Group` reads its `Label` only when you pair them by `id` (see Recipes), and a
+  `Separator` is announced as a separator or skipped depending on the reader. If what you hear is
+  materially different from that, the markup inside the panel is the thing to check first — this
+  package announces nothing itself.
 - **The panel portals to the end of `<body>` and carries no z-index.** Nothing in this system
   defines a layering scale — the panel wins on DOM order alone. Chrome with `position: fixed;
   z-index: 100` will paint over it: raise the panel with `className`/`style`, or pass `container` to
@@ -146,14 +165,23 @@ site generates the full table from those same types —
 
 - Imperative verb first, sentence case: "Copy link", not "Link copying" or "Copy Link".
 - A trailing `…` **only** when activating it opens a dialog asking for more input — "Rename…",
-  "Move to…". Users already read that convention from their OS; using it decoratively destroys the
-  signal.
+  "Export…". Users already read that convention from their OS; using it decoratively destroys the
+  signal. It does **not** mean "opens a submenu": Radix already draws a chevron on a `SubTrigger`,
+  and that row reads "Move to", with no ellipsis.
 - No sentences, no full stops. A label that needs a clause to be understood means the menu is the
   wrong container.
+
+## What the menu shows when there is nothing to offer
+
 - Never render an item that is *always* disabled. Leave it out, or the menu becomes a list of things
-  the reader cannot do.
+  the reader cannot do. An item that is unavailable **right now** is different: leave it in and
+  disable it, so the menu's shape does not shift under the reader.
 - Never ship an empty panel. One disabled item reading "No actions available", or better, disable
   the trigger — a menu button that opens onto nothing is worse than a button you cannot press.
+- Loading and failure are the same shape, and they are yours to compose: this package holds no data.
+  A disabled "Loading…" row, or a disabled "Couldn't load actions" beside a "Try again" that keeps
+  the panel open with `onSelect={event => event.preventDefault()}`. The `UnavailableStates` story
+  shows all four.
 
 ## Recipes
 
@@ -163,6 +191,11 @@ site generates the full table from those same types —
   it is the one accessibility gap the layer underneath leaves open.
 - **Keep the panel open after a click:** `onSelect={event => event.preventDefault()}`. This is the
   only mechanism, and every checkbox or radio menu needs it.
+- **A label too long for its row:** an item is a fixed-height flex row, so a label that wraps
+  overflows it. Clip it — `style={{ overflow: 'hidden', textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' }}` on the item — give it a `title` for the pointer, and pass the whole string
+  as `textValue` so typeahead still matches what the reader cannot see. Shorter labels are the real
+  answer; this is what to do when the string is not yours.
 - **A menu entry that navigates:** `<DropdownMenu.Item asChild><a href="…">…</a></DropdownMenu.Item>`,
   which keeps middle-click, open-in-new-tab and copy-link-address working. A whole `<nav>` of links
   is a different thing — `role="menu"` takes links out of a screen reader's links list, so use a

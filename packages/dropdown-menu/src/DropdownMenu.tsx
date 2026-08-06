@@ -335,10 +335,14 @@ export namespace DropdownMenu {
      */
     onOpenChange?: RadixDropdownMenu.RootProps['onOpenChange'];
     /**
-     * Whether the open panel behaves as a modal layer: the page behind it is
-     * scroll-locked and hidden from assistive technology. Turn it off for a menu
-     * that should let the page keep scrolling underneath, and the panel will
-     * track its trigger as it moves.
+     * Whether the open panel behaves as a modal layer, which is four things at
+     * once: the page behind it is scroll-locked, hidden from assistive technology,
+     * and cannot be clicked (`pointer-events: none` on `<body>`), and focus is
+     * trapped inside the panel until it closes. That is what a menu does in
+     * production, and it is also why one press outside is spent dismissing rather
+     * than acting. Turn it off for a menu opening over a surface that has to stay
+     * usable — a canvas, an editor, a docs playground — and the panel will track
+     * its trigger as it moves and let the page keep scrolling underneath.
      */
     modal?: RadixDropdownMenu.RootProps['modal'];
     /**
@@ -487,9 +491,9 @@ export namespace DropdownMenu {
      */
     size?: RadixContentProps['size'];
     /**
-     * How the highlighted item is drawn. `solid` fills the row with the accent,
-     * `soft` tints it and leaves the label alone. Solid is the stronger signal;
-     * soft suits a menu opening over already-busy chrome.
+     * How the highlighted item is drawn: `solid` fills the row with the accent,
+     * where `soft` tints it and leaves the label alone. Solid is the stronger
+     * signal; soft suits a menu opening over already-busy chrome.
      */
     variant?: RadixContentProps['variant'];
     /**
@@ -513,7 +517,13 @@ export namespace DropdownMenu {
      * right edge.
      */
     side?: RadixContentProps['side'];
-    /** The gap in pixels between the trigger and the panel, on whichever side it opened. */
+    /**
+     * The gap in pixels between the trigger and the panel, on whichever side it
+     * opened. Radix Themes' default already clears the trigger's focus ring, so
+     * the reason to change it is a trigger whose visual edge is not its box edge —
+     * a `Card` with its own padding, or an `IconButton` inside a toolbar with a
+     * border of its own.
+     */
     sideOffset?: RadixContentProps['sideOffset'];
     /**
      * Where the panel lines up across the trigger: flush with its start edge,
@@ -549,8 +559,8 @@ export namespace DropdownMenu {
     collisionBoundary?: RadixContentProps['collisionBoundary'];
     /**
      * How hard the panel stays attached to a trigger that is scrolling out of
-     * view. `partial` keeps as much of the panel anchored as still fits; `always`
-     * keeps it glued to the trigger even where that means overlapping it.
+     * view: `partial` keeps as much of the panel anchored as still fits, where
+     * `always` keeps it glued to the trigger even when that means overlapping it.
      */
     sticky?: RadixContentProps['sticky'];
     /**
@@ -590,7 +600,12 @@ export namespace DropdownMenu {
      * Keep the panel mounted while the menu is closed, so an animation library
      * can own its exit. Leave it off otherwise: a closed menu is then absent from
      * the DOM entirely, which is what keeps `role="menu"` out of the accessibility
-     * tree when there is nothing to read.
+     * tree when there is nothing to read. It also does not compose with this
+     * package's `Tab` handling in v1, and that is a documented limit rather than a
+     * bug to work around — Radix fires `onCloseAutoFocus` only when the panel
+     * actually unmounts, so a `Tab` out of a force-mounted panel closes the menu
+     * and leaves focus inside the closed panel. Reach for it for an external exit
+     * animation, and not on a menu a keyboard reader tabs out of.
      */
     forceMount?: RadixContentProps['forceMount'];
     /**
@@ -786,11 +801,20 @@ export namespace DropdownMenu {
 
   export type CheckboxItemProps = RadixCheckboxItemProps & {
     /**
-     * Whether the item reads as checked. `indeterminate` draws the mixed state,
-     * for a toggle that governs a set only some of which is on.
+     * Whether the item reads as checked, where `indeterminate` draws the mixed
+     * state for a toggle that governs a set only some of which is on. There is no
+     * `defaultChecked` — this IS the state, so pass it back from wherever
+     * `onCheckedChange` puts it or the tick never appears. Unlike
+     * `RadioGroup.value`, leaving it off is not "uncontrolled": it is an item that
+     * cannot be ticked.
      */
     checked?: RadixCheckboxItemProps['checked'];
-    /** Called with the new checked state when the item is activated. */
+    /**
+     * Called with the new checked state when the item is activated. It is the only
+     * half of the pair that moves: wire it to state and feed that state back into
+     * `checked`. What it does not do is decide whether the panel stays open —
+     * that is `onSelect`, and a checkbox menu almost always wants it.
+     */
     onCheckedChange?: RadixCheckboxItemProps['onCheckedChange'];
     /**
      * Called when the item is activated, before it closes the panel.
@@ -803,7 +827,11 @@ export namespace DropdownMenu {
      * skip it, and it announces as disabled rather than disappearing.
      */
     disabled?: RadixCheckboxItemProps['disabled'];
-    /** The text typeahead matches this item on, instead of its rendered label. */
+    /**
+     * The text typeahead matches this item on, when its rendered label is not the
+     * right thing to match — a label that is visually truncated, or one that is an
+     * icon plus a word.
+     */
     textValue?: RadixCheckboxItemProps['textValue'];
     /**
      * A keyboard hint drawn right-aligned inside the item. A label only — binding
@@ -862,7 +890,11 @@ export namespace DropdownMenu {
      * and by typeahead, and announced as disabled.
      */
     disabled?: RadixRadioItemProps['disabled'];
-    /** The text typeahead matches this item on, instead of its rendered label. */
+    /**
+     * The text typeahead matches this choice on, when its rendered label is not the
+     * right thing to match — a truncated label, or one carrying a swatch or an icon
+     * beside the word.
+     */
     textValue?: RadixRadioItemProps['textValue'];
     /**
      * The accent this one item is drawn in, overriding the panel's. Takes a scale
@@ -893,7 +925,12 @@ export namespace DropdownMenu {
      * doing the right thing.
      */
     open?: RadixDropdownMenu.SubProps['open'];
-    /** Whether the submenu starts open. Read once on mount and then ignored. */
+    /**
+     * Whether the submenu starts open. Read once on mount and then ignored, and
+     * almost never what you want: a submenu that starts open covers the very row
+     * that opens it, and the reader has to close something they never asked for
+     * before they can read the rest of the menu.
+     */
     defaultOpen?: RadixDropdownMenu.SubProps['defaultOpen'];
     /**
      * Called with the submenu's new open state each time it opens or closes —
@@ -917,7 +954,12 @@ export namespace DropdownMenu {
      * by the arrow keys and by typeahead, exactly like a disabled item.
      */
     disabled?: RadixSubTriggerProps['disabled'];
-    /** The text typeahead matches this sub-trigger on, instead of its rendered label. */
+    /**
+     * The text typeahead matches this sub-trigger on, when its rendered label is
+     * not the right thing to match. Worth setting more often here than on an
+     * `Item`: a sub-trigger's label is usually the shortest word that fits beside
+     * the submenu chevron, and typeahead is how a keyboard reader finds it.
+     */
     textValue?: RadixSubTriggerProps['textValue'];
   };
 
@@ -958,8 +1000,10 @@ export namespace DropdownMenu {
      */
     collisionPadding?: RadixSubContentProps['collisionPadding'];
     /**
-     * The element or elements whose edges the submenu must stay inside. The
-     * viewport by default.
+     * The element or elements whose edges the submenu treats as the ones it must
+     * not cross. The viewport by default; name the same scroll container you gave
+     * the parent panel, or the two halves of one menu can be bounded by different
+     * things and the submenu flips where the parent did not.
      */
     collisionBoundary?: RadixSubContentProps['collisionBoundary'];
     /**
@@ -979,7 +1023,7 @@ export namespace DropdownMenu {
     updatePositionStrategy?: RadixSubContentProps['updatePositionStrategy'];
     /**
      * Whether the arrow keys wrap from the submenu's last item back to its first.
-     * `true` here, matching the parent panel, against Radix's `false`.
+     * Defaults to `true` here, matching the parent panel, against Radix's `false`.
      */
     loop?: RadixSubContentProps['loop'];
     /**
@@ -1010,7 +1054,12 @@ export namespace DropdownMenu {
      * `preventDefault()` keeps it open.
      */
     onPointerDownOutside?: RadixSubContentProps['onPointerDownOutside'];
-    /** Called when focus moves outside the submenu, before it closes. Preventable. */
+    /**
+     * Called when focus moves to something outside the submenu, before it closes;
+     * `preventDefault()` keeps it open. Note where "outside" starts: the parent
+     * panel is outside this one, so arrowing back to the sub-trigger is a focus
+     * change this reports.
+     */
     onFocusOutside?: RadixSubContentProps['onFocusOutside'];
     /**
      * Called for either kind of outside interaction — a pointer press or focus
