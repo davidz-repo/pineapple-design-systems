@@ -29,6 +29,7 @@ packages/
   card/               @pineappleui/card               PUBLIC    Radix Card pass-through (padded surface)
   text-field/         @pineappleui/text-field         PUBLIC    Radix TextField namespace (Root + Slot)
   text-area/          @pineappleui/text-area          PUBLIC    Radix TextArea pass-through (multi-line input)
+  dropdown-menu/      @pineappleui/dropdown-menu      PUBLIC    Radix DropdownMenu namespace, menu-button pattern (holds open state)
   theme/              @pineappleui/theme              PUBLIC    theme providers + stylesheet + first-paint snippet
 apps/
   gallery/            @pineappleui/gallery            private   Ladle gallery; renders every package's stories

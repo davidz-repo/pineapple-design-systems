@@ -262,7 +262,7 @@ declares no React, so it starts a React package two corrections behind live-regi
 
 `apps/gallery` — private, `0.0.0`, ESM — is the first workspace outside `packages/*`, and the
 first surface in this repo that **renders** anything. Ladle globs
-`packages/*/src/**/*.stories.{ts,tsx}`, which is 15 story files and 51 stories today: the 11
+`packages/*/src/**/*.stories.{ts,tsx}`, which is 15 story files and 52 stories today: the 11
 Phase 2 wrappers plus `icons`, `live-region`, `theme` and Phase 4's `dropdown-menu`. A new
 package's stories appear the moment the file exists — there is no per-package registration to
 forget.
@@ -456,7 +456,7 @@ Decisions worth recording, in the same spirit as the gallery section above:
   own chrome, which is itself a small integration test.
 - **The gallery's alias fences, replayed — but guarded locally.** `vite.config.ts` and
   `tsconfig.json` carry the same `// @pineappleui-aliases:start/:end` fenced lists as the
-  gallery (subpath key first, for the same `styles.css` reason), and all 16 public packages
+  gallery (subpath key first, for the same `styles.css` reason), and all 17 public packages
   are `*` devDependencies for the same turbo reason: the stories and READMEs this site
   compiles live outside its own directory, so the edges are what make a story edit
   invalidate the site build's hash. `scripts/check-alias-fences.mjs` stays gallery-only;
@@ -491,6 +491,22 @@ Decisions worth recording, in the same spirit as the gallery section above:
   above it. The unit test asserts the cut against a real story file, and against **badge**
   rather than button: button is the one file whose Playground is declared above its examples,
   so nothing follows its last story and the cut is never made there.
+- **A snippet is the code that renders the preview beside it, which is a promise with a sharp
+  edge.** `jsx-snippet.ts` drops `undefined`, `''` and `false` from attributes, because an
+  omitted boolean is the default everywhere on this site — and that rule silently lies the
+  moment a story passes `false` *deliberately*. `dropdown-menu`'s Playground does
+  (`modal={false}`, the user's docs-usability decision: every one of its args is invisible
+  until the panel is open, and a modal panel makes the args pane unclickable and removes it
+  from the accessibility tree). So its `Root` open tag is written out by hand in
+  `registry.ts`, with a test pinning both that and the items. The general rule: a snippet fn
+  that hands a **falsey non-default** to `jsxSnippet` needs a test, or the emitted code is
+  quietly a different component from the one on screen. The eleven Examples keep the default,
+  because production truth is their job and being tunable is the Playground's.
+- **A snippet must be paste-and-run, which means no placeholder where a child belongs.** The
+  first version of `dropdown-menu`'s emitted `{/* DropdownMenu.Item children */}`, which
+  pastes into the empty `role="menu"` that package's own README forbids. `icon-button` had
+  already set the form by emitting a real `<Icon name="copy" />`; `deriveImportLines` resolves
+  the extra import either way, so a real child costs nothing.
 - **Examples open the Overview; they are not a tab.** Tabs are Overview / Playground /
   Changelog, and Overview reads examples → README → props. A tab is a
   place a reader has to decide to go, and the live component is what the page is opened for.
@@ -652,22 +668,51 @@ Four things about it are repo law now, each of them new:
      scan, so this package's idea of "focusable" agrees with the rest of the stack — and focused
      from `Content.onCloseAutoFocus`, which fires from `FocusScope`'s unmount `setTimeout`, after
      the trap's listeners are gone. Focusing during the keydown does not work: the trap yanks it
-     back. The scan's four limits (positive `tabindex` ordering, `inert`, shadow trees, iframes)
-     are published in the package README rather than left to be discovered.
+     back. The scan's **five** limits (positive `tabindex` ordering, `inert`, shadow trees,
+     iframes, and CSS visibility — the scan reads a candidate's own `hidden` attribute, not its
+     ancestors') are published in the package README rather than left to be discovered, and the
+     last two are unfixable *as a scan* in this environment, because jsdom does no layout. So the
+     scan is not trusted: `focusNextTabbableFrom` checks where focus actually **landed** and falls
+     back to the trigger. That is the pattern to copy — where a check cannot be tested, verify the
+     outcome instead of the input.
    - `ArrowUp` on a **closed** trigger opens the panel with its **last enabled item** focused.
-     Which item that is, is deliberately not re-derived: `Trigger.onKeyDown` records an intent,
+     Which item that is, is deliberately not re-derived: `Trigger.onKeyDown` records a request,
      and `Content.onEntryFocus` `preventDefault()`s Radix's own first-item focus and dispatches a
      real `End` keydown at the panel, so Radix's own `getItems().filter(!disabled).reverse()`
      answers the question and a disabled last item is skipped for free. Both work because our
      handlers run **first** — Radix composes as `composeEventHandlers(props.onX, radixHandler)`.
-2. **Owned behaviour needs premise tests, and this is the pattern for the next one.** Four tests
-   guard the two patches, and the first two are pointed at `DropdownMenu` imported straight from
+   - **A keystroke whose effect lands later needs a scope, and the scope is a transition, not a
+     ref.** Both patches record what a keystroke asked for and act on it after a commit, and a
+     `Root` is allowed to refuse — a controlled consumer that ignores `onOpenChange` is a menu
+     that will not open or close, which is legal. A ref alone cannot notice that refusal, because
+     a refusal renders nothing, so the recorded value survives to be spent by the *next* open or
+     close whatever caused it. `MenuRequest` carries the open state it asked for and is dropped
+     unless the panel reaches that state on the very next commit, which is why it is held in state
+     as well as in the ref the two late handlers read. A generation counter does not work here:
+     "the open my `ArrowUp` caused" and "the next open after my refused `ArrowUp`" are the same
+     event, so no count of transitions separates them — only the commit does.
+   - **A shim over a controlled component owes the original's reporting contract.** `Root`'s
+     `setOpen` reports a change and never a no-op, the way Radix's own controlled path does. The
+     one divergence left — reporting synchronously from the event handler rather than from a
+     post-commit effect — is pinned by a test so it stays a decision.
+2. **Owned behaviour needs premise tests, and this is the pattern for the next one.** Three tests
+   guard the two patches, and two of them are pointed at `DropdownMenu` imported straight from
    `@radix-ui/themes` rather than through this package — they assert what **unpatched** Radix does
    today (ignores `ArrowUp` at the trigger; swallows `Tab` in the panel) and fail the day upstream
    starts doing it itself and double-handles it with us. Each failure message names the code to
-   delete. The other two watch our own side: `onOpenChange` fires exactly once per `Tab`, and focus
-   lands on the computed destination rather than back on the trigger. They were written and run
-   **before** either patch existed, which is what makes them premises rather than restatements.
+   delete. The third watches our own side: `onOpenChange` fires exactly once per `Tab`. They were
+   written and run **before** either patch existed, which is what makes them premises rather than
+   restatements.
+
+   Two corrections from the review round, both of which generalise. A premise test has to isolate
+   the **one** upstream line it tells you to delete: the `Tab` premise passed whichever of two
+   handlers had prevented the key, so it renders `modal={false}`, which makes `FocusScope` return
+   early and leaves only the line named in the message. And a guard whose message carries the
+   diagnosis has to be the assertion that **fails** — a fourth guard sat behind an earlier
+   `expectFocus` that made it unfailable, so its message could never print, and it is folded into
+   the test that already covered the behaviour. The rule the round produced: **do not ship a guard
+   you have not watched fail.** Every guard in this package has been run against deliberately
+   regressed code, including one run with the upstream line deleted from `node_modules`.
 3. **The docs site's prop extractor is blind to `React.FC`, and every wrapper from here on has to
    know it.** `@types/react@19`'s `FunctionComponent` returns `ReactNode | Promise<ReactNode>`,
    and `apps/site/scripts/extract-props.mjs` only counts an export as a component when a call
@@ -684,7 +729,7 @@ Four things about it are repo law now, each of them new:
    makes `dist/index.mjs` an IIFE rather than a pure re-export. Each member's props are
    `RadixXProps & { … }` with JSDoc on the local half — never `interface X extends Omit<…>`,
    which ships TS2430 to consumers and is what `check-dts-strict` catches. All **70** own props
-   across the namespace carry a sentence, which took the repo's described-prop count from 85 of 98
+   across the namespace carry a sentence, which took the repo's described-prop count from 86 of 99
    to 156 of 169. Two members diverge from Radix's published surface deliberately: `loop` defaults
    to `true` (Radix's is `false`), and `TriggerIcon` is **not** re-exported, because
    `@pineappleui/icons` already owns a chevron — the same kind of deliberate published-API
