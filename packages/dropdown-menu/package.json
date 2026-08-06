@@ -1,6 +1,6 @@
 {
   "name": "@pineappleui/dropdown-menu",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Menu button for @pineappleui — a thin wrapper over the @radix-ui/themes DropdownMenu: a trigger that discloses a list of commands.",
   "license": "MIT",
   "type": "module",
