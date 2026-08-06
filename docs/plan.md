@@ -720,9 +720,17 @@ Four things about it are repo law now, each of them new:
    `Root` and `Sub` as `React.FC`, so a bare namespace re-export would document 12 of 14 members
    and silently drop `open` / `defaultOpen` / `onOpenChange` / `modal` / `dir` off the page: a
    table that renders, with rows missing, and nothing failing. Every member here is a plain
-   `function` declaration for that reason, with the reason in a source comment. Fixing the
-   predicate is its own stream — it changes zero artifacts today, so it is independently
-   shippable, and bundling it here would hide it.
+   `function` declaration for that reason, with the reason in a source comment.
+
+   **Fixed since, in its own stream.** The predicate now awaits the return type before testing it,
+   which answers `React.FC` and the async component (`Promise<ReactNode>`) at once, and stops
+   short of "callable and async" — the awaited type still has to be assignable to `ReactNode`, so
+   a capitalised async helper resolving to `void` stays out. It changed zero generated artifacts,
+   which is what made it separable: 29 components across 17 packages before and after. The guard
+   is `props-fixtures/react-fc.tsx`, whose `Latch` mixes a `React.FC` member with a plain one —
+   run against the old predicate it reports `Latch.Trigger` alone, which is the failure this is
+   really about: not a missing table, a present one that is a row short. The plain-`function`
+   discipline in this package stays as it is; it is no longer load-bearing.
 4. **`export namespace DropdownMenu`, with intersection overlays on all 13 members.** The
    namespace is what keeps `DropdownMenu.ItemProps` resolving for consumers, matching the
    `TextField.RootProps` shape already shipped; it costs one inline `ts/no-namespace` disable and

@@ -12,11 +12,17 @@
 //
 // An export is a component when its name starts with a capital (React's own
 // rule for what JSX may name), its type is callable with at most one argument,
-// and some call signature returns something assignable to `ReactNode` — the
-// real type, resolved out of the program's own `@types/react`, not a name
-// matched as text. The three together are what keep `ICON_NAMES.concat` out:
-// an array method is callable and returns an array, and a predicate written on
-// callability alone documented `Array.prototype` as a component.
+// and some call signature returns something that, once AWAITED, is assignable
+// to `ReactNode` — the real type, resolved out of the program's own
+// `@types/react`, not a name matched as text. The three together are what keep
+// `ICON_NAMES.concat` out: an array method is callable and returns an array, and
+// a predicate written on callability alone documented `Array.prototype` as a
+// component.
+//
+// The await is not decoration. `React.FC` returns `ReactNode |
+// Promise<ReactNode>`, which is not assignable to `ReactNode`, so the predicate
+// without it says no to every `React.FC` — see `returnsReactNode` for why the
+// union misses, and for the shape of the silent half-table that produced.
 //
 // One more, for the same reason from the other side: an export whose argument
 // is a PRIMITIVE is not a component either. `ReactNode` includes `string |
@@ -641,6 +647,39 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
     | ts.TypeFlags.ESSymbolLike;
 
   /**
+   * Whether a call signature returns something a component may return.
+   *
+   * Not plain assignability to `ReactNode`, because `@types/react@19` types a
+   * function component's return as `ReactNode | Promise<ReactNode>` — and that
+   * union is not assignable to `ReactNode`. `ReactNode` already contains
+   * `Promise<AwaitedReactNode>`, where `AwaitedReactNode` is `ReactNode` minus
+   * that arm, so `Promise<ReactNode>` is one level too deep for it. Asking only
+   * for assignability therefore says no to every `React.FC` in the program, and
+   * Radix declares `Root`, `Portal` and `Sub` that way — a namespace re-exported
+   * whole would document most of its members and drop the rest with nothing
+   * failing, since `check-props-coverage` fails on a blank cell and a missing
+   * component has no cell.
+   *
+   * Awaiting first answers both arms at once, and answers the async component
+   * (`async function X(): Promise<ReactNode>`) that React 19 renders directly.
+   * It is deliberately not "callable and async": the awaited type still has to
+   * be assignable to `ReactNode`, so a capitalised helper resolving to `void` or
+   * to an object stays out. A capitalised async helper resolving to a `string`
+   * does not — but neither does the synchronous one, which the capitalisation
+   * rule and the primitive-parameter check below have always been the fence for.
+   *
+   * @param {import('typescript').Type} returnType
+   * @returns {boolean} whether a component may return this
+   */
+  function returnsReactNode(returnType) {
+    if (checker.isTypeAssignableTo(returnType, reactNode)) {
+      return true;
+    }
+    const awaited = checker.getAwaitedType(returnType);
+    return awaited !== undefined && checker.isTypeAssignableTo(awaited, reactNode);
+  }
+
+  /**
    * Whether this export is a component, and what its props type is — the two
    * answers are one lookup, and they are different answers: a component
    * declared to take no argument at all is a component with no props, not a
@@ -660,7 +699,7 @@ export function extractPackageProps({ ts, entries, compilerOptions }) {
       if (parameters.length > 1) {
         continue;
       }
-      if (!checker.isTypeAssignableTo(checker.getReturnTypeOfSignature(signature), reactNode)) {
+      if (!returnsReactNode(checker.getReturnTypeOfSignature(signature))) {
         continue;
       }
       const [parameter] = parameters;
