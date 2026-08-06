@@ -177,9 +177,15 @@ it('renders exactly the header controls the wordmark clamp was derived from', as
 
 // The clamp's OTHER constant, and the one the control list above cannot see.
 // 219.6 is the row MINUS the label, so it belongs to that list; the divisor is
-// the LABEL — the wordmark's own px of width per px of type, measured 149.86 at
-// 17.6px, so 8.51 rounded down to 8.5 the way the old name's 13.01 was rounded
-// to 13. Nothing at runtime connects it to the string Layout.tsx renders, and
+// the LABEL — the wordmark's own px of width per px of type, measured 149.859
+// at 17.6px, i.e. 8.5147, rounded DOWN to 8.5. That is not the move the old
+// name's 13 was: "Pineapple Design Systems" measured 228.594px, i.e. 12.9883,
+// which was rounded UP. The two directions are not interchangeable — a LARGER
+// divisor shrinks the label and ADDS slack, a SMALLER one grows it and SPENDS
+// slack — so 8.5 is the spending one, and it is fine only because the row has
+// 11.59px of cushion at 390px to spend from.
+//
+// Nothing at runtime connects the divisor to the string Layout.tsx renders, and
 // getting it wrong fails silently in whichever direction the edit went: a
 // longer name wraps the phone header to two rows, a shorter one shrinks the
 // label for room it is no longer using (the rename this test was added for left
@@ -190,17 +196,49 @@ it('renders exactly the header controls the wordmark clamp was derived from', as
 const WORDMARK_TEXT = 'Pineapple Design';
 const WORDMARK_DIVISOR = '8.5';
 
+// EVERY `.site-header-wordmark` rule that sets a font-size, in file order —
+// `/g` and `matchAll` rather than `match`, for a hole this guard shipped with:
+// the LAST declaration is the one the browser uses, so a second rule further
+// down site.css overrides this clamp while a first-match read goes on reporting
+// the divisor it was just superseded by. Verified — a second block at ÷13
+// appended to site.css left the old form of this test reading 8.5 and passing.
+const WORDMARK_FONT_SIZE = /\.site-header-wordmark\s*\{[^}]*?font-size:\s*([^;}]+)/g;
+const WORDMARK_CLAMP_SHAPE = /^clamp\(\s*10px\s*,\s*calc\(\(100cqi - 219\.6px\)\s*\/\s*([\d.]+)\)/;
+
+// Shared tail: whichever way this test fails, the way out is a re-measurement.
+const WORDMARK_REMEASURE = [
+  '',
+  'If you changed the wordmark, re-measure it: render the header wide enough',
+  'that the clamp is at its --font-size-3 ceiling, take the text\'s width, and',
+  'divide by that font size (17.6px at the pinned 110% scale). Round to one',
+  'decimal, and mind which way: UP shrinks the label and buys slack, DOWN grows',
+  'it and spends slack, so round DOWN only while the row still has cushion to',
+  'spare (8.5 from the measured 8.5147 keeps 11.59px at 390px). Then update the',
+  'clamp, this constant, and the measurements quoted in that rule\'s comment.',
+].join('\n');
+
 const WORDMARK_DIVISOR_MESSAGE = [
   `The header wordmark and the divisor in its clamp disagree. The clamp —`,
   '`.site-header-wordmark` in site.css\'s `@media (max-width: 860px)` block —',
   'divides by the LABEL\'s width per px of type, so it is only correct for the',
   'exact string the header renders.',
-  '',
-  'If you changed the wordmark, re-measure it: render the header wide enough',
-  'that the clamp is at its --font-size-3 ceiling, take the text\'s width, and',
-  'divide by that font size (17.6px at the pinned 110% scale). Round DOWN to',
-  'one decimal. Then update the clamp, this constant, and the measurements',
-  'quoted in that rule\'s comment.',
+  WORDMARK_REMEASURE,
+].join('\n');
+
+const WORDMARK_ONE_RULE_MESSAGE = [
+  'site.css sets `.site-header-wordmark`\'s font-size in more than one rule.',
+  'This is NOT "the divisor is wrong": it is that there is now more than one',
+  'divisor, the browser uses the LAST of them, and this test can only pin one.',
+  'Collapse them back to a single rule — or teach this test which one is live —',
+  'before trusting the divisor assertion below it.',
+  WORDMARK_REMEASURE,
+].join('\n');
+
+const WORDMARK_SHAPE_MESSAGE = [
+  'The .site-header-wordmark clamp is no longer in the shape this test reads —',
+  '`clamp(10px, calc((100cqi - 219.6px) / <divisor>), ...)` — so neither the',
+  'divisor nor the 219.6px offset is being checked at all any more.',
+  WORDMARK_REMEASURE,
 ].join('\n');
 
 it('keeps the wordmark clamp divisor in step with the wordmark itself', async () => {
@@ -208,11 +246,12 @@ it('keeps the wordmark clamp divisor in step with the wordmark itself', async ()
   const wordmark = document.querySelector('.site-header-wordmark');
   expect(wordmark?.textContent, WORDMARK_DIVISOR_MESSAGE).toBe(WORDMARK_TEXT);
 
-  const clamp = siteCss.match(
-    /\.site-header-wordmark\s*\{[^}]*?clamp\(\s*10px\s*,\s*calc\(\(100cqi - 219\.6px\)\s*\/\s*([\d.]+)\)/,
-  );
-  const shape = 'the .site-header-wordmark clamp is no longer in the shape this test reads';
-  expect(clamp, shape).not.toBeNull();
+  const declarations = [...siteCss.matchAll(WORDMARK_FONT_SIZE)]
+    .map(([, value = '']) => value.trim());
+  expect(declarations, WORDMARK_ONE_RULE_MESSAGE).toHaveLength(1);
+
+  const clamp = declarations[0]?.match(WORDMARK_CLAMP_SHAPE) ?? null;
+  expect(clamp, WORDMARK_SHAPE_MESSAGE).not.toBeNull();
   expect(clamp?.[1], WORDMARK_DIVISOR_MESSAGE).toBe(WORDMARK_DIVISOR);
 });
 
