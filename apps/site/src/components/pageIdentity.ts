@@ -20,7 +20,13 @@ import { bySlug } from '../registry';
 // A slug this site does not know falls through to the not-found title, which
 // is what `PackagePage` renders for it.
 
-const SITE_NAME = 'Pineapple Design';
+/**
+ * What the site is called. Exported because site-name.test.ts derives the name
+ * it expects on the static surfaces (index.html, favicon.svg, og-card.svg) from
+ * here rather than keeping a second copy of the string — those files are read
+ * by nothing else, so a rename that misses one is invisible without that guard.
+ */
+export const SITE_NAME = 'Pineapple Design';
 const COMPONENT_PREFIX = '/components/';
 
 // Derived from the tab list itself, not a second copy of it: a segment the
