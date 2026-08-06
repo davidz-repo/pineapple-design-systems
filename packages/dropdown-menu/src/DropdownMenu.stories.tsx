@@ -326,8 +326,10 @@ export function LongList() {
             Quarterly revenue reconciliation, EMEA, final
           </DropdownMenu.Item>
           {/* Then the remedy from the README's Recipes: clip it, give the pointer
-              a `title`, and give typeahead the WHOLE string — which here really
-              differs from what is rendered, since the rendered text is cut off. */}
+              a `title`, and pass the whole string as `textValue` so typeahead
+              still matches what the reader cannot see. The DOM text is the same
+              either way — what the clip changes is how much of it is visible, and
+              `textValue` is what keeps the hidden tail matchable. */}
           <DropdownMenu.Item
             title="Quarterly revenue reconciliation, APAC, final"
             textValue="Quarterly revenue reconciliation, APAC, final"

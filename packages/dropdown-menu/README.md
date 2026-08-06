@@ -94,6 +94,14 @@ site generates the full table from those same types —
   a menu pop-up.
 - **It is uncontrolled until you control it.** Pass `open` and `onOpenChange` to own the state;
   otherwise `Root` keeps it. `onOpenChange` fires for every open and close, whatever caused it.
+- **Render a `Trigger` even when `open` is what opens the menu.** A `Root` driven from elsewhere on
+  the page — a shortcut, a guided tour — compiles and works without one, and then has nowhere to
+  send focus when the panel closes: `Escape` leaves focus on `<body>`, which is the layer
+  underneath rather than this package (Radix's own close-focus handler focuses its trigger and
+  cancels the fallback whether or not it found one), and the reader's next `Tab` restarts at the
+  top of the document. `Tab` out of the panel is covered — it falls back to whatever held focus
+  when the panel opened — but that is one exit of several. Give the `Root` a real trigger and drive
+  it *as well* from wherever you were going to; a visually hidden button is still a trigger.
 - **`Root` holds open state — and that is the one thing in this system that does.** Every other
   `@pineappleui` package is a presentational shell that holds nothing. This one holds the panel's
   open state and nothing else, because the `Tab` behaviour below needs a way to close the menu that
@@ -110,11 +118,14 @@ site generates the full table from those same types —
   `display: none` accordion or a `visibility: hidden` drawer is still a candidate. Where the scan
   and the browser disagree, focus is checked after the move and falls back to the trigger, which is
   also where it stays when you run off either end of the document.
-- **`Tab` and `Content`'s `forceMount` do not compose, in v1.** Radix fires the close-focus event
-  only when the panel really unmounts, so a `Tab` out of a force-mounted panel closes the menu and
-  leaves focus inside the closed panel. `forceMount` is here for an external exit animation; a menu
-  a keyboard reader tabs out of should not use it. `Escape`, a press outside and selecting an item
-  are unaffected.
+- **`Content`'s `forceMount` costs you focus placement on close — ours and Radix's both.** The
+  close-focus event fires only when the panel really unmounts, and a force-mounted panel never
+  does. So a `Tab` out of one closes the menu and leaves focus inside the closed panel — and this is
+  not a gap our patch opened: unpatched Radix parks focus on the closed panel's own viewport for
+  `Escape` under `forceMount` too, for exactly the same reason. What our `Tab` patch adds is that
+  it stops computing a destination it cannot place. Treat `forceMount` as an exit-animation hook
+  for a menu that is dismissed by pointer, and not for one a keyboard reader leaves; a `Tab` and an
+  `Escape` out of it are equally unplaced, in v1 and upstream.
 - **`ArrowUp` on a closed trigger opens the menu at its last item.** The other APG requirement Radix
   leaves out. It is implemented by handing the question back to Radix's own last-enabled-item logic,
   so a disabled last item is skipped. One consequence worth knowing: a real `keydown` for `End` is
@@ -179,7 +190,7 @@ site generates the full table from those same types —
 - Never ship an empty panel. One disabled item reading "No actions available", or better, disable
   the trigger — a menu button that opens onto nothing is worse than a button you cannot press.
 - Loading and failure are the same shape, and they are yours to compose: this package holds no data.
-  A disabled "Loading…" row, or a disabled "Couldn't load actions" beside a "Try again" that keeps
+  A disabled "Loading…" row, or a disabled "Couldn’t load actions" beside a "Try again" that keeps
   the panel open with `onSelect={event => event.preventDefault()}`. The `UnavailableStates` story
   shows all four.
 

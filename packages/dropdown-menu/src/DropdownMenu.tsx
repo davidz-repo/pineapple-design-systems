@@ -600,12 +600,15 @@ export namespace DropdownMenu {
      * Keep the panel mounted while the menu is closed, so an animation library
      * can own its exit. Leave it off otherwise: a closed menu is then absent from
      * the DOM entirely, which is what keeps `role="menu"` out of the accessibility
-     * tree when there is nothing to read. It also does not compose with this
-     * package's `Tab` handling in v1, and that is a documented limit rather than a
-     * bug to work around — Radix fires `onCloseAutoFocus` only when the panel
-     * actually unmounts, so a `Tab` out of a force-mounted panel closes the menu
-     * and leaves focus inside the closed panel. Reach for it for an external exit
-     * animation, and not on a menu a keyboard reader tabs out of.
+     * tree when there is nothing to read. It also costs focus placement on close,
+     * and not only ours: `onCloseAutoFocus` fires only when the panel actually
+     * unmounts, which a force-mounted panel never does — so a `Tab` out of one
+     * closes the menu and leaves focus inside the closed panel, and unpatched
+     * Radix parks focus on that panel's own viewport for `Escape` under
+     * `forceMount` for the same reason. A documented limit of the layer underneath
+     * rather than a bug this package's `Tab` patch introduced. Reach for it for an
+     * external exit animation on a pointer-dismissed menu, not on one a keyboard
+     * reader leaves.
      */
     forceMount?: RadixContentProps['forceMount'];
     /**
