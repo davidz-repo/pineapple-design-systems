@@ -42,6 +42,21 @@ describe('@pineappleui/text-field', () => {
     expect(slot.closest('.rt-TextFieldRoot')).not.toBeNull();
   });
 
+  it('passes a slot\'s side through to Radix (sets data-side)', () => {
+    // `side` is the one Slot prop with visible consequences beyond looks: Radix
+    // reads `data-side` in the CSS that orders the slot AND in Root's
+    // pointer-down handler, which puts the caret at the far end of the text for
+    // a right-hand slot. Both are attribute selectors, so a wrapper that ate the
+    // prop would leave the slot on the wrong side with the caret in the wrong
+    // place, and every other assertion in this file would still pass.
+    const { getByText } = render(
+      <TextField.Root>
+        <TextField.Slot side="right">@</TextField.Slot>
+      </TextField.Root>,
+    );
+    expect(getByText('@').getAttribute('data-side')).toBe('right');
+  });
+
   it('forwards refs to the underlying input element', () => {
     // Radix composes TextField.Root's ref onto the inner <input>, not onto the
     // <div> it wraps the field in — HTMLElement would hold for either, and this
