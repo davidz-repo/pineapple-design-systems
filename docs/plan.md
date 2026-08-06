@@ -267,6 +267,20 @@ Phase 2 wrappers plus `icons`, `live-region`, `theme` and Phase 4's `dropdown-me
 package's stories appear the moment the file exists — there is no per-package registration to
 forget.
 
+**Those stories are also rendered by a test, which for a long time nothing did.** `build` above
+compiles every story and `typecheck` types them, but neither MOUNTS one, so a story could throw
+on render, draw nothing, or log a React warning and still ship — and the docs site renders every
+named export on a package's Overview tab, above the README, so a story that throws is a broken
+docs page. `apps/site/src/stories.smoke.test.tsx` mounts all 52 in the provider tree `main.tsx`
+mounts, and fails on three things the type system cannot see: a throw, an empty canvas, and any
+`console.error` React logs while rendering. Its subject list is the site's own
+`import.meta.glob`, imported rather than re-declared, so a new package is covered the day it
+lands and a package that stops matching the pattern fails here and disappears from the site
+together. It found no story bug — it found that `act` imported from `react` does not set
+`IS_REACT_ACT_ENVIRONMENT`, which made React log on all thirteen `dropdown-menu` stories;
+`@testing-library/react`'s `act` is the one that sets it, and the rest of `apps/site` still
+imports React's and still logs.
+
 Four things it does that the upstream gallery does not, each of them repo law here:
 
 1. **All four task slots are accounted for.** `build` is `node scripts/build.mjs`, `lint` is
