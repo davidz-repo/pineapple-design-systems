@@ -33,17 +33,8 @@ packages/
 apps/
   gallery/            @pineappleui/gallery            private   Ladle gallery; renders every package's stories
   site/               @pineappleui/site               private   reference site (docs, examples, playground) → designpineapple.com
-scripts/
-  check-publish-contract.mjs                                    publish + task-coverage guard
-  check-token-drift.mjs                                         no hand-typed copies of a token list
-  check-peer-externals.mjs                                      peers stay peers, and stay out of dist/
-  check-toolchain-hoist.mjs                                     the root owns its node_modules/ top slots
-  check-toolchain-agreement.mjs                                 two manifests declaring one module declare one range
-  check-alias-fences.mjs                                        the gallery's three alias lists agree
-  check-ci-invariants.mjs                                       the cache's two keys pair, the guard lists agree, scripts/ stays linted
-  check-ref-tests.mjs                                           a package that forwards a ref proves the ref arrives
-  check-peer-placement.mjs                                      a peer of any workspace is in no publishable package's dependencies or optionalDependencies
-Makefile                                                        the two local dev servers; wraps each app's own npm script
+scripts/              eleven guards; see "What verify checks" below
+Makefile              the two local dev servers; wraps each app's own npm script
 ```
 
 ## Working on it
@@ -51,72 +42,60 @@ Makefile                                                        the two local de
 ```bash
 make ladle            # the story gallery on http://localhost:6006
 make site             # designpineapple.com on http://localhost:6007
-npm run verify        # the pre-build guards, then build + lint + test + typecheck, then the rest
+npm run verify        # the guards, then build + lint + test + typecheck
 ```
 
-Both `make` targets install first when `package-lock.json` has moved, so a dependency added
-in any workspace does not surface later as an unresolved import from whichever app you
-started next. Each wraps that app's own npm script (`npm run ladle -w @pineappleui/gallery`,
-`npm run dev -w @pineappleui/site`), which stays the place to change how it starts. Checks
-stay on npm — nothing in the build, test or release path goes through `make`.
+Both `make` targets install first when `package-lock.json` has moved, so a dependency added in
+any workspace does not surface later as an unresolved import from whichever app you started
+next. Each wraps that app's own npm script, which stays the place to change how it starts.
 
-The gallery resolves every `@pineappleui/*` import to that package's `src/`, not to its
-`dist/` — so a component edit shows up on reload with no build in between. Its `build` task
-(`ladle build`, behind a wrapper that fails the task when the build does — ladle exits 0 either
-way) is what proves in CI that every story still compiles.
+Both apps resolve every `@pineappleui/*` import to that package's `src/`, not its `dist/`, so a
+component edit shows up on reload with no build in between.
 
-`verify` runs nine guards around the four turbo tasks. Each is also a script of its own, and
-each fails with the fix in the message:
+**`turbo` is the only verification entry point.** Running a package's own `npm test` or
+`npm run typecheck` directly reads whatever is sitting in its dependencies' `dist/`, which may
+be stale — a false green. Every turbo task declares `dependsOn: ["^build"]` precisely so this
+cannot happen. Use `npm run verify`, or `npx turbo run <task>` for one task.
+
+## What `verify` checks
+
+Eleven guards around the four turbo tasks. Each is also a script of its own, and **each fails
+with the fix in its own message** — so this table says what breaks, not how to repair it.
 
 | Script | Guards against |
 |---|---|
 | `npm run check:hoist` | a dependency capturing a root-declared package's top `node_modules/` slot |
-| `npm run check:agreement` | two manifests declaring the same `devDependencies` module at different ranges — `typescript`, `vitest` and `tsup` are pinned per package, so a bump in one workspace splits the compiler, the test runner or the bundler two ways and every task stays green on both sides of the skew |
+| `npm run check:agreement` | two manifests declaring one `devDependencies` module at different ranges |
 | `npm run check:aliases` | the gallery's three `@pineappleui/*` lists drifting apart |
-| `npm run check:ci` | a turbo cache `restore-keys` that is not exactly the static portion of `key` — a salt written into one line and not the other restores everything it was meant to discard — and a guard that `scripts/`, `verify` and CI do not all three name, or whose CI step can be skipped — and a `scripts/` lint missing one of its three legs: the root `lint:scripts` script, the `//#lint:scripts` turbo task, and the `lint` task's `dependsOn` entry that reaches it, of which the script and the entry both go green when deleted |
-| `npm run check:refs` | a package whose props carry a `ref` and whose tests never check that the ref arrives — an implementation that accepts the prop and drops it renders, lays out and passes every class-name assertion above it |
-| `npm run check:placement` | a module some workspace declares a peer sitting in a publishable package's `dependencies` or `optionalDependencies` (npm installs both by default) — the consumer supplies it by definition, so npm installs a second copy into their tree beside the one they already have. The JSX-free packages are where it hides from `check:externals`, whose assertion D accepts either field |
-| `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling workspace shipping to consumers, and a workspace running zero tasks |
+| `npm run check:ci` | a turbo cache `restore-keys` that is not the static portion of `key`, a guard that `scripts/`, `verify` and CI do not all three name, and a `scripts/` lint missing one of its three legs |
+| `npm run check:refs` | a package whose props carry a `ref` and whose tests never check that the ref arrives |
+| `npm run check:placement` | a module some workspace declares a peer sitting in a publishable package's `dependencies` or `optionalDependencies` |
+| `npm run check:publish` | a manifest that cannot publish, an entry point missing from the tarball, a `"*"` range on a sibling shipping to consumers, and a workspace running zero tasks |
+| `npm run check:props` | a package with no generated props table on the deployed site |
+| `npm run check:dts` | a published `types` entry that does not compile under a consumer's stricter options |
 | `npm run check:drift` | a hand-typed copy of a list `@pineappleui/tokens` owns |
-| `npm run check:externals` | a peer that got inlined into `dist/`, an undeclared one that did not, and a dependency only a stylesheet's `@import` names |
+| `npm run check:externals` | a peer inlined into `dist/`, an undeclared one that was not, and a dependency only a stylesheet's `@import` names |
 
-`check:hoist`, `check:agreement`, `check:aliases`, `check:ci`, `check:refs` and `check:placement`
-run *before* the build and need no build output: the first reads `package-lock.json`, so it
-answers "is the toolchain the one we declared?" before anything runs on that toolchain; the second
-reads every manifest's `devDependencies`, the root's included, and asks the half of that question
-the first cannot — `typescript`, `vitest` and `tsup` are declared per package and never at the
-root, so two workspaces on different majors of them own no root-declared slot for the first to
-check; the third reads the gallery's configs, where a missing devDependency is what would let the
-build below replay from cache without compiling the change that prompted it; the fourth reads
-`.github/workflows/ci.yml`, this `verify` chain itself and the `scripts/` listing, so a guard that
-any one of those three does not name is a failure rather than a quietly shorter run; the fifth
-reads component sources and test files, which is what qualifies the `test` task below — a package
-with no ref test is green there in exactly the words a package with one is; and the sixth reads
-one `package.json` per workspace, because a peer module misfiled into `dependencies` or
-`optionalDependencies` is a second copy shipped into the consumer's tree that every step below
-reports green over. The other three read `dist/` and run after.
-
-**`turbo` is the only verification entry point.** Running a package's own `npm test` or
-`npm run typecheck` directly reads whatever is currently sitting in its dependencies'
-`dist/`, which may be stale — that is a false green. Every turbo task `dependsOn: ["^build"]`
-precisely so this cannot happen. Use `npm run verify` from the repo root, or
-`npx turbo run <task>`.
+Six run *before* the build because they need no build output, and each answers a question the
+steps below it would otherwise report green over: the toolchain is the one we declared
+(`hoist`, `agreement`), the gallery would rebuild rather than replay a stale cache (`aliases`),
+no guard has quietly stopped running (`ci`), a ref test exists to qualify the `test` task
+(`refs`), and no peer is misfiled into a consumer's install (`placement`). The other five need
+build output and run after it.
 
 Individual tasks: `npm run build`, `npm run lint`, `npm run test`, `npm run typecheck`.
 
-`turbo run lint` also lints `scripts/` and the root `eslint.config.mjs`, through the root task
-`//#lint:scripts` that the `lint` task declares in `dependsOn`. The root is not a workspace, so
-it has no `lint` script for `turbo run lint` to find on its own — depending on the root task is
-what puts the guards inside the single `turbo run build lint test typecheck` that `verify` and
-CI already run, with nothing added to either. It uses the same `@pineappleui/eslint-config`
-factory as every package, with `react` and `typescript` off: plain Node ESM, no tsconfig here.
+`turbo run lint` also covers `scripts/` and the root `eslint.config.mjs`, through the root task
+`//#lint:scripts` that `lint` names in `dependsOn`. The root is not a workspace, so it has no
+`lint` script for `turbo run lint` to find on its own — depending on the root task is what puts
+those files inside the single `turbo run` that `verify` and CI already run.
 
 ### Every workspace accounts for all four tasks
 
 `turbo run <task>` skips a package that does not define the task **and still reports success**,
 so a missing script is not a failing check — it is no check at all, reported green. Each
 workspace therefore either defines `build`/`lint`/`test`/`typecheck`, or declares the omission
-and why in its own `package.json`:
+and why:
 
 ```jsonc
 "pineapple": {
@@ -126,49 +105,47 @@ and why in its own `package.json`:
 }
 ```
 
-`check-publish-contract.mjs` fails on any workspace that does neither, private ones included,
-and prints the fix. Declare a real gap rather than adding a script that runs and checks
-nothing — see `docs/plan.md` §"Adding a workspace later".
+`check:publish` fails any workspace that does neither, private ones included. Declare a real gap
+rather than adding a script that runs and checks nothing — see `docs/plan.md` §"Adding a
+workspace later".
 
 ### Every component that forwards a ref proves it
 
 A forwarded ref is the part of a pass-through wrapper that renders correctly while being broken.
-The components here are two lines — destructure a default, spread the rest into a Radix primitive
-— and the ref travels inside that spread. Stop spreading it and the component still renders,
-still lays out, and still passes every class-name assertion in its test file, while every
-consumer's `ref` is silently `null`. React 19 puts `ref` in `ComponentPropsWithRef`, so a
-component that accepts the prop and drops it type-checks exactly as well as one that passes it on.
+These components are two lines — destructure a default, spread the rest into a Radix primitive —
+and the ref travels inside that spread. Stop spreading it and the component still renders, still
+lays out, and still passes every class-name assertion in its test file, while every consumer's
+`ref` is silently `null`. React 19 puts `ref` in `ComponentPropsWithRef`, so a component that
+accepts the prop and drops it type-checks exactly as well as one that passes it on.
 
-`check-ref-tests.mjs` derives the packages that owe a ref test from their own sources — anything
-declaring `ComponentPropsWithRef`, `forwardRef`, re-exporting a `@radix-ui/themes` component
-whole, or declaring a props interface that `extends` another type and inherits that type's `ref`
-with it (`icons` does, through `Omit<LucideProps, …>`) — and requires of each a test titled
-`forwards refs to the underlying …` that attaches a `ref={(el) => { received = el; }}` and
-asserts `toBeInstanceOf(HTML…Element)` **on that same variable**. The chain matters: a ref
-attached to nothing beside an assertion about `container.firstChild` is green under a component
+`check:refs` derives who owes a ref test from their own sources, and requires of each a test
+titled `forwards refs to the underlying …` that attaches a `ref={(el) => { received = el; }}`
+and asserts `toBeInstanceOf(HTML…Element)` **on that same variable**. The chain matters: a ref
+attached to nothing, beside an assertion about `container.firstChild`, is green under a component
 that drops every ref. Copy `packages/box/src/Box.test.tsx`.
 
-A workspace that renders JSX outside a test and matches none of those forms is **refused**, not
-skipped, because "takes no ref" and "takes a ref this guard did not recognise" are the same
-silence. Say which it is in its own `package.json`:
+A workspace that renders JSX outside a test and matches none of the recognised forms is
+**refused**, not skipped — "takes no ref" and "takes a ref this guard did not recognise" are the
+same silence. Say which it is in its own `package.json`:
 
 ```jsonc
 "pineapple": {
-  "refTestNotApplicable": "LiveRegionProps is a hand-written list of seven props and `ref` is not one of them, so nothing reaches the element `as` names."
+  "refTestNotApplicable": "LiveRegionProps is a hand-written list of seven props and `ref` is not one of them."
 }
 ```
 
 ### Expected build output
 
 Every publishable package builds with both `treeshake` and `sourcemap` on, which makes tsup emit
-a doubled `//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, it is inherited
-from the upstream config, and it is **not** a bug to tune away.
+a doubled `//# sourceMappingURL=` comment in `dist/index.mjs`. It is harmless, inherited from the
+upstream config, and **not** a bug to tune away.
 
 `*.stories.tsx` files live next to the component they document and are typechecked and linted by
-the package that owns them. `apps/gallery` is what renders them: it globs
-`packages/*/src/**/*.stories.{ts,tsx}`, so a new package's stories appear the moment the file
-exists, with nothing to register. `ladle build` writes `apps/gallery/build/`, which is
-gitignored.
+the package that owns them. `apps/gallery` globs `packages/*/src/**/*.stories.{ts,tsx}`, so a new
+package's stories appear the moment the file exists, with nothing to register. Its `build` task
+is what proves in CI that every story still compiles — `ladle build` behind a wrapper that fails
+the task when the build does, because ladle exits 0 either way. It writes the gitignored
+`apps/gallery/build/`.
 
 ## Releasing
 
@@ -178,78 +155,24 @@ Versioning and publishing run on [changesets](https://github.com/changesets/chan
 npx changeset        # describe the change; commit the generated .changeset/*.md
 ```
 
-Merging to `main` opens (or updates) a Version PR. Merging *that* publishes to the public
-npm registry.
+Merging to `main` opens (or updates) a Version PR. Merging *that* publishes to npm.
 
-The Version PR resyncs `package-lock.json` itself. `changeset version` rewrites the workspace
-manifests only, and the bot commits without installing, so the lockfile used to ship a version
-behind what was published — `npm ci` does not fail on a workspace version-field mismatch, so
-nothing caught it. The version step now runs `npm install --package-lock-only` after it, which
-means **a Version PR touching the lockfile is expected**: reviewing one, look for version-field
-changes plus, occasionally, a re-resolved range for an unrelated dependency that published since
-the last install.
+**A Version PR touching `package-lock.json` is expected.** `changeset version` rewrites the
+workspace manifests only, and the bot commits without installing, so the lockfile used to ship a
+version behind what was published — `npm ci` does not fail on a workspace version-field mismatch,
+so nothing caught it. The version step now runs `npm install --package-lock-only` after it.
+Reviewing one, look for version-field changes plus, occasionally, a re-resolved range for an
+unrelated dependency that published since the last install.
 
-Publishable packages carry `publishConfig.access: "public"` and a `license` —
-npm defaults scoped packages to `restricted`, and a package with no license renders as
-"proprietary" to consumers' license scanners. `scripts/check-publish-contract.mjs` fails the
-build if either goes missing.
+Publishable packages carry `publishConfig.access: "public"` and a `license` — npm defaults scoped
+packages to `restricted`, and a package with no license renders as "proprietary" to consumers'
+license scanners. `check:publish` fails the build if either goes missing.
 
-## A note on `devEngines`
+## Further reading
 
-The root manifest declares `devEngines.packageManager` rather than `packageManager`. Turbo
-refuses to resolve the workspace without one of the two, and accepts only a single-major
-range. `devEngines` is never read by corepack, and `onFail: "warn"` keeps a different npm
-major from hard-failing an install — a contributor on npm 10 gets a warning, not a wall.
-
-CI does not lean on that leniency. Node 22 ships npm 10, so both workflows install npm 11
-immediately after `setup-node`; otherwise every npm step logs `EBADDEVENGINES` and the repo
-is verified by a package manager it does not declare.
-
-## A note on the root `vite` devDependency
-
-No publishable package here builds with vite — they bundle through tsup, and vitest only ever
-pulled vite in as its own peer. That undeclared, peer-hoisted copy is exactly the problem: a
-transitive that nobody names loses the top `node_modules` slot to the first package that *does*
-name one. `@ladle/react` (a devDependency of `icons` and of every Phase 2 wrapper for the
-`Story` type their stories import, and the gallery's actual renderer) declares `vite@^6`, and so
-it silently dragged the workspace-wide test runner from vite 8 down to vite 6. Declaring `vite`
-at the root pins the shared slot at 8 and pushes Ladle's 6 into its own nested copy, where it
-affects only Ladle — including when Ladle builds the gallery, which runs on that nested 6. The
-gallery's own `vite` devDependency is for its config's `defineConfig` and the `vite/client`
-types its CSS import needs, not for a second bundler.
-This is the same correction `docs/plan.md` §"Deltas from the source monorepo" already records
-for `jsdom` & co — a dependency the upstream monorepo never had to name, because an app
-workspace's hoist named it for them.
-
-The declaration alone does not stay true — a lockfile pins a resolved *version*, not ownership
-of the *slot*, so a future dependency needing another major could take it back on a routine
-`npm install`. `scripts/check-toolchain-hoist.mjs` asserts the pairing: for every dependency the
-root declares, the version `package-lock.json` records at `node_modules/<name>` must satisfy the
-root's range. The list is the root's own declared `dependencies` and `devDependencies` (today
-that is only the latter), so a new one joins the guard by being declared.
-
-What that guard proves is that the root's **declared** slots hold — not that the toolchain set is
-complete. `typescript`, `vitest` and `tsup` are pinned per-package rather than at the root, so
-they own no root-declared slot and `check:hoist` would not report two workspaces building on
-different majors of them. (`eslint` was in that list until the root declared it for
-`//#lint:scripts`; the shared slot is now asserted like any other.) That is a different problem
-(workspaces disagreeing) from the one that guard exists for (one shared slot silently changing
-hands), and `scripts/check-toolchain-agreement.mjs` is the one that holds it: every module two or
-more manifests declare in `devDependencies` — the root's own included — must be declared with the
-**same range string**. Compared as text, so `^19.0.0` and `^19.0.8` disagree here even though npm
-can satisfy both from a single copy: one decision written into every manifest that has an opinion
-about it is checkable by `grep`, where "do these two ranges overlap enough" is a re-implementation
-of npm's resolver.
-
-The two of them still stop short of the join. Agreement is about intent, and identical ranges do
-not make npm install one copy — a shared module no manifest declares at the *root* owns no top
-slot by anybody's decision, so which package ends up in `node_modules/typescript` is settled by
-whichever claimant npm hoisted, a lockfile fact nothing asserts. It is a milder gap than the one
-Ladle's `vite@^6` fell through, and the difference is the declarers: `vite` had none, so one
-hoist decided what every workspace ran, where a module nineteen manifests declare identically
-leaves each of them with a copy their own range accepts. What stays unasserted is the *shared*
-slot — which `tsc`, `vitest` or `tsup` resolves from the repo root. Declaring the module at the
-root is what moves that question into `check:hoist`'s subject.
+- [`docs/plan.md`](docs/plan.md) — what belongs here, and the port roadmap.
+- [`docs/toolchain.md`](docs/toolchain.md) — why the root declares `devEngines` and `vite`, and
+  which guard holds each.
 
 ## License
 
