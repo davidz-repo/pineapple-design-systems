@@ -14,6 +14,24 @@ on:
   push:
     branches: [main]
   pull_request:
+  # For verifying a commit whose push event never arrived. On 2026-08-06 an
+  # Actions incident throttled webhook delivery to roughly 15%, so the merge of
+  # #60 created no run at all — and a run that was never CREATED cannot be
+  # re-run, which is a different problem from one that failed. That left a new
+  # package on main with no way to ask CI about it short of pushing another
+  # commit. deploy-site.yml already carries a dispatch for the same reason.
+  #
+  # It cannot weaken the guarantee in the comment above: dispatch is an
+  # ADDITION to push and pull_request, never a substitute, so no commit stops
+  # being verified on its own.
+  #
+  # Two behaviours to know before using it. The concurrency group below falls
+  # back to `github.ref` for a dispatch, so one on main shares a group with
+  # pushes to main and is never cancelled — it queues behind an in-flight run
+  # instead of replacing it. And the changeset step at the end of this job is
+  # `if:`-gated to pull_request, so a dispatch skips it: there is no base
+  # branch to diff `--since=origin/main` against.
+  workflow_dispatch:
 
 # A new commit on a PR cancels that PR's in-flight run. Keyed on the PR number
 # so PRs never cancel each other; pushes to main fall back to the ref and are

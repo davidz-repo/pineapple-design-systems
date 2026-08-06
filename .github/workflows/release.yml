@@ -6,6 +6,18 @@ name: Release
 on:
   push:
     branches: [main]
+  # For a merge whose push event never arrived, which is the same silent
+  # non-release the comment above is about — arriving from outside the repo
+  # rather than from a filter. On 2026-08-06 an Actions incident throttled
+  # webhooks to roughly 15%, the merge of #60 created no run, and the changeset
+  # marking @pineappleui/dropdown-menu a minor sat unconsumed on main with
+  # nothing able to pick it up until some later merge happened along.
+  #
+  # Safe to run at any time, for the reason the note above already gives: the
+  # changesets action is a no-op when there is nothing to version or publish.
+  # The concurrency group below keys on `github.ref`, so a dispatch on main
+  # cannot run beside a push-triggered release — the second queues.
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
