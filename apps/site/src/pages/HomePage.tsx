@@ -33,11 +33,11 @@ const VARIANT_LABEL_ID = 'home-variant-label';
 const PROOF_POINTS: ReadonlyArray<{ label: string; detail: string }> = [
   {
     label: 'peers only',
-    detail: 'React, React DOM and Radix Themes stay peers — no package here bundles its own copy.',
+    detail: 'React, React DOM and Radix Themes stay external — nothing bundles its own copy.',
   },
   {
     label: 'per package',
-    detail: 'Every package carries its own version and changelog; upgrade one without the rest.',
+    detail: 'Own version and changelog each; upgrade one without the rest.',
   },
 ];
 
@@ -102,34 +102,28 @@ export function HomePage() {
       <div className="home-hero">
         <Stack gap="4">
           {/* Responsive, and what it buys is a LINE, not a fit: size 9 is 66px
-              at every width, and at 66px this name is 536px on one line, which
-              needs a 600px viewport — so it never fits a phone either way.
-              Re-measured for the shorter name, and it still earns its place:
-              size 8 (38.5px, 322px wide) against size 9 at the same width gives
-              1 line / 44px against 2 lines / 132px at 390px, and 2 lines / 88px
-              against 2 / 132px at 320px. On the commonest phone width that is
-              88px of hero the reader does not scroll past before reaching the
-              sentence under it.
-
-              What DID change with the name is the top end: at 536px the heading
-              clears the main column the moment the `sm` breakpoint (768px)
-              switches it to size 9, so it no longer wraps above the breakpoint
-              at all — the old name needed about 1151px for that. A heading
-              wrapping was never the defect; a heading taller than the
-              viewport's first screen is, which is what size 9 still does on a
-              phone. Nothing else on the site needs this; it is the only type on
-              the page set large enough for the width to matter. */}
+              at every width, so this name runs 536px on one line and never fits
+              a phone either way. A heading that wraps was never the defect; one
+              taller than the first screen is. At 390px, size 8 gives 1 line /
+              44px where size 9 gives 2 / 132px — 88px of hero the reader does
+              not scroll past before reaching the sentence under it. Above the
+              `sm` breakpoint (768px) the main column clears 536px, so size 9
+              does not wrap there at all. The only type on the page set large
+              enough for width to matter. */}
           <Heading as="h1" size={{ initial: '8', sm: '9' }}>Pineapple Design</Heading>
           {/* Does not say "design system" — the h1 one line up ends in
               "Design", and a subtitle that restates its own heading's words
-              spends the first thing anyone reads on nothing. */}
+              spends the first thing anyone reads on nothing.
+
+              One sentence, not two: the second used to gloss "shell" as "props
+              in, callbacks out" and then name the scope, both of which the
+              reader meets again within a screen — the proof points below say
+              what the packages guarantee, and the install line prints the
+              scope. A subtitle earns its place by saying the one thing nothing
+              else on the page does. */}
           <Text as="p" size="4" color="gray">
-            Thin, typed React wrappers over Radix Themes. Every package is a
-            shell — props in, callbacks out — published independently under the
-            {' '}
-            <code>@pineappleui</code>
-            {' '}
-            scope.
+            Thin, typed React wrappers over Radix Themes — props in, callbacks
+            out, published one package at a time.
           </Text>
 
           <Stack gap="3">
