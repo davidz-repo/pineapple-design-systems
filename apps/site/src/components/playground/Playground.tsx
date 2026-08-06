@@ -9,6 +9,7 @@ import { Text } from '@pineappleui/text';
 import { useHref, useLocation, useSearchParams } from 'react-router';
 
 import { jsxSnippet } from '../../jsx-snippet';
+import { resolveStoryArgs } from '../../stories';
 import { CodeBlock } from '../CodeBlock';
 import { placeholderFor } from './arg-placeholders';
 import { ArgControl } from './ArgControl';
@@ -39,14 +40,7 @@ const ANNOUNCEMENT_MS = 2000;
 // else (free text, booleans) lives in local state, because `?label=Click+me`
 // is noise in a shared link and a stray keystroke should not rewrite it.
 export function Playground({ story, entry }: PlaygroundProps) {
-  const defaults = useMemo(() => ({
-    ...Object.fromEntries(
-      Object.entries(story.argTypes ?? {})
-        .filter(([, argType]) => argType.defaultValue !== undefined)
-        .map(([name, argType]) => [name, argType.defaultValue]),
-    ),
-    ...story.args,
-  }), [story]);
+  const defaults = useMemo(() => resolveStoryArgs(story), [story]);
 
   const urlArgNames = useMemo(
     () => Object.keys(defaults).filter(name => story.argTypes?.[name]?.options !== undefined),

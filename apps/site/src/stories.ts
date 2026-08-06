@@ -26,7 +26,13 @@ export type StoryModule = Record<string, unknown>;
 
 // Lazy on purpose: each package page pulls only its own story chunk. Path is
 // relative to THIS file (src/ -> repo root is three levels up).
-const storyModules = import.meta.glob<StoryModule>(
+//
+// Exported because `stories.smoke.test.tsx` renders every story in it, and the
+// point of that suite is that its subject list is this glob rather than a list
+// somebody maintains: a new package's stories are covered the day the package
+// lands, and a package that stops matching this pattern stops being rendered by
+// the SITE too, which is the failure the suite is really about.
+export const storyModules = import.meta.glob<StoryModule>(
   '../../../packages/*/src/**/*.stories.{ts,tsx}',
 );
 
@@ -54,4 +60,29 @@ export const storySourceFor = cachedLoader(storySources);
 // { title }` object — a story is always a render function.
 export function isStoryExport(value: unknown): value is StoryExport {
   return typeof value === 'function';
+}
+
+/**
+ * A story's initial args: its `argTypes` defaultValues, overlaid by its `args`.
+ * The same resolution Ladle applies, and the reason a story is rendered with
+ * these rather than with nothing — a `Playground` declares its subject through
+ * `argTypes` alone, so rendering it bare is rendering a different component
+ * than the gallery and the site both show.
+ *
+ * Here rather than in `Playground.tsx` because the smoke suite needs the same
+ * answer, and two copies of it would drift into two definitions of "what this
+ * story is" — the one the site draws and the one the tests approve.
+ *
+ * @param story the story export, with whatever Ladle metadata it carries
+ * @returns the args to render it with; empty for a story that declares none
+ */
+export function resolveStoryArgs(story: StoryExport): Record<string, unknown> {
+  return {
+    ...Object.fromEntries(
+      Object.entries(story.argTypes ?? {})
+        .filter(([, argType]) => argType.defaultValue !== undefined)
+        .map(([name, argType]) => [name, argType.defaultValue]),
+    ),
+    ...story.args,
+  };
 }
