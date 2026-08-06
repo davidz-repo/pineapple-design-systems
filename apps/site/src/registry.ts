@@ -61,6 +61,20 @@ export interface RegistryEntry {
   radix?: RadixReference;
 }
 
+// What the DropdownMenu playground's preview actually renders inside its panel.
+// Spelled out rather than left as a `{/* items */}` placeholder: a menu with no
+// items is the empty `role="menu"` this package's own README forbids, and the
+// snippet is the one artifact on this site designed to be pasted. `icon-button`
+// set the same form by emitting a real `<Icon name="copy" />`.
+const DROPDOWN_MENU_ITEMS = [
+  '<DropdownMenu.Item>Copy link</DropdownMenu.Item>',
+  '<DropdownMenu.Item>Duplicate</DropdownMenu.Item>',
+  '<DropdownMenu.Item>Rename…</DropdownMenu.Item>',
+  '<DropdownMenu.Item>Export as CSV</DropdownMenu.Item>',
+  '<DropdownMenu.Separator />',
+  '<DropdownMenu.Item color="crimson">Delete</DropdownMenu.Item>',
+].join('\n');
+
 export const REGISTRY: readonly RegistryEntry[] = [
   {
     slug: 'theme',
@@ -153,18 +167,33 @@ export const REGISTRY: readonly RegistryEntry[] = [
     // the future Select, which holds a value and whose items are nouns.
     blurb: 'A trigger that discloses a list of commands — the menu-button pattern.',
     // The whole tree, not just the part the args land on: every playground arg
-    // is a `Content` prop, and a snippet showing `Content` alone is a fragment
-    // that does not compile — a menu is three elements or it is nothing.
-    snippet: args => jsxSnippet(
-      'DropdownMenu.Root',
-      {},
-      [
+    // except `modal` is a `Content` prop, and a snippet showing `Content` alone
+    // is a fragment that does not compile — a menu is three elements or it is
+    // nothing.
+    //
+    // `Root`'s open tag is written by hand for one reason: `modal` is the story's
+    // only `Root` arg, its value is `false`, and `jsxSnippet` drops `false` from
+    // attributes (an omitted boolean is the default everywhere else on this site).
+    // Passing it through would emit a bare `<DropdownMenu.Root>` beside a
+    // non-modal preview — exactly the lie "the snippet below is the code that
+    // renders it" exists to prevent.
+    snippet: ({ modal, ...content }) => {
+      const children = [
         '<DropdownMenu.Trigger>',
-        '  <Button variant="soft">Actions</Button>',
+        '  <Button variant="soft">',
+        '    Actions',
+        '    <Icon name="chevron-down" size="sm" />',
+        '  </Button>',
         '</DropdownMenu.Trigger>',
-        jsxSnippet('DropdownMenu.Content', args, '{/* DropdownMenu.Item children */}'),
-      ].join('\n'),
-    ),
+        jsxSnippet('DropdownMenu.Content', content, DROPDOWN_MENU_ITEMS),
+      ]
+        .join('\n')
+        .split('\n')
+        .map(line => `  ${line}`)
+        .join('\n');
+      const open = modal === false ? '<DropdownMenu.Root modal={false}>' : '<DropdownMenu.Root>';
+      return `${open}\n${children}\n</DropdownMenu.Root>`;
+    },
     radix: { name: 'DropdownMenu', path: 'components/dropdown-menu' },
   },
   {

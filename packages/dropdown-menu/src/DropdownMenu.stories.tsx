@@ -18,6 +18,18 @@ import type { Story } from '@ladle/react';
 // make the docs page around it inert while the reader is trying to use the
 // controls beside it. Every story below is a trigger you press.
 //
+// ONE EXCEPTION, and it is deliberate: `Playground` passes `modal={false}`, and
+// exposes it as a control. Every one of its args is a thing you can only see with
+// the panel open, and under the default `modal` the reader's click on `variant` is
+// spent dismissing the panel instead of changing it — worse for a screen-reader
+// reader, who loses the args pane, the code block and the sidebar from the
+// accessibility tree while the panel is up. Non-modal, the panel stays open across
+// an arg change and redraws in place. The eleven Examples keep the default,
+// because scroll-locked and page-inert is what this component does in production
+// and showing that is their job; being tunable is the Playground's. A reader who
+// flips the control to `true` feels the difference, which teaches the prop better
+// than the sentence in its table row.
+//
 // The trigger is a real `@pineappleui/button` and the chevron a real
 // `@pineappleui/icons` glyph, both story-only devDependencies here. Radix ships
 // a `TriggerIcon` and this package deliberately does not re-export it: the system
@@ -51,12 +63,16 @@ function StandardItems() {
   );
 }
 
+// Trigger labels in the variant demos read like a real button — `Actions (soft)`,
+// the form `icon-button`'s own variant demo set — rather than the bare enum value.
+// A lower-cased code token in a real button on the docs canvas is the one place
+// this package's own sentence-case rule would be broken by its own examples.
 export function Sizes() {
   return (
     <div style={PANEL_STYLE}>
       {(['1', '2'] as const).map(size => (
         <DropdownMenu.Root key={size}>
-          <ActionsTrigger label={`size ${size}`} />
+          <ActionsTrigger label={`Actions (size ${size})`} />
           <DropdownMenu.Content size={size}>
             <StandardItems />
           </DropdownMenu.Content>
@@ -71,7 +87,7 @@ export function Variants() {
     <div style={PANEL_STYLE}>
       {(['solid', 'soft'] as const).map(variant => (
         <DropdownMenu.Root key={variant}>
-          <ActionsTrigger label={variant} />
+          <ActionsTrigger label={`Actions (${variant})`} />
           <DropdownMenu.Content variant={variant}>
             <StandardItems />
           </DropdownMenu.Content>
@@ -173,18 +189,71 @@ export function CheckboxItems() {
 }
 
 export function RadioItems() {
-  const [format, setFormat] = useState('csv');
+  const [sortBy, setSortBy] = useState('name');
 
   return (
     <div style={PANEL_STYLE}>
       <DropdownMenu.Root>
-        <ActionsTrigger label="Export as" />
+        <ActionsTrigger label="Sort by" />
         <DropdownMenu.Content>
-          <DropdownMenu.RadioGroup value={format} onValueChange={setFormat}>
-            <DropdownMenu.RadioItem value="csv">CSV</DropdownMenu.RadioItem>
-            <DropdownMenu.RadioItem value="json">JSON</DropdownMenu.RadioItem>
-            <DropdownMenu.RadioItem value="pdf">PDF</DropdownMenu.RadioItem>
+          {/* A persistent VIEW SETTING is the canonical menu radio group: it
+              changes what the reader is looking at and it sticks. "Pick an export
+              format" reads as a form value, and a form value belongs in a select
+              — which is the boundary this whole package is drawn on. */}
+          <DropdownMenu.RadioGroup value={sortBy} onValueChange={setSortBy}>
+            <DropdownMenu.RadioItem value="name">Name</DropdownMenu.RadioItem>
+            <DropdownMenu.RadioItem value="modified">Date modified</DropdownMenu.RadioItem>
+            <DropdownMenu.RadioItem value="size">Size</DropdownMenu.RadioItem>
           </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    </div>
+  );
+}
+
+export function UnavailableStates() {
+  return (
+    <div style={PANEL_STYLE}>
+      {/* Unavailable RIGHT NOW stays in the menu, disabled, so its shape does
+          not shift under the reader. Unavailable ALWAYS should not be here. */}
+      <DropdownMenu.Root>
+        <ActionsTrigger label="Actions (one unavailable)" />
+        <DropdownMenu.Content>
+          <DropdownMenu.Item>Copy link</DropdownMenu.Item>
+          <DropdownMenu.Item disabled>Duplicate</DropdownMenu.Item>
+          <DropdownMenu.Item>Rename…</DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+
+      {/* Never an empty `role="menu"`: an open box with nothing in it reads as
+          broken, and zero `menuitem`s is a dead end for a screen reader.
+          Better still, disable the trigger when there is nothing to offer. */}
+      <DropdownMenu.Root>
+        <ActionsTrigger label="Actions (nothing to offer)" />
+        <DropdownMenu.Content>
+          <DropdownMenu.Item disabled>No actions available</DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+
+      {/* Loading and error are the consumer's to compose, out of the same
+          disabled item — this package holds no data. The panel keeps the width
+          it will have, so it does not jump when the real items land. */}
+      <DropdownMenu.Root>
+        <ActionsTrigger label="Actions (loading)" />
+        <DropdownMenu.Content>
+          <DropdownMenu.Item disabled>Loading…</DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+
+      <DropdownMenu.Root>
+        <ActionsTrigger label="Actions (failed)" />
+        <DropdownMenu.Content>
+          <DropdownMenu.Item disabled>Couldn’t load actions</DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          {/* preventDefault keeps the panel open, so the retry lands in place. */}
+          <DropdownMenu.Item onSelect={event => event.preventDefault()}>
+            Try again
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
     </div>
@@ -221,8 +290,12 @@ export function WithSubmenu() {
               and on ArrowRight with one, which is fine with a pointer or a
               keyboard and close to unusable on a touch screen. Three levels deep
               is unhittable. */}
+          {/* `Move to`, with no ellipsis: the trailing `…` is reserved for "opens
+              a dialog asking for more input", and Radix already draws a chevron on
+              a sub-trigger. Two contradictory signals on one row is worse than
+              either. */}
           <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger>Move to…</DropdownMenu.SubTrigger>
+            <DropdownMenu.SubTrigger>Move to</DropdownMenu.SubTrigger>
             <DropdownMenu.SubContent>
               <DropdownMenu.Item>Inbox</DropdownMenu.Item>
               <DropdownMenu.Item>Archive</DropdownMenu.Item>
@@ -241,15 +314,26 @@ export function LongList() {
   return (
     <div style={PANEL_STYLE}>
       <DropdownMenu.Root>
-        <ActionsTrigger label="Move to…" />
+        <ActionsTrigger label="Move to" />
         <DropdownMenu.Content>
-          {/* Deliberately too long, so the failure is visible in the gallery
-              rather than discovered in production: an item is a fixed-height flex
-              row, so a label that wraps overflows it. Keep labels short; if one
-              must be long, clip it with `textOverflow` on the item and give
-              `textValue` the whole string so typeahead still matches it. */}
-          <DropdownMenu.Item textValue="Quarterly revenue reconciliation, EMEA, final">
+          {/* The failure and its remedy, side by side. First, deliberately too
+              long, so the overflow is visible in the gallery rather than
+              discovered in production: an item is a fixed-height flex row, so a
+              label that wraps overflows it. No `textValue` here — Radix falls back
+              to the rendered text, so restating the same string would be a no-op
+              dressed up as configuration. */}
+          <DropdownMenu.Item>
             Quarterly revenue reconciliation, EMEA, final
+          </DropdownMenu.Item>
+          {/* Then the remedy from the README's Recipes: clip it, give the pointer
+              a `title`, and give typeahead the WHOLE string — which here really
+              differs from what is rendered, since the rendered text is cut off. */}
+          <DropdownMenu.Item
+            title="Quarterly revenue reconciliation, APAC, final"
+            textValue="Quarterly revenue reconciliation, APAC, final"
+            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            Quarterly revenue reconciliation, APAC, final
           </DropdownMenu.Item>
           {Array.from({ length: 24 }, (_, index) => `Project ${index + 1}`).map(label => (
             <DropdownMenu.Item key={label}>{label}</DropdownMenu.Item>
@@ -275,7 +359,7 @@ export function AlignmentAndSide() {
     <div style={{ ...PANEL_STYLE, paddingTop: 120, paddingBottom: 120 }}>
       {placements.map(({ side, align }) => (
         <DropdownMenu.Root key={`${side}-${align}`}>
-          <ActionsTrigger label={`${side} / ${align}`} />
+          <ActionsTrigger label={`Actions (${side} / ${align})`} />
           {/* The panel may still FLIP to the opposite side when there is no room;
               `data-side` on it reports where it actually landed, which is what
               the open animation reads. */}
@@ -319,7 +403,10 @@ export function InsideAScrollContainer() {
 }
 
 // Interactive playground: change size/variant/colour/placement from the
-// "Controls" form and press the trigger to see the panel.
+// "Controls" form and press the trigger to see the panel. `modal` is a control of
+// its own here, defaulting to `false` — see the exception at the top of this file
+// for why this one story is not modal, and flip it to `true` to feel what the
+// default does to the page around it.
 interface PlaygroundArgs {
   size: NonNullable<DropdownMenu.ContentProps['size']>;
   variant: NonNullable<DropdownMenu.ContentProps['variant']>;
@@ -328,11 +415,12 @@ interface PlaygroundArgs {
   side: NonNullable<DropdownMenu.ContentProps['side']>;
   align: NonNullable<DropdownMenu.ContentProps['align']>;
   loop: boolean;
+  modal: boolean;
 }
 
-export const Playground: Story<PlaygroundArgs> = ({ color, ...rest }) => (
+export const Playground: Story<PlaygroundArgs> = ({ color, modal, ...rest }) => (
   <div style={{ padding: 24 }}>
-    <DropdownMenu.Root>
+    <DropdownMenu.Root modal={modal}>
       <ActionsTrigger />
       <DropdownMenu.Content
         {...rest}
@@ -349,6 +437,7 @@ export const Playground: Story<PlaygroundArgs> = ({ color, ...rest }) => (
 Playground.args = {
   highContrast: false,
   loop: true,
+  modal: false,
 };
 
 Playground.argTypes = {

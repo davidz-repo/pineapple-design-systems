@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { CATEGORIES, REGISTRY } from './registry';
+import { bySlug, CATEGORIES, REGISTRY } from './registry';
 import { listPublicPackages, readPackageManifest } from './test-helpers';
 
 const RADIX_THEMES = '@radix-ui/themes';
@@ -51,4 +51,38 @@ it('every Radix reference is a relative docs path', () => {
       expect(radix.path).not.toMatch(/^\w+:|^\/\//);
     }
   }
+});
+
+// DropdownMenu's snippet is the only one on this site whose own args disagree
+// with `jsxSnippet`'s omission rules, and the only one whose subject is invisible
+// until you interact with it. Both halves are pinned here.
+it('emits a DropdownMenu snippet that matches the preview it sits beside', () => {
+  const snippet = bySlug.get('dropdown-menu')?.snippet?.({
+    size: '2',
+    variant: 'solid',
+    side: 'bottom',
+    align: 'start',
+    loop: true,
+    highContrast: false,
+    color: '',
+    modal: false,
+  });
+
+  expect(
+    snippet,
+    'the DropdownMenu snippet dropped `modal={false}`, so it now shows a modal menu beside a '
+    + 'non-modal preview. jsxSnippet filters `false` out of attributes on purpose (an omitted '
+    + 'boolean is the default everywhere else here), which is why the Root open tag in registry.ts '
+    + 'writes this one out by hand.',
+  ).toContain('<DropdownMenu.Root modal={false}>');
+
+  expect(
+    snippet,
+    'the DropdownMenu snippet no longer emits the items its preview renders. Pasting it would '
+    + 'produce the empty `role="menu"` the package README forbids — the one artifact on this site '
+    + 'designed to be copied, demonstrating the thing the docs say never to ship.',
+  ).toContain('<DropdownMenu.Item color="crimson">Delete</DropdownMenu.Item>');
+  expect(snippet).not.toContain('{/*');
+  // The chevron the preview draws on the trigger, and the import it earns.
+  expect(snippet).toContain('<Icon name="chevron-down" size="sm" />');
 });
