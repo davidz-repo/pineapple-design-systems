@@ -46,6 +46,8 @@ export default defineConfig({
       '@pineappleui/button': path.resolve(galleryDir, '../../packages/button/src/index.ts'),
       '@pineappleui/card/': `${path.resolve(galleryDir, '../../packages/card/src')}/`,
       '@pineappleui/card': path.resolve(galleryDir, '../../packages/card/src/index.ts'),
+      '@pineappleui/dropdown-menu/': `${path.resolve(galleryDir, '../../packages/dropdown-menu/src')}/`,
+      '@pineappleui/dropdown-menu': path.resolve(galleryDir, '../../packages/dropdown-menu/src/index.ts'),
       '@pineappleui/heading/': `${path.resolve(galleryDir, '../../packages/heading/src')}/`,
       '@pineappleui/heading': path.resolve(galleryDir, '../../packages/heading/src/index.ts'),
       '@pineappleui/icon-button/': `${path.resolve(galleryDir, '../../packages/icon-button/src')}/`,

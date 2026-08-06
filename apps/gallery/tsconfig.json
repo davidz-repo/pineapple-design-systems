@@ -17,6 +17,8 @@
       "@pineappleui/button": ["../../packages/button/src/index.ts"],
       "@pineappleui/card/*": ["../../packages/card/src/*"],
       "@pineappleui/card": ["../../packages/card/src/index.ts"],
+      "@pineappleui/dropdown-menu/*": ["../../packages/dropdown-menu/src/*"],
+      "@pineappleui/dropdown-menu": ["../../packages/dropdown-menu/src/index.ts"],
       "@pineappleui/heading/*": ["../../packages/heading/src/*"],
       "@pineappleui/heading": ["../../packages/heading/src/index.ts"],
       "@pineappleui/icon-button/*": ["../../packages/icon-button/src/*"],

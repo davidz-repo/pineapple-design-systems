@@ -146,6 +146,28 @@ export const REGISTRY: readonly RegistryEntry[] = [
     radix: { name: 'IconButton', path: 'components/icon-button' },
   },
   {
+    slug: 'dropdown-menu',
+    name: 'DropdownMenu',
+    category: 'Forms & actions',
+    // "commands", not "options" — that one word is the whole boundary against
+    // the future Select, which holds a value and whose items are nouns.
+    blurb: 'A trigger that discloses a list of commands — the menu-button pattern.',
+    // The whole tree, not just the part the args land on: every playground arg
+    // is a `Content` prop, and a snippet showing `Content` alone is a fragment
+    // that does not compile — a menu is three elements or it is nothing.
+    snippet: args => jsxSnippet(
+      'DropdownMenu.Root',
+      {},
+      [
+        '<DropdownMenu.Trigger>',
+        '  <Button variant="soft">Actions</Button>',
+        '</DropdownMenu.Trigger>',
+        jsxSnippet('DropdownMenu.Content', args, '{/* DropdownMenu.Item children */}'),
+      ].join('\n'),
+    ),
+    radix: { name: 'DropdownMenu', path: 'components/dropdown-menu' },
+  },
+  {
     slug: 'text-field',
     name: 'TextField',
     category: 'Forms & actions',

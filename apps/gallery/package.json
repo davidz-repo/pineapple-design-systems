@@ -21,6 +21,7 @@
     "@pineappleui/box": "*",
     "@pineappleui/button": "*",
     "@pineappleui/card": "*",
+    "@pineappleui/dropdown-menu": "*",
     "@pineappleui/eslint-config": "*",
     "@pineappleui/heading": "*",
     "@pineappleui/icon-button": "*",
