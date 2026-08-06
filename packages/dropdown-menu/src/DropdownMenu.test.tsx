@@ -422,6 +422,47 @@ describe('@pineappleui/dropdown-menu opening, closing and focus return', () => {
     });
   });
 
+  // The asymmetry this closes: Radix's own trigger handler returns on `disabled`
+  // before it looks at the key, so `Enter`, `Space` and `ArrowDown` were already
+  // refused here — while `ArrowUp`, the key this package ADDS, opened the menu.
+  //
+  // Asserted as all four keys rather than as ArrowUp alone, because the claim is
+  // symmetry with Radix and not "ArrowUp is ignored": the other three are what
+  // establish that a disabled trigger is supposed to refuse, and they would be
+  // the thing that changed if upstream ever moved that guard.
+  //
+  // Reachable in a real browser despite a `disabled` button firing no keydown:
+  // a trigger that carries the state as `aria-disabled`, or an `asChild` child
+  // that takes the prop and renders something other than `<button disabled>`,
+  // stays focusable and keeps firing keydown. Keeping a disabled control
+  // focusable is the accessible pattern.
+  it('refuses every opening key on a disabled trigger, ArrowUp included', () => {
+    renderMenu(
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger disabled>
+          {/* aria-disabled, not the attribute: this is the shape that stays
+              focusable and so still delivers the keydown. */}
+          <button type="button" aria-disabled="true">Actions</button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content>
+          <DropdownMenu.Item>Copy link</DropdownMenu.Item>
+          <DropdownMenu.Item>Delete</DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>,
+    );
+
+    for (const key of ['Enter', ' ', 'ArrowDown', 'ArrowUp']) {
+      fireEvent.keyDown(trigger(), { key });
+      expect(
+        screen.queryByRole('menu'),
+        `a disabled trigger opened the menu on ${key === ' ' ? 'Space' : key}. Radix refuses all `
+        + 'four by returning early on its own `disabled` prop; the ArrowUp branch in '
+        + 'DropdownMenu.tsx has to make the same check, because it runs before Radix\'s handler '
+        + 'and reads the same prop rather than the DOM.',
+      ).toBeNull();
+    }
+  });
+
   it('does not carry a refused ArrowUp into the next pointer open', async () => {
     renderMenu(<RefusesFirstChange />);
     fireEvent.keyDown(trigger(), { key: 'ArrowUp' });
