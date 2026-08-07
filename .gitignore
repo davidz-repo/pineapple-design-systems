@@ -28,3 +28,16 @@ apps/site/generated/
 
 .DS_Store
 *.log
+
+# Editor state. No `**/` twin: a pattern with no leading or middle slash already
+# matches at every depth, so `.vscode` alone covers nested workspaces too.
+.vscode
+
+# Claude Code local state. `worktrees/` holds real git worktrees checked out
+# inside the repo, so leaving `.claude/` unignored parks gigabytes of nested
+# checkouts in `git status`. `settings.local.json` is per-machine, and today is
+# only ignored via `~/.config/git/ignore` — which is per-clone and unversioned,
+# so no fresh clone or collaborator inherits it.
+# Scoped rather than a bare `.claude/`, to leave room for shared config later.
+.claude/worktrees/
+.claude/settings.local.json
