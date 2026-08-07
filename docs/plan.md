@@ -652,7 +652,7 @@ Decisions worth recording, in the same spirit as the gallery section above:
   verified account-wide first so nobody else can attach it), then Enforce HTTPS once
   the certificate is issued. The site's vite `base` is `'/'` because the custom
   domain serves from the root; without the domain, Pages falls back to
-  `/pineapple-design-systems/` and the base must change with it.
+  `/pineapple-design-system/` and the base must change with it.
 
 The section above is what the site IS. How it got there — the three-wave overhaul of
 2026-08-04/05, PR by PR, what each review caught, and the follow-ups and product questions

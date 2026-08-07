@@ -48,10 +48,10 @@ describe('appCrash', () => {
     // has to be the app's root and not the SERVER's: `/` would land on a page
     // this app was never deployed at. `useHref` is what makes the difference,
     // and nothing can tell it from a literal until the basename is not empty.
-    await renderApp('/pineapple-design-systems/', undefined, '/pineapple-design-systems');
+    await renderApp('/pineapple-design-system/', undefined, '/pineapple-design-system');
 
     expect(screen.getByRole('link', { name: 'Reload the site' }))
-      .toHaveAttribute('href', expect.stringContaining('/pineapple-design-systems'));
+      .toHaveAttribute('href', expect.stringContaining('/pineapple-design-system'));
 
     consoleError.mockRestore();
   });

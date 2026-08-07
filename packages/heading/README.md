@@ -1,14 +1,14 @@
 # @pineappleui/heading
 
 The heading primitive for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a
 [`@radix-ui/themes`](https://www.radix-ui.com/themes) `Heading` that gives each semantic level a
 default size, so `<Heading as="h3">` looks like an h3 without being told to.
 
 That default is the whole addition. Radix's `as` sets the tag and nothing else, which means an
 unstyled `h1` through `h6` all render at the same size and the document outline stops matching
 what the page looks like. Body copy is
-[`@pineappleui/text`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/text).
+[`@pineappleui/text`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/text).
 
 ```bash
 npm install @pineappleui/heading

@@ -1,7 +1,7 @@
 # @pineappleui/theme
 
 The theme layer for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — the two providers
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — the two providers
 every other package renders inside, the global stylesheet they need, and the snippet that paints
 the stored theme before any of it loads.
 

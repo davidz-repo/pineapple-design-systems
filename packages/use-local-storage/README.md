@@ -1,6 +1,6 @@
 # @pineappleui/use-local-storage
 
-A React hook for [`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) that
+A React hook for [`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) that
 keeps a piece of state in sync with `localStorage` — read once on mount, written on every set.
 
 ```bash

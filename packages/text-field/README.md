@@ -1,14 +1,14 @@
 # @pineappleui/text-field
 
 The single-line text input for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a thin wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a thin wrapper over
 [`@radix-ui/themes`](https://www.radix-ui.com/themes)' `TextField`, so call sites reach for the
 design system rather than importing Radix directly.
 
 No styling of its own, no state, no effects: it renders a native `<input>` and passes everything
 through. The point is the indirection — a change of default, or a swap of the layer underneath,
 happens here once instead of at every import site. Multi-line input is
-[`@pineappleui/text-area`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/text-area).
+[`@pineappleui/text-area`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/text-area).
 
 ```bash
 npm install @pineappleui/text-field

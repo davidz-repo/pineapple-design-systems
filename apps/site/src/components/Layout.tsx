@@ -12,7 +12,7 @@ import { PineappleMark } from './PineappleMark';
 import { Sidebar } from './Sidebar';
 import { ThemeControls } from './ThemeControls';
 
-const REPO_URL = 'https://github.com/davidz-repo/pineapple-design-systems';
+const REPO_URL = 'https://github.com/davidz-repo/pineapple-design-system';
 const NPM_ORG_URL = 'https://www.npmjs.com/org/pineappleui';
 const RADIX_THEMES_URL = 'https://www.radix-ui.com/themes';
 

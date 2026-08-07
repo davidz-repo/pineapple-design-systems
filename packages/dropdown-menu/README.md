@@ -1,7 +1,7 @@
 # @pineappleui/dropdown-menu
 
 The menu button for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a wrapper over
 [`@radix-ui/themes`](https://www.radix-ui.com/themes)' `DropdownMenu`, so call sites reach for the
 design system rather than importing Radix directly.
 

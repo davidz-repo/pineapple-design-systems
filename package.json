@@ -1,15 +1,15 @@
 {
-  "name": "pineapple-design-systems",
+  "name": "pineapple-design-system",
   "private": true,
   "license": "MIT",
   "description": "Monorepo for @pineappleui \u2014 a presentational React design system.",
-  "homepage": "https://github.com/davidz-repo/pineapple-design-systems#readme",
+  "homepage": "https://github.com/davidz-repo/pineapple-design-system#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/davidz-repo/pineapple-design-systems.git"
+    "url": "https://github.com/davidz-repo/pineapple-design-system.git"
   },
   "bugs": {
-    "url": "https://github.com/davidz-repo/pineapple-design-systems/issues"
+    "url": "https://github.com/davidz-repo/pineapple-design-system/issues"
   },
   "engines": {
     "node": ">=22"

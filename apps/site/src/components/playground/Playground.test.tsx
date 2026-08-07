@@ -178,7 +178,7 @@ it('keeps the router basename in the copied link', async () => {
   // useLocation reports the path with the basename stripped; a link built from
   // it alone would 404 wherever the app is not served from the root — which is
   // where this site lands the day its custom domain comes off.
-  const basename = '/pineapple-design-systems';
+  const basename = '/pineapple-design-system';
   await renderPlayground(`${basename}${PATH}?variant=soft`, basename);
 
   await clickButton('Copy link');

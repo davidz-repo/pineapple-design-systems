@@ -9,7 +9,7 @@ name: Deploy reference site
 # the API will accept a deployment — and set Custom domain to
 # designpineapple.com. The site's vite `base` is '/' on the assumption the
 # custom domain is attached; without it Pages serves from
-# /pineapple-design-systems/ and every asset URL in the build points one path
+# /pineapple-design-system/ and every asset URL in the build points one path
 # segment too high.
 #
 # Deploys from main only. CI (ci.yml) has already verified every commit that

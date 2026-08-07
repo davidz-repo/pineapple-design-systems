@@ -1,15 +1,15 @@
 # @pineappleui/icon-button
 
 The icon-only button for
-[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — a thin wrapper over
+[`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — a thin wrapper over
 [`@radix-ui/themes`](https://www.radix-ui.com/themes)' `IconButton`, so call sites reach for the
 design system rather than importing Radix directly.
 
 Same indirection as
-[`@pineappleui/button`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/button),
+[`@pineappleui/button`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/button),
 with the square geometry a single glyph wants instead of the padding a text label wants. It ships
 no glyphs of its own — the icon is the child you pass, from
-[`@pineappleui/icons`](https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/icons)
+[`@pineappleui/icons`](https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/icons)
 or anywhere else.
 
 ```bash

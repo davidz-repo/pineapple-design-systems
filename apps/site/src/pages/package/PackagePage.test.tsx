@@ -282,7 +282,7 @@ describe('package links', () => {
 
     expect(links.getByRole('link', { name: /^View source/ })).toHaveAttribute(
       'href',
-      'https://github.com/davidz-repo/pineapple-design-systems/tree/main/packages/button',
+      'https://github.com/davidz-repo/pineapple-design-system/tree/main/packages/button',
     );
     expect(links.getByRole('link', { name: /^npm/ })).toHaveAttribute(
       'href',
@@ -361,7 +361,7 @@ describe('package links', () => {
     expect(radix).toHaveAttribute('href', 'https://www.radix-ui.com/themes');
     expect(radix).toHaveAttribute('target', '_blank');
     const [repo] = screen.getAllByRole('link', { name: '@pineappleui' });
-    expect(repo).toHaveAttribute('href', 'https://github.com/davidz-repo/pineapple-design-systems');
+    expect(repo).toHaveAttribute('href', 'https://github.com/davidz-repo/pineapple-design-system');
   });
 });
 

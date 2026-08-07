@@ -1,6 +1,6 @@
 # @pineappleui/tokens
 
-Design tokens for [`@pineappleui`](https://github.com/davidz-repo/pineapple-design-systems) — the
+Design tokens for [`@pineappleui`](https://github.com/davidz-repo/pineapple-design-system) — the
 accent-colour vocabulary and the theme-preference types that every other package in the system
 derives from.
 

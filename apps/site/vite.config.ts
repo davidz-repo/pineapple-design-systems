@@ -72,7 +72,7 @@ export default defineConfig({
   // The site is served from the root of its custom domain
   // (https://designpineapple.com — repo Settings → Pages → Custom domain), so
   // the base is '/'. If the custom domain ever comes off, Pages falls back to
-  // the project path and this must become '/pineapple-design-systems/'.
+  // the project path and this must become '/pineapple-design-system/'.
   base: '/',
   plugins: [react(), foucScriptPlugin(), spaFallbackPlugin()],
   server: {
